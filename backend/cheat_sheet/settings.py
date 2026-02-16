@@ -5,13 +5,24 @@ Django settings for cheat_sheet project.
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+if not SECRET_KEY:
+    if DEBUG:
+        # Development-only secret key. Do NOT use this in production.
+        SECRET_KEY = "django-insecure-dev-secret-key-change-me"
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY environment variable is not set. "
+            "Set it to a securely generated value before running in production."
+        )
 
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
 
