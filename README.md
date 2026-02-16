@@ -50,6 +50,6 @@ npm run dev
 docker compose up --build
 ```
 
-This will build everything
+This will build and start both the Django backend and the React frontend services using Docker.
 
 The app will be available at `http://localhost:5173/`. API requests are proxied to the Django backend.
