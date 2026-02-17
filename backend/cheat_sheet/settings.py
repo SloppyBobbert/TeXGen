@@ -25,9 +25,11 @@ if not SECRET_KEY:
         )
 
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
-    if host.strip()
+    host
+    for host in (
+        h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+    )
+    if host
 ]
 
 INSTALLED_APPS = [
