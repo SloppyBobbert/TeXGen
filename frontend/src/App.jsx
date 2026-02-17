@@ -9,8 +9,19 @@ function App() {
     const { signal } = controller
 
     fetch('/api/health/', { signal })
-      .then((res) => res.json())
-      .then((data) => setStatus(data.status))
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Health check request failed')
+        }
+        return res.json()
+      })
+      .then((data) => {
+        if (data && typeof data.status === 'string') {
+          setStatus(data.status)
+        } else {
+          setStatus('error')
+        }
+      })
       .catch((error) => {
         if (error.name === 'AbortError') {
           return
