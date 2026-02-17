@@ -5,10 +5,22 @@ function App() {
   const [status, setStatus] = useState(null)
 
   useEffect(() => {
-    fetch('/api/health/')
+    const controller = new AbortController()
+    const { signal } = controller
+
+    fetch('/api/health/', { signal })
       .then((res) => res.json())
       .then((data) => setStatus(data.status))
-      .catch(() => setStatus('error'))
+      .catch((error) => {
+        if (error.name === 'AbortError') {
+          return
+        }
+        setStatus('error')
+      })
+
+    return () => {
+      controller.abort()
+    }
   }, [])
 
   return (
