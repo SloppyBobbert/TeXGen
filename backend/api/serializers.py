@@ -1,1 +1,1 @@
-from rest_framework import serializers
+# DRF serializers for the backend API will be added here.
