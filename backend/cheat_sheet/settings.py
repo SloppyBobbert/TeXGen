@@ -24,7 +24,13 @@ if not SECRET_KEY:
             "Set it to a securely generated value before running in production."
         )
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+ALLOWED_HOSTS = [
+    host
+    for host in (
+        h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+    )
+    if host
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
