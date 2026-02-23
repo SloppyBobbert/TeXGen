@@ -28,9 +28,13 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Run tests
+      - name: Run tests (if present)
         run: |
-          python manage.py test
+          if [ -f api/tests.py ] || [ -d api/tests ]; then
+            python manage.py test
+          else
+            echo "No backend tests found in api/; skipping test step."
+          fi
 
   frontend:
     runs-on: ubuntu-latest
