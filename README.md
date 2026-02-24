@@ -1,5 +1,7 @@
 # cheat-sheet
 
+[![CI](https://github.com/ChicoState/cheat-sheet/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ChicoState/cheat-sheet/actions/workflows/ci.yml)
+
 A full-stack web application built with **React** (frontend) and **Django** (backend).
 
 ## Project Structure
