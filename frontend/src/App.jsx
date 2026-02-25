@@ -1,45 +1,44 @@
 import { useState, useEffect } from 'react'
 import './App.css'
+import CreateCheatSheet from './components/CreateCheatSheet';
 
 function App() {
-  const [status, setStatus] = useState(null)
+  const [cheatSheet, setCheatSheet] = useState({ title: '', content: '' });
 
   useEffect(() => {
-    const controller = new AbortController()
-    const { signal } = controller
-
-    fetch('/api/health/', { signal })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error('Health check request failed')
-        }
-        return res.json()
-      })
-      .then((data) => {
-        if (data && typeof data.status === 'string') {
-          setStatus(data.status)
-        } else {
-          setStatus('error')
-        }
-      })
-      .catch((error) => {
-        if (error.name === 'AbortError') {
-          return
-        }
-        setStatus('error')
-      })
-
-    return () => {
-      controller.abort()
+    const savedSheet = localStorage.getItem('currentCheatSheet');
+    if (savedSheet) {
+      try {
+        setCheatSheet(JSON.parse(savedSheet));
+      } catch (e) {
+        console.error("Failed to parse sheet", e);
+      }
     }
-  }, [])
+  }, []);
+
+  const handleSave = (data, showFeedback = true) => {
+    setCheatSheet(data);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(data));
+    if (showFeedback) {
+      alert('Progress saved!');
+    }
+  };
 
   return (
     <div className="App">
-      <h1>Cheat Sheet</h1>
-      <p>Backend status: {status ?? 'loading...'}</p>
+      <header className="app-header">
+        <h1>Cheat Sheet Manager</h1>
+        <p>Write cheat sheets with LaTeX support</p>
+      </header>
+      <main>
+        <CreateCheatSheet 
+          initialData={cheatSheet} 
+          onSave={handleSave} 
+          onCancel={() => {}} 
+        />
+      </main>
     </div>
-  )
+  );
 }
 
 export default App

@@ -26,10 +26,6 @@ cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-# create a .env file in the backend/ directory with the required settings, for example:
-# DJANGO_SECRET_KEY=your-dev-secret-key
-# DJANGO_DEBUG=True
-# DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 python manage.py migrate
 python manage.py runserver
 ```
