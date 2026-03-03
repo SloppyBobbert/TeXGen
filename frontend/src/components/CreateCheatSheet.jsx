@@ -72,7 +72,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       setPdfBlob(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF check backend.');
+      alert('Failed to generate PDF. Please check the backend service.');
     } finally {
       setIsLoading(false);
     }
