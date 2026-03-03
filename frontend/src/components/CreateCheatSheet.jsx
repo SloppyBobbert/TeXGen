@@ -1,15 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
-import 'katex/dist/katex.min.css';
-import ReactMarkdown from 'react-markdown';
-import rehypeKatex from 'rehype-katex';
-import remarkMath from 'remark-math';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+import React, { useState, useEffect } from 'react';
+
+const mathFormulas = {
+  Algebra: {
+    "Linear Eq.": [
+      { name: "Slope-Intercept", latex: "y = mx + b" },
+      { name: "Point-Slope", latex: "y - y_1 = m(x - x_1)" },
+      { name: "Standard Form", latex: "Ax + By = C" }
+    ],
+    "Quadratic Eq.": [
+      { name: "Quadratic Formula", latex: "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}" },
+      { name: "Vertex Form", latex: "y = a(x-h)^2 + k" },
+      { name: "Standard Form", latex: "y = ax^2 + bx + c" }
+    ],
+    "Exponents": [
+      { name: "Product Rule", latex: "x^a \\cdot x^b = x^{a+b}" },
+      { name: "Quotient Rule", latex: "\\frac{x^a}{x^b} = x^{a-b}" },
+      { name: "Power Rule", latex: "(x^a)^b = x^{ab}" },
+      { name: "Negative Exponent", latex: "x^{-a} = \\frac{1}{x^a}" }
+    ],
+    "Logarithms": [
+      { name: "Product Rule", latex: "\\log_b(xy) = \\log_b(x) + \\log_b(y)" },
+      { name: "Quotient Rule", latex: "\\log_b(\\frac{x}{y}) = \\log_b(x) - \\log_b(y)" },
+      { name: "Power Rule", latex: "\\log_b(x^k) = k \\log_b(x)" },
+      { name: "Change of Base", latex: "\\log_b(x) = \\frac{\\log_c(x)}{\\log_c(b)}" }
+    ]
+  },
+  Geometry: {
+    "Area": [
+      { name: "Circle", latex: "A = \\pi r^2" },
+      { name: "Triangle", latex: "A = \\frac{1}{2}bh" },
+      { name: "Rectangle", latex: "A = lw" }
+    ]
+  }
+};
 
 const CreateCheatSheet = ({ onSave, onCancel, initialData }) => {
   const [title, setTitle] = useState(initialData ? initialData.title : '');
   const [content, setContent] = useState(initialData ? initialData.content : '');
-  const previewRef = useRef(null);
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // States for formula selector
+  const [activeSubject, setActiveSubject] = useState('Algebra');
+  const [activeCategory, setActiveCategory] = useState('Quadratic Eq.');
+
 
   useEffect(() => {
     if (initialData) {
@@ -23,46 +57,45 @@ const CreateCheatSheet = ({ onSave, onCancel, initialData }) => {
     onSave({ title, content });
   };
 
-  const handleDownloadPDF = async () => {
-    if (!previewRef.current) return;
-
+  const handlePreview = async () => {
+    setIsLoading(true);
     try {
-      // Create canvas from the preview element
-      // Temporarily remove styles that might mess up the PDF
-      const originalStyle = previewRef.current.style.cssText;
-      // Force clean background and no border for capture
-      previewRef.current.style.border = 'none';
-      previewRef.current.style.boxShadow = 'none';
-      previewRef.current.style.background = '#ffffff';
-
-      const canvas = await html2canvas(previewRef.current, {
-        scale: 2, 
-        useCORS: true, 
-        backgroundColor: '#ffffff',
-        logging: false,
-        x: 0,
-        y: 0,
-        width: previewRef.current.offsetWidth, 
-        height: previewRef.current.offsetHeight
+      const response = await fetch('http://localhost:8000/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
       });
+      if (!response.ok) {
+        throw new Error('Failed to compile LaTeX');
+      }
+      const blob = await response.blob();
+      setPdfBlob(URL.createObjectURL(blob));
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF check backend.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // Restore original styles
-      previewRef.current.style.cssText = originalStyle;
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4'
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
       });
-
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-      // Add image to PDF - if height is greater than page, it will cut off. 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${title || 'cheat-sheet'}.pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to compile LaTeX');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title || 'cheat-sheet'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Check console for details.');
@@ -73,8 +106,13 @@ const CreateCheatSheet = ({ onSave, onCancel, initialData }) => {
     if (window.confirm('Are you sure you want to clear the editor? This cannot be undone.')) {
       setTitle('');
       setContent('');
-      onSave({ title: '', content: '' }, false); // Auto-save the cleared state, without popup
+      setPdfBlob(null);
+      onSave({ title: '', content: '' }, false);
     }
+  };
+
+  const insertFormula = (formulaLatex) => {
+    setContent(prevContent => prevContent + (prevContent.endsWith('\n') ? '' : '\n') + `\\[ ${formulaLatex} \\]\n`);
   };
 
   return (
@@ -92,30 +130,84 @@ const CreateCheatSheet = ({ onSave, onCancel, initialData }) => {
             className="input-field"
           />
         </div>
+
+        <div className="subjects-container">
+          <div className="subject-tabs">
+            {Object.keys(mathFormulas).map(subject => (
+              <button
+                key={subject}
+                type="button"
+                className={`subject-tab ${activeSubject === subject ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveSubject(subject);
+                  setActiveCategory(Object.keys(mathFormulas[subject])[0]);
+                }}
+              >
+                {subject}
+              </button>
+            ))}
+          </div>
+
+          {activeSubject && mathFormulas[activeSubject] && (
+            <div className="category-tabs">
+              {Object.keys(mathFormulas[activeSubject]).map(category => (
+                <button
+                  key={category}
+                  type="button"
+                  className={`category-tab ${activeCategory === category ? 'active' : ''}`}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeSubject && activeCategory && mathFormulas[activeSubject][activeCategory] && (
+            <div className="formulas-container">
+              {mathFormulas[activeSubject][activeCategory].map(formula => (
+                <button
+                  key={formula.name}
+                  type="button"
+                  className="formula-btn"
+                  onClick={() => insertFormula(formula.latex)}
+                  title={formula.latex}
+                >
+                  {formula.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         
         <div className="editor-container">
           <div className="input-section">
-            <label htmlFor="content">Content (Markdown + LaTeX supported):</label>
+            <label htmlFor="content">Content (LaTeX Supported via Tectonic):</label>
             <textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter your content here. Use **bold**, # Header, and $E=mc^2$ for math."
+              placeholder="Enter your LaTeX content here. Use \begin{document} ... \end{document} or simple text."
               className="textarea-field"
+              rows={15}
             />
           </div>
           
           <div className="preview-section">
-            <label>Preview:</label>
-            <div className="preview-box" ref={previewRef}>
-              <div className="latex-content">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkMath]} 
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {content}
-                </ReactMarkdown>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label>Preview:</label>
+                <button type="button" onClick={handlePreview} className="btn preview" disabled={isLoading}>
+                {isLoading ? 'Compiling...' : 'Preview PDF'}
+                </button>
+            </div>
+            <div className="preview-box">
+              {pdfBlob ? (
+                  <iframe src={pdfBlob} width="100%" height="400px" title="PDF Preview" style={{ border: 'none' }} />
+              ) : (
+                  <div className="latex-content" style={{ padding: '20px', color: '#666' }}>
+                    Click Preview PDF to render the LaTeX document via Tectonic.
+                  </div>
+              )}
             </div>
           </div>
         </div>
