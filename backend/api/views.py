@@ -26,7 +26,7 @@ def compile_latex(request):
     # Create a temporary directory to run tectonic
     with tempfile.TemporaryDirectory() as tempdir:
         tex_file_path = os.path.join(tempdir, "document.tex")
-        with open(tex_file_path, "w") as f:
+        with open(tex_file_path, "w", encoding="utf-8") as f:
             f.write(content)
         
         try:
