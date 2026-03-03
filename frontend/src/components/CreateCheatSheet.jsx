@@ -34,7 +34,7 @@ const mathFormulas = {
   }
 };
 
-const CreateCheatSheet = ({ onSave, onCancel, initialData }) => {
+const CreateCheatSheet = ({ onSave, initialData }) => {
   const [title, setTitle] = useState(initialData ? initialData.title : '');
   const [content, setContent] = useState(initialData ? initialData.content : '');
   const [pdfBlob, setPdfBlob] = useState(null);
