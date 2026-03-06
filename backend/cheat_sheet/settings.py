@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -16,7 +17,6 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 if not SECRET_KEY:
     if DEBUG:
-        # Development-only secret key. Do NOT use this in production.
         SECRET_KEY = "django-insecure-dev-secret-key-change-me"
     else:
         raise ImproperlyConfigured(
@@ -27,7 +27,10 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = [
     host
     for host in (
-        h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+        h.strip()
+        for h in os.getenv(
+            "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0"
+        ).split(",")
     )
     if host
 ]
@@ -77,15 +80,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "cheat_sheet.wsgi.application"
 
+# Database — uses DATABASE_URL env var, falls back to SQLite for local dev
 DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
-        "NAME": os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")),
-        "USER": os.getenv("DB_USER", ""),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", ""),
-        "PORT": os.getenv("DB_PORT", ""),
-    }
+    "default": dj_database_url.config(
+        default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
+        conn_max_age=600,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
