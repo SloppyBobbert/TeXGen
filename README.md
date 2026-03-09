@@ -13,34 +13,6 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **PDF Export**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as .tex source or .pdf
 
-## Architecture
-
-```mermaid
-flowchart TB
-    subgraph Client["Frontend (React + Vite)"]
-        UI[User Interface]
-        SplitView["Split View\\nLaTeX & PDF"]
-    end
-    
-    subgraph Server["Backend (Django)"]
-        API[REST API]
-        FormulaData["Formula Data\\nby Class"]
-        LatexGen[LaTeX Generator]
-    end
-    
-    subgraph Engine["Tectonic LaTeX"]
-        Tectonic[Tectonic Binary]
-    end
-    
-    User((User)) --> UI
-    UI --> API
-    API --> FormulaData
-    FormulaData --> LatexGen
-    LatexGen --> Tectonic
-    Tectonic --> PDF[PDF File]
-    API --> SplitView
-    SplitView --> User
-```
 
 ## Planned Features
 
