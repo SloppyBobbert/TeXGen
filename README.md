@@ -19,12 +19,12 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 flowchart TB
     subgraph Client["Frontend (React + Vite)"]
         UI[User Interface]
-        SplitView["Split View\nLaTeX & PDF"]
+        SplitView["Split View\\nLaTeX & PDF"]
     end
     
     subgraph Server["Backend (Django)"]
         API[REST API]
-        FormulaData["Formula Data\nby Class"]
+        FormulaData["Formula Data\\nby Class"]
         LatexGen[LaTeX Generator]
     end
     
