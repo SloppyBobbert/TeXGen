@@ -14,6 +14,15 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **Download Options**: Download as .tex source or .pdf
 
 
+## To-Do / Known Issues
+
+- Fix bugs:
+  - Dark mode (complete variable coverage, remove hardcoded colors)
+  - Compile button not working after changes
+- Implement or migrate database (currently MariaDB; consider migration if needed)
+- Increase formatting options (columns, margins, text sizing, etc.)
+
+
 ## Planned Features
 
 > These features are not yet implemented
@@ -22,10 +31,13 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
   - Column layout (single, two, three columns)
   - Text sizes (font scaling)
   - Margin adjustments
-- **Image Insertion**: Add images directly into your cheat sheet
+- **Image Insertion**:
+  - Allow users to insert images, store them in the database
+  - Embed images in PDF and keep code reference in exported .tex
 - **User Accounts**: Register and log in with username and password
 - **Database Storage**: Save and manage cheat sheets in database
 - **Autosave & Version History**: Every compile is saved automatically; revert to any previous version
+- **Custom LaTeX Syntax Shortcuts**: Allow users to use shortcuts for custom LaTeX commands
 
 ## Tech Stack
 
