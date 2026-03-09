@@ -1,3 +1,24 @@
+:root {
+  --bg: #18181c;
+  --text: #f2f2f2;
+  --panel-bg: #23232b;
+  --border: #333;
+  --primary: #3b82f6;
+  --card-bg: #23232b;
+  --box-bg: #222127;
+  --input-bg: #18181c;
+  --input-border: #444550;
+  --input-text: #dbeaff;
+  --btn-primary: #3b82f6;
+  --btn-primary-hover: #2563eb;
+  --btn-download: #22c55e;
+  --btn-download-hover: #16a34a;
+  --btn-clear: #ef4444;
+  --btn-clear-hover: #b91c1c;
+  --btn-preview: #a78bfa;
+  --btn-preview-hover: #7c3aed;
+}
+
 .App {
   max-width: 100%;
   margin: 0;
@@ -6,7 +27,7 @@
 }
 
 .create-cheat-sheet {
-  background: white;
+  background: var(--panel-bg);
   padding: 0.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -16,7 +37,7 @@
 .create-cheat-sheet h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--text);
 }
 
 .editor-container {
@@ -43,7 +64,7 @@
   padding: 1rem;
   font-family: 'Consolas', monospace;
   font-size: 14px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   resize: vertical;
   box-sizing: border-box;
@@ -53,7 +74,7 @@
   width: 100%;
   padding: 0.8rem;
   margin-bottom: 1.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 1.1rem;
 }
@@ -82,36 +103,36 @@
 }
 
 .btn.primary {
-  background-color: #3498db;
+  background-color: var(--btn-primary);
   color: white;
 }
 
 .btn.primary:hover {
-  background-color: #2980b9;
+  background-color: var(--btn-primary-hover);
 }
 
 .btn.download {
-  background-color: #27ae60;
+  background-color: var(--btn-download);
   color: white;
 }
 
 .btn.download:hover {
-  background-color: #2ecc71;
+  background-color: var(--btn-download-hover);
 }
 
 .btn.clear {
-  background-color: #e74c3c;
+  background-color: var(--btn-clear);
   color: white;
 }
 
 .btn.clear:hover {
-  background-color: #c0392b;
+  background-color: var(--btn-clear-hover);
 }
 
 .preview-box {
-  background: white;
+  background: var(--box-bg);
   padding: 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 4px;
   min-height: 1000px;
   height: 100%;
@@ -135,8 +156,8 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1rem;
-  background: white;
-  border: 2px solid #ddd;
+  background: var(--panel-bg);
+  border: 2px solid var(--border);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
@@ -147,12 +168,12 @@
 
 .class-checkbox-label:hover {
   border-color: #3498db;
-  background: #f0f7ff;
+  background: var(--card-bg);
 }
 
 .class-checkbox-label.checked {
   border-color: #3498db;
-  background: #e8f4fd;
+  background: #222a34;
   color: #2980b9;
   font-weight: 600;
 }
@@ -162,8 +183,8 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.4rem 0.8rem;
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
@@ -173,12 +194,12 @@
 
 .category-checkbox-label:hover {
   border-color: #3498db;
-  background: #f0f7ff;
+  background: var(--card-bg);
 }
 
 .category-checkbox-label.checked {
   border-color: #3498db;
-  background: #e8f4fd;
+  background: #222a34;
   color: #2980b9;
 }
 
@@ -200,12 +221,12 @@
 }
 
 .btn.preview {
-  background-color: #8e44ad;
+  background-color: var(--btn-preview);
   color: white;
 }
 
 .btn.preview:hover {
-  background-color: #7d3c98;
+  background-color: var(--btn-preview-hover);
 }
 
 .btn.preview:disabled {
@@ -218,7 +239,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: #8e44ad;
+  background-color: var(--btn-preview);
   color: white;
   font-size: 1.5rem;
   display: flex;
@@ -233,7 +254,7 @@
 }
 
 .compile-circle:hover:not(:disabled) {
-  background-color: #7d3c98;
+  background-color: var(--btn-preview-hover);
   transform: rotate(90deg);
 }
 
@@ -246,8 +267,8 @@
 .formula-selection {
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: #f8f9fa;
-  border: 1px solid #e2e8f0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 
@@ -266,7 +287,7 @@
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--text);
 }
 
 .category-checkboxes {
@@ -280,7 +301,7 @@
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--text);
 }
 
 /* ---- Footer ---- */
@@ -301,6 +322,6 @@
 }
 
 .app-footer a:hover {
-  color: #333;
+  color: var(--text);
   background-color: #f0f0f0;
 }
