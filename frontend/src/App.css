@@ -13,75 +13,6 @@
   margin-bottom: 2rem;
 }
 
-.subjects-container {
-  margin-bottom: 20px;
-}
-
-.subject-tabs {
-  display: flex;
-  margin-bottom: 10px;
-  border-bottom: 1px solid #ddd;
-}
-
-.subject-tab {
-  padding: 8px 16px;
-  background: #f0f2f5;
-  border: none;
-  border-radius: 4px 4px 0 0;
-  margin-right: 5px;
-  cursor: pointer;
-  font-weight: 600;
-  color: #333;
-}
-
-.subject-tab.active {
-  background: #e2e8f0;
-}
-
-.category-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-}
-
-.category-tab {
-  padding: 6px 12px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #666;
-}
-
-.category-tab.active {
-  background: #5b9bd5;
-  border-color: #5b9bd5;
-  color: white;
-}
-
-.formulas-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.formula-btn {
-  padding: 8px 16px;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.95rem;
-  transition: background 0.2s;
-}
-
-.formula-btn:hover {
-  background: #f9f9f9;
-}
-
 .create-cheat-sheet h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
@@ -193,14 +124,6 @@
 }
 
 /* ---- Class selection checkboxes ---- */
-.class-selection {
-  margin-bottom: 1.5rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-
 .class-checkboxes {
   display: flex;
   flex-wrap: wrap;
@@ -267,7 +190,7 @@
   cursor: not-allowed;
 }
 
-/* ---- 3-Level Formula Selection ---- */
+/* ---- Formula selection ---- */
 .formula-selection {
   margin-bottom: 1.5rem;
   padding: 1rem;
@@ -276,135 +199,6 @@
   border-radius: 8px;
   max-height: 400px;
   overflow-y: auto;
-}
-
-.selection-tree {
-  margin-bottom: 1rem;
-}
-
-.class-block {
-  margin-bottom: 0.5rem;
-}
-
-.class-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.8rem;
-  background: white;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.15s ease;
-}
-
-.class-header:hover {
-  border-color: #3498db;
-  background: #f0f7ff;
-}
-
-.class-header.has-selection {
-  border-color: #3498db;
-  background: #e8f4fd;
-  color: #2980b9;
-}
-
-.expand-icon {
-  font-size: 0.75rem;
-  color: #666;
-  width: 16px;
-}
-
-.selection-count {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: #3498db;
-  margin-left: auto;
-}
-
-.category-list {
-  margin-left: 1.5rem;
-  margin-top: 0.5rem;
-}
-
-.category-block {
-  margin-bottom: 0.3rem;
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.6rem;
-  background: #f8f9fa;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.15s ease;
-}
-
-.category-header:hover {
-  background: #f0f0f0;
-}
-
-.category-name {
-  font-weight: 500;
-  color: #555;
-}
-
-.select-all-label {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-left: auto;
-  font-size: 0.8rem;
-  color: #666;
-  cursor: pointer;
-}
-
-.select-all-label input[type="checkbox"] {
-  accent-color: #3498db;
-  width: 14px;
-  height: 14px;
-}
-
-.formula-list {
-  margin-left: 1.5rem;
-  padding: 0.4rem 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.formula-label {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.6rem;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.15s ease;
-}
-
-.formula-label:hover {
-  border-color: #3498db;
-  background: #f5f9ff;
-}
-
-.formula-label input[type="checkbox"] {
-  accent-color: #3498db;
-  width: 14px;
-  height: 14px;
-}
-
-.formula-name {
-  color: #444;
 }
 
 /* ---- Class + Dropdown Selection ---- */
