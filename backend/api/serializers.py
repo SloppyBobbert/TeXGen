@@ -34,7 +34,7 @@ class PracticeProblemSerializer(serializers.ModelSerializer):
 
 
 class CheatSheetSerializer(serializers.ModelSerializer):
-    practice_problems = PracticeProblemSerializer(many=True, read_only=True)
+    problems = PracticeProblemSerializer(many=True, read_only=True)
     full_latex = serializers.SerializerMethodField()
 
     class Meta:
@@ -47,7 +47,7 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "margins",
             "columns",
             "font_size",
-            "practice_problems",
+            "problems",
             "full_latex",
             "created_at",
             "updated_at",

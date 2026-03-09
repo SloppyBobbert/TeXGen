@@ -19,22 +19,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.14.3"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -r requirements.txt
 
-      - name: Run tests (if present)
-        run: |
-          if [ -f api/tests.py ] || [ -d api/tests ]; then
-            python manage.py test
-          else
-            echo "No backend tests found in api/; skipping test step."
-          fi
+      - name: Lint Python
+        run: ruff check .
+
+      - name: Security audit
+        run: safety check
+
+      - name: Run tests
+        run: pytest -v
 
   frontend:
     runs-on: ubuntu-latest
@@ -57,6 +58,7 @@ jobs:
 
       - name: Build
         run: npm run build
+
   docker-build:
     runs-on: ubuntu-latest
     steps:

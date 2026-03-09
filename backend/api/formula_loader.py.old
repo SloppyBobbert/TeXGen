@@ -6,7 +6,6 @@ Each .tex file has lines in the format:
     Formula Name | \\latex_code_here
 """
 
-import os
 from pathlib import Path
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates_data"

@@ -7,17 +7,18 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
 
-  // Class selection state
-  const [availableClasses, setAvailableClasses] = useState([]);
-  const [selectedClasses, setSelectedClasses] = useState([]);
+  // Formula selection state
+  const [classesData, setClassesData] = useState([]);
+  const [selectedClasses, setSelectedClasses] = useState({}); // { "ClassName": true }
+  const [selectedCategories, setSelectedCategories] = useState({}); // { "ClassName:CategoryName": true }
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Fetch the list of available classes from the backend on mount
+  // Fetch the full class/category/formula structure from backend
   useEffect(() => {
     fetch('/api/classes/')
       .then((res) => res.json())
       .then((data) => {
-        setAvailableClasses(data.classes || []);
+        setClassesData(data.classes || []);
       })
       .catch((err) => console.error('Failed to fetch classes', err));
   }, []);
@@ -29,21 +30,69 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     }
   }, [initialData]);
 
-  // Toggle a class in the selected list
+  // Toggle class selection
   const toggleClass = (className) => {
     setSelectedClasses((prev) => {
-      const alreadySelected = prev.indexOf(className) !== -1;
-      if (alreadySelected) {
-        return prev.filter((c) => c !== className);
+      const newSelected = { ...prev };
+      if (newSelected[className]) {
+        delete newSelected[className];
+        // Clear categories for this class
+        Object.keys(selectedCategories).forEach((key) => {
+          if (key.startsWith(className + ':')) {
+            delete newSelected[key];
+          }
+        });
+      } else {
+        newSelected[className] = true;
       }
-      return [...prev, className];
+      return newSelected;
     });
   };
 
-  // Ask the backend to build the LaTeX code for the selected classes
+  // Toggle category selection
+  const toggleCategory = (className, categoryName) => {
+    const key = `${className}:${categoryName}`;
+    setSelectedCategories((prev) => {
+      const newSelected = { ...prev };
+      if (newSelected[key]) {
+        delete newSelected[key];
+      } else {
+        newSelected[key] = true;
+      }
+      return newSelected;
+    });
+  };
+
+  // Get selected formulas for API
+  const getSelectedFormulasList = () => {
+    const formulas = [];
+    
+    // For each selected class and category, get all formulas
+    classesData.forEach((cls) => {
+      if (!selectedClasses[cls.name]) return;
+      
+      cls.categories.forEach((cat) => {
+        const key = `${cls.name}:${cat.name}`;
+        if (selectedCategories[key]) {
+          cat.formulas.forEach((f) => {
+            formulas.push({
+              class: cls.name,
+              category: cat.name,
+              name: f.name
+            });
+          });
+        }
+      });
+    });
+    
+    return formulas;
+  };
+
+  // Generate LaTeX from selected formulas
   const handleGenerateSheet = async () => {
-    if (selectedClasses.length === 0) {
-      alert('Please select at least one class first.');
+    const selectedList = getSelectedFormulasList();
+    if (selectedList.length === 0) {
+      alert('Please select at least one category first.');
       return;
     }
 
@@ -52,12 +101,11 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       const response = await fetch('/api/generate-sheet/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classes: selectedClasses }),
+        body: JSON.stringify({ formulas: selectedList }),
       });
       if (!response.ok) throw new Error('Failed to generate sheet');
       const data = await response.json();
       setContent(data.tex_code);
-      // Clear any old preview since the code changed
       setPdfBlob(null);
     } catch (error) {
       console.error('Error generating sheet:', error);
@@ -113,7 +161,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     }
   };
 
-  // Download the .tex source code directly
   const handleDownloadTex = () => {
     if (!content) {
       alert('No LaTeX code to download. Generate a sheet first.');
@@ -140,10 +187,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       setTitle('');
       setContent('');
       setPdfBlob(null);
-      setSelectedClasses([]);
+      setSelectedClasses({});
+      setSelectedCategories({});
       onSave({ title: '', content: '' }, false);
     }
   };
+
+  const selectedCount = getSelectedFormulasList().length;
+  const hasSelectedClasses = Object.keys(selectedClasses).length > 0;
 
   return (
     <div className="create-cheat-sheet">
@@ -164,60 +215,108 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           />
         </div>
 
-        {/* Step 1: Class Selection */}
-        <div className="class-selection">
+        {/* Class Selection with Dropdowns */}
+        <div className="formula-selection">
           <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
             Step 1: Select your class(es)
           </label>
+          
+          {/* Class Checkboxes */}
           <div className="class-checkboxes">
-            {availableClasses.map((cls) => {
-              const isChecked = selectedClasses.indexOf(cls) !== -1;
+            {classesData.map((cls) => {
+              const isChecked = !!selectedClasses[cls.name];
               return (
-                <label key={cls} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={() => toggleClass(cls)}
+                    onChange={() => toggleClass(cls.name)}
                   />
-                  {cls}
+                  {cls.name}
                 </label>
               );
             })}
           </div>
 
-          {/* Step 2: Generate button */}
+          {/* Category Dropdowns for selected classes */}
+          {hasSelectedClasses && (
+            <div className="category-dropdowns">
+              <label style={{ fontWeight: 'bold', marginTop: '1rem', marginBottom: '0.5rem', display: 'block' }}>
+                Step 2: Select category(ies)
+              </label>
+              
+              {classesData.map((cls) => {
+                if (!selectedClasses[cls.name]) return null;
+                
+                return (
+                  <div key={cls.name} className="class-category-section">
+                    <label className="class-category-label">{cls.name}:</label>
+                    <select
+                      multiple
+                      className="category-select"
+                      value={Object.keys(selectedCategories).filter(k => k.startsWith(cls.name + ':')).map(k => k.replace(cls.name + ':', ''))}
+                      onChange={(e) => {
+                        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                        // Clear old categories for this class
+                        setSelectedCategories((prev) => {
+                          const newSelected = { ...prev };
+                          Object.keys(newSelected).forEach((key) => {
+                            if (key.startsWith(cls.name + ':')) {
+                              delete newSelected[key];
+                            }
+                          });
+                          // Add new selections
+                          selectedOptions.forEach((catName) => {
+                            newSelected[`${cls.name}:${catName}`] = true;
+                          });
+                          return newSelected;
+                        });
+                      }}
+                    >
+                      {cls.categories.map((cat) => (
+                        <option key={cat.name} value={cat.name}>
+                          {cat.name} ({cat.formulas.length} formulas)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="category-hint">Hold Ctrl/Cmd to select multiple categories</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Generate button */}
           <button
             type="button"
             onClick={handleGenerateSheet}
             className="btn primary generate-btn"
-            disabled={isGenerating || selectedClasses.length === 0}
+            disabled={isGenerating || selectedCount === 0}
           >
             {isGenerating ? 'Generating...' : 'Generate Cheat Sheet'}
           </button>
 
-          {selectedClasses.length > 0 && (
+          {selectedCount > 0 && (
             <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
-              Selected: {selectedClasses.join(', ')}
+              {selectedCount} formula(s) will be included
             </p>
           )}
         </div>
 
         {/* Editor + Preview */}
         <div className="editor-container">
-          {/* Left: LaTeX code output (editable so users can tweak) */}
           <div className="input-section">
             <label htmlFor="content">Generated LaTeX Code:</label>
             <textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder='Select your classes above and click "Generate Cheat Sheet" to see the LaTeX code here.'
+              placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
               className="textarea-field"
               rows={15}
             />
           </div>
 
-          {/* Right: PDF preview (only when user clicks button) */}
           <div className="preview-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label>PDF Preview:</label>

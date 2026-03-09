@@ -4,5 +4,11 @@ django-cors-headers>=4.4
 python-dotenv>=1.0,<2.0
 dj-database-url>=2.1
 pymysql>=1.1
+
+# Testing
 pytest>=8.0
 pytest-django>=4.8
+
+# Development (linting, security)
+ruff>=0.4.0
+safety>=2.0
