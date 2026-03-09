@@ -64,7 +64,7 @@ def _build_latex_for_formulas(selected_formulas):
         body_lines.append("")
         
         for category_name, formulas in categories.items():
-            body_lines.append("\\subsection{" + category_name + "}")
+            body_lines.append("\\subsection*{" + category_name + "}")
             body_lines.append("")
             body_lines.append(r"\begin{flushleft}")
             

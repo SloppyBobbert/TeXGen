@@ -7,9 +7,9 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 ## Features
 
 - **Class Selection**: Choose from PRE-ALGEBRA, ALGEBRA I, ALGEBRA II, and GEOMETRY
-- **Formula Selection**: Expand classes to see categories, then select specific formulas
-- **Category Selection**: "Select All" option for quick selection of entire categories
-- **Live Preview**: Split-view interface with LaTeX code on the left and PDF preview on the right
+- **Category Selection**: Select categories with checkboxes (no Ctrl/Cmd needed)
+- **Live Preview**: Split-view interface with LaTeX code and PDF preview
+- **Auto-compile**: PDF generates automatically when you generate a cheat sheet
 - **PDF Export**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as .tex source or .pdf
 
@@ -195,8 +195,8 @@ The project includes GitHub Actions CI that runs:
 ## User Flow
 
 1. **Enter Title**: Give your cheat sheet a name
-2. **Select Class**: Click on a class (PRE-ALGEBRA, ALGEBRA I, ALGEBRA II, GEOMETRY) to expand
-3. **Select Categories**: Expand categories to see formulas, or use "Select All"
-4. **Generate**: Click "Generate Cheat Sheet" to create LaTeX
-5. **Preview**: Click "Compile & Preview" to see the PDF
+2. **Select Class**: Click on a class (PRE-ALGEBRA, ALGEBRA I, ALGEBRA II, GEOMETRY)
+3. **Select Categories**: Check the categories you want (no Ctrl/Cmd needed)
+4. **Generate**: Click "Generate Cheat Sheet" - LaTeX generates and PDF compiles automatically
+5. **Preview**: View the PDF in the preview pane, or click the circular button to recompile
 6. **Download**: Download as .tex or .pdf

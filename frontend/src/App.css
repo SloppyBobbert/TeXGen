@@ -1,13 +1,13 @@
 .App {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .create-cheat-sheet {
   background: white;
-  padding: 2rem;
+  padding: 0.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   margin-bottom: 2rem;
@@ -22,26 +22,24 @@
 .editor-container {
   display: flex !important;
   flex-direction: row !important;
-  gap: 2rem;
-  margin: 1rem 0;
+  gap: 1rem;
+  margin: 0.5rem 0;
   width: 100%;
 }
 
 .input-section {
   flex: 1;
-  min-width: 45%;
 }
 
 .preview-section {
   flex: 1;
-  min-width: 45%;
   background: transparent;
   padding: 0;
 }
 
 .textarea-field {
   width: 100%;
-  min-height: 500px;
+  min-height: 1000px;
   padding: 1rem;
   font-family: 'Consolas', monospace;
   font-size: 14px;
@@ -112,10 +110,10 @@
 
 .preview-box {
   background: white;
-  padding: 2rem;
+  padding: 1rem;
   border: 1px solid #ddd;
   border-radius: 4px;
-  min-height: 500px;
+  min-height: 1000px;
   height: 100%;
   overflow-y: visible;
   text-align: left;
@@ -159,10 +157,35 @@
   font-weight: 600;
 }
 
-.class-checkbox-label input[type="checkbox"] {
+.category-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.category-checkbox-label:hover {
+  border-color: #3498db;
+  background: #f0f7ff;
+}
+
+.category-checkbox-label.checked {
+  border-color: #3498db;
+  background: #e8f4fd;
+  color: #2980b9;
+}
+
+.category-checkbox-label input[type="checkbox"] {
   accent-color: #3498db;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .generate-btn {
@@ -190,6 +213,35 @@
   cursor: not-allowed;
 }
 
+/* ---- Circular compile button ---- */
+.compile-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #8e44ad;
+  color: white;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.compile-circle:hover:not(:disabled) {
+  background-color: #7d3c98;
+  transform: rotate(90deg);
+}
+
+.compile-circle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ---- Formula selection ---- */
 .formula-selection {
   margin-bottom: 1.5rem;
@@ -197,8 +249,6 @@
   background: #f8f9fa;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 /* ---- Class + Dropdown Selection ---- */
@@ -219,23 +269,38 @@
   color: #333;
 }
 
-.category-select {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  font-size: 0.9rem;
-  min-height: 120px;
+.category-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
-.category-select:focus {
-  outline: none;
-  border-color: #3498db;
+.input-section label,
+.preview-section label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
 }
 
-.category-hint {
-  font-size: 0.8rem;
+/* ---- Footer ---- */
+.app-footer {
+  text-align: center;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.app-footer a {
   color: #666;
-  margin-top: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.app-footer a:hover {
+  color: #333;
+  background-color: #f0f0f0;
 }

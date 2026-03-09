@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const CreateCheatSheet = ({ onSave, initialData }) => {
   const [title, setTitle] = useState(initialData ? initialData.title : '');
@@ -6,12 +6,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
+  const isCompilingRef = useRef(false);
 
   // Formula selection state
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({}); // { "ClassName": true }
   const [selectedCategories, setSelectedCategories] = useState({}); // { "ClassName:CategoryName": true }
   const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
 
   // Fetch the full class/category/formula structure from backend
   useEffect(() => {
@@ -90,12 +92,15 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   // Generate LaTeX from selected formulas
   const handleGenerateSheet = async () => {
+    if (isGeneratingRef.current) return;
+    
     const selectedList = getSelectedFormulasList();
     if (selectedList.length === 0) {
       alert('Please select at least one category first.');
       return;
     }
 
+    isGeneratingRef.current = true;
     setIsGenerating(true);
     try {
       const response = await fetch('/api/generate-sheet/', {
@@ -107,22 +112,30 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       const data = await response.json();
       setContent(data.tex_code);
       setPdfBlob(null);
+      handlePreview(data.tex_code);
     } catch (error) {
       console.error('Error generating sheet:', error);
       alert('Failed to generate LaTeX. Is the backend running?');
     } finally {
       setIsGenerating(false);
+      isGeneratingRef.current = false;
     }
   };
 
   // Send the current LaTeX code to Tectonic for PDF preview
-  const handlePreview = async () => {
+  const handlePreview = async (latexContent = null) => {
+    if (isCompilingRef.current) return;
+    
+    const contentToCompile = latexContent || content;
+    if (!contentToCompile) return;
+    
+    isCompilingRef.current = true;
     setIsCompiling(true);
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: contentToCompile }),
       });
       if (!response.ok) throw new Error('Failed to compile LaTeX');
       const blob = await response.blob();
@@ -132,6 +145,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       alert('Failed to generate PDF. Please check the backend service.');
     } finally {
       setIsCompiling(false);
+      isCompilingRef.current = false;
     }
   };
 
@@ -198,7 +212,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   return (
     <div className="create-cheat-sheet">
-      <h2>Cheat Sheet Generator</h2>
       <form onSubmit={handleSave}>
 
         {/* Title */}
@@ -251,35 +264,22 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
                 return (
                   <div key={cls.name} className="class-category-section">
                     <label className="class-category-label">{cls.name}:</label>
-                    <select
-                      multiple
-                      className="category-select"
-                      value={Object.keys(selectedCategories).filter(k => k.startsWith(cls.name + ':')).map(k => k.replace(cls.name + ':', ''))}
-                      onChange={(e) => {
-                        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                        // Clear old categories for this class
-                        setSelectedCategories((prev) => {
-                          const newSelected = { ...prev };
-                          Object.keys(newSelected).forEach((key) => {
-                            if (key.startsWith(cls.name + ':')) {
-                              delete newSelected[key];
-                            }
-                          });
-                          // Add new selections
-                          selectedOptions.forEach((catName) => {
-                            newSelected[`${cls.name}:${catName}`] = true;
-                          });
-                          return newSelected;
-                        });
-                      }}
-                    >
-                      {cls.categories.map((cat) => (
-                        <option key={cat.name} value={cat.name}>
-                          {cat.name} ({cat.formulas.length} formulas)
-                        </option>
-                      ))}
-                    </select>
-                    <p className="category-hint">Hold Ctrl/Cmd to select multiple categories</p>
+                    <div className="category-checkboxes">
+                      {cls.categories.map((cat) => {
+                        const key = `${cls.name}:${cat.name}`;
+                        const isChecked = !!selectedCategories[key];
+                        return (
+                          <label key={cat.name} className={`category-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleCategory(cls.name, cat.name)}
+                            />
+                            {cat.name} ({cat.formulas.length} formulas)
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
@@ -317,30 +317,30 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
             />
           </div>
 
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="btn compile-circle"
+            disabled={isCompiling || !content}
+            title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+          >
+            {isCompiling ? '...' : '↻'}
+          </button>
+
           <div className="preview-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label>PDF Preview:</label>
-              <button
-                type="button"
-                onClick={handlePreview}
-                className="btn preview"
-                disabled={isCompiling || !content}
-              >
-                {isCompiling ? 'Compiling...' : 'Compile & Preview'}
-              </button>
-            </div>
+            <label>PDF Preview:</label>
             <div className="preview-box">
               {pdfBlob ? (
                 <iframe
                   src={pdfBlob}
                   width="100%"
-                  height="400px"
+                  height="100%"
                   title="PDF Preview"
                   style={{ border: 'none' }}
                 />
               ) : (
                 <div className="latex-content" style={{ padding: '20px', color: '#666' }}>
-                  Generate a sheet, then click "Compile &amp; Preview" to see the PDF.
+                  Generate a sheet to see the PDF.
                 </div>
               )}
             </div>
