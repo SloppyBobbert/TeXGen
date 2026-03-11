@@ -11,7 +11,6 @@ build/
 *.whl
 venv/
 .venv/
-env/
 .env
 db.sqlite3
 *.log
@@ -35,3 +34,31 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent/Session files
+AGENTS.md
+session-*.md
+
+# Testing/Coverage
+.pytest_cache/
+
+# Expanded environment file ignores (protects accidental secrets)
+.env.*
+frontend/.env
+backend/.env
+
+# Ignore all SQLite DBs, not just the default
+*.sqlite3
+
+# Local coverage/test artifacts (frontend & backend)
+frontend/coverage/
+backend/coverage/
+
+# LaTeX/TeX build artifacts (if any contributor compiles PDFs locally)
+*.pdf
+*.aux
+*.log
+*.out
+
+# Backup and temp files
+#*#

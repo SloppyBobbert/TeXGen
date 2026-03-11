@@ -1,49 +1,29 @@
-import React, { useState, useEffect } from 'react';
-
-const mathFormulas = {
-  Algebra: {
-    "Linear Eq.": [
-      { name: "Slope-Intercept", latex: "y = mx + b" },
-      { name: "Point-Slope", latex: "y - y_1 = m(x - x_1)" },
-      { name: "Standard Form", latex: "Ax + By = C" }
-    ],
-    "Quadratic Eq.": [
-      { name: "Quadratic Formula", latex: "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}" },
-      { name: "Vertex Form", latex: "y = a(x-h)^2 + k" },
-      { name: "Standard Form", latex: "y = ax^2 + bx + c" }
-    ],
-    "Exponents": [
-      { name: "Product Rule", latex: "x^a \\cdot x^b = x^{a+b}" },
-      { name: "Quotient Rule", latex: "\\frac{x^a}{x^b} = x^{a-b}" },
-      { name: "Power Rule", latex: "(x^a)^b = x^{ab}" },
-      { name: "Negative Exponent", latex: "x^{-a} = \\frac{1}{x^a}" }
-    ],
-    "Logarithms": [
-      { name: "Product Rule", latex: "\\log_b(xy) = \\log_b(x) + \\log_b(y)" },
-      { name: "Quotient Rule", latex: "\\log_b(\\frac{x}{y}) = \\log_b(x) - \\log_b(y)" },
-      { name: "Power Rule", latex: "\\log_b(x^k) = k \\log_b(x)" },
-      { name: "Change of Base", latex: "\\log_b(x) = \\frac{\\log_c(x)}{\\log_c(b)}" }
-    ]
-  },
-  Geometry: {
-    "Area": [
-      { name: "Circle", latex: "A = \\pi r^2" },
-      { name: "Triangle", latex: "A = \\frac{1}{2}bh" },
-      { name: "Rectangle", latex: "A = lw" }
-    ]
-  }
-};
+import React, { useState, useEffect, useRef } from 'react';
 
 const CreateCheatSheet = ({ onSave, initialData }) => {
   const [title, setTitle] = useState(initialData ? initialData.title : '');
   const [content, setContent] = useState(initialData ? initialData.content : '');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const isCompilingRef = useRef(false);
 
-  // States for formula selector
-  const [activeSubject, setActiveSubject] = useState('Algebra');
-  const [activeCategory, setActiveCategory] = useState('Quadratic Eq.');
+  // Formula selection state
+  const [classesData, setClassesData] = useState([]);
+  const [selectedClasses, setSelectedClasses] = useState({}); // { "ClassName": true }
+  const [selectedCategories, setSelectedCategories] = useState({}); // { "ClassName:CategoryName": true }
+  const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
 
+  // Fetch the full class/category/formula structure from backend
+  useEffect(() => {
+    fetch('/api/classes/')
+      .then((res) => res.json())
+      .then((data) => {
+        setClassesData(data.classes || []);
+      })
+      .catch((err) => console.error('Failed to fetch classes', err));
+  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -52,42 +32,132 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     }
   }, [initialData]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave({ title, content });
+  // Toggle class selection
+  const toggleClass = (className) => {
+    setSelectedClasses((prev) => {
+      const newSelected = { ...prev };
+      if (newSelected[className]) {
+        delete newSelected[className];
+        // Clear categories for this class
+        Object.keys(selectedCategories).forEach((key) => {
+          if (key.startsWith(className + ':')) {
+            delete newSelected[key];
+          }
+        });
+      } else {
+        newSelected[className] = true;
+      }
+      return newSelected;
+    });
   };
 
-  const handlePreview = async () => {
-    setIsLoading(true);
+  // Toggle category selection
+  const toggleCategory = (className, categoryName) => {
+    const key = `${className}:${categoryName}`;
+    setSelectedCategories((prev) => {
+      const newSelected = { ...prev };
+      if (newSelected[key]) {
+        delete newSelected[key];
+      } else {
+        newSelected[key] = true;
+      }
+      return newSelected;
+    });
+  };
+
+  // Get selected formulas for API
+  const getSelectedFormulasList = () => {
+    const formulas = [];
+    
+    // For each selected class and category, get all formulas
+    classesData.forEach((cls) => {
+      if (!selectedClasses[cls.name]) return;
+      
+      cls.categories.forEach((cat) => {
+        const key = `${cls.name}:${cat.name}`;
+        if (selectedCategories[key]) {
+          cat.formulas.forEach((f) => {
+            formulas.push({
+              class: cls.name,
+              category: cat.name,
+              name: f.name
+            });
+          });
+        }
+      });
+    });
+    
+    return formulas;
+  };
+
+  // Generate LaTeX from selected formulas
+  const handleGenerateSheet = async () => {
+    if (isGeneratingRef.current) return;
+    
+    const selectedList = getSelectedFormulasList();
+    if (selectedList.length === 0) {
+      alert('Please select at least one category first.');
+      return;
+    }
+
+    isGeneratingRef.current = true;
+    setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:8000/api/compile/', {
+      const response = await fetch('/api/generate-sheet/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ formulas: selectedList }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to compile LaTeX');
-      }
+      if (!response.ok) throw new Error('Failed to generate sheet');
+      const data = await response.json();
+      setContent(data.tex_code);
+      setPdfBlob(null);
+      handlePreview(data.tex_code);
+    } catch (error) {
+      console.error('Error generating sheet:', error);
+      alert('Failed to generate LaTeX. Is the backend running?');
+    } finally {
+      setIsGenerating(false);
+      isGeneratingRef.current = false;
+    }
+  };
+
+  // Send the current LaTeX code to Tectonic for PDF preview
+  const handlePreview = async (latexContent = null) => {
+    if (isCompilingRef.current) return;
+    
+    const contentToCompile = latexContent || content;
+    if (!contentToCompile) return;
+    
+    isCompilingRef.current = true;
+    setIsCompiling(true);
+    try {
+      const response = await fetch('/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: contentToCompile }),
+      });
+      if (!response.ok) throw new Error('Failed to compile LaTeX');
       const blob = await response.blob();
       setPdfBlob(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please check the backend service.');
     } finally {
-      setIsLoading(false);
+      setIsCompiling(false);
+      isCompilingRef.current = false;
     }
   };
 
   const handleDownloadPDF = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/compile/', {
+      const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to compile LaTeX');
-      }
+      if (!response.ok) throw new Error('Failed to compile LaTeX');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -96,29 +166,55 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Check console for details.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleDownloadTex = () => {
+    if (!content) {
+      alert('No LaTeX code to download. Generate a sheet first.');
+      return;
+    }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title || 'cheat-sheet'}.tex`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    onSave({ title, content });
+  };
+
   const handleClear = () => {
-    if (window.confirm('Are you sure you want to clear the editor? This cannot be undone.')) {
+    if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       setTitle('');
       setContent('');
       setPdfBlob(null);
+      setSelectedClasses({});
+      setSelectedCategories({});
       onSave({ title: '', content: '' }, false);
     }
   };
 
-  const insertFormula = (formulaLatex) => {
-    setContent(prevContent => prevContent + (prevContent.endsWith('\n') ? '' : '\n') + `\\[ ${formulaLatex} \\]\n`);
-  };
+  const selectedCount = getSelectedFormulasList().length;
+  const hasSelectedClasses = Object.keys(selectedClasses).length > 0;
 
   return (
     <div className="create-cheat-sheet">
-      <h2>Cheat Sheet Editor</h2>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSave}>
+
+        {/* Title */}
         <div className="form-group">
           <label htmlFor="title">Title:</label>
           <input
@@ -126,95 +222,143 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            placeholder="My Math Cheat Sheet"
             required
             className="input-field"
           />
         </div>
 
-        <div className="subjects-container">
-          <div className="subject-tabs">
-            {Object.keys(mathFormulas).map(subject => (
-              <button
-                key={subject}
-                type="button"
-                className={`subject-tab ${activeSubject === subject ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveSubject(subject);
-                  setActiveCategory(Object.keys(mathFormulas[subject])[0]);
-                }}
-              >
-                {subject}
-              </button>
-            ))}
+        {/* Class Selection with Dropdowns */}
+        <div className="formula-selection">
+          <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
+            Step 1: Select your class(es)
+          </label>
+          
+          {/* Class Checkboxes */}
+          <div className="class-checkboxes">
+            {classesData.map((cls) => {
+              const isChecked = !!selectedClasses[cls.name];
+              return (
+                <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleClass(cls.name)}
+                  />
+                  {cls.name}
+                </label>
+              );
+            })}
           </div>
 
-          {activeSubject && mathFormulas[activeSubject] && (
-            <div className="category-tabs">
-              {Object.keys(mathFormulas[activeSubject]).map(category => (
-                <button
-                  key={category}
-                  type="button"
-                  className={`category-tab ${activeCategory === category ? 'active' : ''}`}
-                  onClick={() => setActiveCategory(category)}
-                >
-                  {category}
-                </button>
-              ))}
+          {/* Category Dropdowns for selected classes */}
+          {hasSelectedClasses && (
+            <div className="category-dropdowns">
+              <label style={{ fontWeight: 'bold', marginTop: '1rem', marginBottom: '0.5rem', display: 'block' }}>
+                Step 2: Select category(ies)
+              </label>
+              
+              {classesData.map((cls) => {
+                if (!selectedClasses[cls.name]) return null;
+                
+                return (
+                  <div key={cls.name} className="class-category-section">
+                    <label className="class-category-label">{cls.name}:</label>
+                    <div className="category-checkboxes">
+                      {cls.categories.map((cat) => {
+                        const key = `${cls.name}:${cat.name}`;
+                        const isChecked = !!selectedCategories[key];
+                        return (
+                          <label key={cat.name} className={`category-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleCategory(cls.name, cat.name)}
+                            />
+                            {cat.name} ({cat.formulas.length} formulas)
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
-          {activeSubject && activeCategory && mathFormulas[activeSubject][activeCategory] && (
-            <div className="formulas-container">
-              {mathFormulas[activeSubject][activeCategory].map(formula => (
-                <button
-                  key={formula.name}
-                  type="button"
-                  className="formula-btn"
-                  onClick={() => insertFormula(formula.latex)}
-                  title={formula.latex}
-                >
-                  {formula.name}
-                </button>
-              ))}
-            </div>
+          {/* Generate button */}
+          <button
+            type="button"
+            onClick={handleGenerateSheet}
+            className="btn primary generate-btn"
+            disabled={isGenerating || selectedCount === 0}
+          >
+            {isGenerating ? 'Generating...' : 'Generate Cheat Sheet'}
+          </button>
+
+          {selectedCount > 0 && (
+            <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+              {selectedCount} formula(s) will be included
+            </p>
           )}
         </div>
-        
+
+        {/* Editor + Preview */}
         <div className="editor-container">
           <div className="input-section">
-            <label htmlFor="content">Content (LaTeX Supported via Tectonic):</label>
+            <label htmlFor="content">Generated LaTeX Code:</label>
             <textarea
               id="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Enter your LaTeX content here. Use \begin{document} ... \end{document} or simple text."
+              placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
               className="textarea-field"
               rows={15}
             />
           </div>
-          
+
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="btn compile-circle"
+            disabled={isCompiling || !content}
+            title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+          >
+            {isCompiling ? '...' : '↻'}
+          </button>
+
           <div className="preview-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label>Preview:</label>
-                <button type="button" onClick={handlePreview} className="btn preview" disabled={isLoading}>
-                {isLoading ? 'Compiling...' : 'Preview PDF'}
-                </button>
-            </div>
+            <label>PDF Preview:</label>
             <div className="preview-box">
               {pdfBlob ? (
-                  <iframe src={pdfBlob} width="100%" height="400px" title="PDF Preview" style={{ border: 'none' }} />
+                <iframe
+                  src={pdfBlob}
+                  width="100%"
+                  height="100%"
+                  title="PDF Preview"
+                  style={{ border: 'none' }}
+                />
               ) : (
-                  <div className="latex-content" style={{ padding: '20px', color: '#666' }}>
-                    Click Preview PDF to render the LaTeX document via Tectonic.
-                  </div>
+                <div className="latex-content" style={{ padding: '20px', color: '#666' }}>
+                  Generate a sheet to see the PDF.
+                </div>
               )}
             </div>
           </div>
         </div>
 
+        {/* Action buttons */}
         <div className="actions">
           <button type="submit" className="btn primary">Save Progress</button>
-          <button type="button" onClick={handleDownloadPDF} className="btn download">Download PDF</button>
+          <button type="button" onClick={handleDownloadTex} className="btn download">Download .tex</button>
+          <button
+            type="button"
+            onClick={handleDownloadPDF}
+            className="btn download"
+            disabled={isLoading || !content}
+          >
+            {isLoading ? 'Compiling...' : 'Download PDF'}
+          </button>
           <button type="button" onClick={handleClear} className="btn clear">Clear</button>
         </div>
       </form>

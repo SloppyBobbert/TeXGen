@@ -1,21 +1,42 @@
 services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: cheatsheet_db
+      MYSQL_USER: cheatsheet_user
+      MYSQL_PASSWORD: cheatsheet_pass
+    # ports: comment out for now we'e not using atm
+    #   - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env.docker
+    environment:
+      - DATABASE_URL=mysql://cheatsheet_user:cheatsheet_pass@db:3306/cheatsheet_db
     volumes:
       - ./backend:/app
-
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
   frontend:
     build: ./frontend
     ports:
       - "5173:5173"
-    environment:
-      - BACKEND_URL=http://backend:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+volumes:
+  mariadb_data:
