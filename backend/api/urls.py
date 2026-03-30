@@ -1,5 +1,12 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
+
+# Create a router and register our viewsets with it.
+router = DefaultRouter()
+router.register(r'templates', views.TemplateViewSet, basename='template')
+router.register(r'cheatsheets', views.CheatSheetViewSet, basename='cheatsheet')
+router.register(r'problems', views.PracticeProblemViewSet, basename='problem')
 
 urlpatterns = [
     path("health/", views.health_check, name="health-check"),
@@ -7,12 +14,6 @@ urlpatterns = [
     path("generate-sheet/", views.generate_sheet, name="generate-sheet"),
     path("compile/", views.compile_latex, name="compile-latex"),
     
-    # CRUD endpoints
-    path("templates/", views.template_list, name="template-list"),
-    path("templates/<int:pk>/", views.template_detail, name="template-detail"),
-    path("cheatsheets/", views.cheatsheet_list, name="cheatsheet-list"),
-    path("cheatsheets/from-template/", views.cheatsheet_from_template, name="cheatsheet-from-template"),
-    path("cheatsheets/<int:pk>/", views.cheatsheet_detail, name="cheatsheet-detail"),
-    path("problems/", views.problem_list, name="problem-list"),
-    path("problems/<int:pk>/", views.problem_detail, name="problem-detail"),
+    # Include the router URLs for CRUD operations
+    path('', include(router.urls)),
 ]

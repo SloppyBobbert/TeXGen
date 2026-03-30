@@ -1,0 +1,139 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+
+export function useLatex(initialData) {
+  const [title, setTitle] = useState(initialData ? initialData.title : '');
+  const [content, setContent] = useState(initialData ? initialData.content : '');
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const isCompilingRef = useRef(false);
+  const isGeneratingRef = useRef(false);
+
+  useEffect(() => {
+    if (initialData) {
+      if (initialData.title) setTitle(initialData.title);
+      if (initialData.content) setContent(initialData.content);
+    }
+  }, [initialData]);
+
+  const handlePreview = useCallback(async (latexContent = null) => {
+    if (isCompilingRef.current) return;
+    
+    const contentToCompile = latexContent || content;
+    if (!contentToCompile) return;
+    
+    isCompilingRef.current = true;
+    setIsCompiling(true);
+    try {
+      const response = await fetch('/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: contentToCompile }),
+      });
+      if (!response.ok) throw new Error('Failed to compile LaTeX');
+      const blob = await response.blob();
+      setPdfBlob(URL.createObjectURL(blob));
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please check the backend service.');
+    } finally {
+      setIsCompiling(false);
+      isCompilingRef.current = false;
+    }
+  }, [content]);
+
+  const handleGenerateSheet = async (selectedList) => {
+    if (isGeneratingRef.current) return;
+    if (selectedList.length === 0) {
+      alert('Please select at least one category first.');
+      return;
+    }
+
+    isGeneratingRef.current = true;
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/generate-sheet/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formulas: selectedList }),
+      });
+      if (!response.ok) throw new Error('Failed to generate sheet');
+      const data = await response.json();
+      setContent(data.tex_code);
+      setPdfBlob(null);
+      handlePreview(data.tex_code);
+    } catch (error) {
+      console.error('Error generating sheet:', error);
+      alert('Failed to generate LaTeX. Is the backend running?');
+    } finally {
+      setIsGenerating(false);
+      isGeneratingRef.current = false;
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) throw new Error('Failed to compile LaTeX');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${title || 'cheat-sheet'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Check console for details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownloadTex = () => {
+    if (!content) {
+      alert('No LaTeX code to download. Generate a sheet first.');
+      return;
+    }
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title || 'cheat-sheet'}.tex`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const clearLatex = () => {
+    setTitle('');
+    setContent('');
+    setPdfBlob(null);
+  };
+
+  return {
+    title,
+    setTitle,
+    content,
+    setContent,
+    pdfBlob,
+    isGenerating,
+    isCompiling,
+    isLoading,
+    handleGenerateSheet,
+    handlePreview,
+    handleDownloadPDF,
+    handleDownloadTex,
+    clearLatex
+  };
+}

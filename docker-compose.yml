@@ -1,6 +1,6 @@
 services:
   db:
-    image: mariadb:11
+    image: mysql:8.0
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
@@ -10,7 +10,7 @@ services:
     # ports: comment out for now we'e not using atm
     #   - "3306:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
   backend:
     build: ./backend
     ports:
@@ -39,4 +39,4 @@ services:
       backend:
         condition: service_healthy
 volumes:
-  mariadb_data:
+  mysql_data:
