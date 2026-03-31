@@ -19,10 +19,15 @@ export function useFormulas() {
       const newSelected = { ...prev };
       if (newSelected[className]) {
         delete newSelected[className];
-        Object.keys(selectedCategories).forEach((key) => {
-          if (key.startsWith(className + ':')) {
-            delete newSelected[key];
-          }
+        // Clear all selected categories for this class when it is unchecked
+        setSelectedCategories((prevCategories) => {
+          const updatedCategories = { ...prevCategories };
+          Object.keys(updatedCategories).forEach((key) => {
+            if (key.startsWith(className + ':')) {
+              delete updatedCategories[key];
+            }
+          });
+          return updatedCategories;
         });
       } else {
         newSelected[className] = true;
