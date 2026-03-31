@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 export function useLatex(initialData) {
-  const [title, setTitle] = useState(initialData ? initialData.title : '');
-  const [content, setContent] = useState(initialData ? initialData.content : '');
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [content, setContent] = useState(initialData?.content ?? '');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -13,8 +13,8 @@ export function useLatex(initialData) {
 
   useEffect(() => {
     if (initialData) {
-      if (initialData.title) setTitle(initialData.title);
-      if (initialData.content) setContent(initialData.content);
+      setTitle(initialData.title ?? '');
+      setContent(initialData.content ?? '');
     }
   }, [initialData]);
 

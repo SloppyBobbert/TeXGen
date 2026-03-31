@@ -90,9 +90,9 @@ def compile_latex_to_pdf(content):
                 text=True,
                 check=True,
             )
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
             # Propagate the error; the temporary directory will still be cleaned up
-            raise e
+            raise
 
         pdf_file_path = os.path.join(tempdir, "document.pdf")
         if not os.path.exists(pdf_file_path):
