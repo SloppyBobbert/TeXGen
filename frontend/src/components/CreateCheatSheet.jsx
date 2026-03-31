@@ -107,6 +107,7 @@ const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
       className="btn compile-circle"
       disabled={isCompiling || !content}
       title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+      aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
     >
       {isCompiling ? '...' : '↻'}
     </button>
