@@ -70,33 +70,34 @@ def build_latex_for_formulas(selected_formulas):
 def compile_latex_to_pdf(content):
     """
     Compiles LaTeX content to a PDF using Tectonic.
-    Returns the path to the generated PDF file or raises an Exception.
+    Returns the generated PDF as bytes or raises an Exception.
     """
     # Ensure document has proper structure
     if r"\begin{document}" not in content:
         content = LATEX_HEADER + content + LATEX_FOOTER
-        
-    tempdir_obj = tempfile.TemporaryDirectory()
-    tempdir = tempdir_obj.name
-    
-    tex_file_path = os.path.join(tempdir, "document.tex")
-    with open(tex_file_path, "w", encoding="utf-8") as f:
-        f.write(content)
-    
-    try:
-        subprocess.run(
-            ["tectonic", tex_file_path],
-            cwd=tempdir,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        # Keep a reference to tempdir_obj to prevent deletion if needed, but we typically want it returned or cleaned up
-        raise e
-        
-    pdf_file_path = os.path.join(tempdir, "document.pdf")
-    if os.path.exists(pdf_file_path):
-        return pdf_file_path, tempdir_obj
-    else:
-        raise FileNotFoundError("PDF not generated")
+
+    # Use a context manager so the temporary directory is always cleaned up
+    with tempfile.TemporaryDirectory() as tempdir:
+        tex_file_path = os.path.join(tempdir, "document.tex")
+        with open(tex_file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        try:
+            subprocess.run(
+                ["tectonic", tex_file_path],
+                cwd=tempdir,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            # Propagate the error; the temporary directory will still be cleaned up
+            raise e
+
+        pdf_file_path = os.path.join(tempdir, "document.pdf")
+        if not os.path.exists(pdf_file_path):
+            raise FileNotFoundError("PDF not generated")
+
+        # Read and return the PDF bytes before the temporary directory is removed
+        with open(pdf_file_path, "rb") as pdf_file:
+            return pdf_file.read()
