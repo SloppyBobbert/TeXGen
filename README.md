@@ -195,9 +195,9 @@ Add formulas to the appropriate file in `backend/api/formula_data/`:
 - `algebra_i.py`
 - `algebra_ii.py`
 - `geometry.py`
-- `trigonometry.py`
+- `trig.py`
 - `precalculus.py`
-- `calculus_1.py`
-- `calculus_2.py`
-- `calculus_3.py`
+- `calculus_i.py`
+- `calculus_ii.py`
+- `calculus_iii.py`
 - `unit_circle.py`
