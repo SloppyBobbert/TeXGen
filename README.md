@@ -7,8 +7,9 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 ## Features
 
 ### Core Features
-- **Multi-Class Selection**: Choose from PRE-ALGEBRA, ALGEBRA I, ALGEBRA II, and GEOMETRY
+- **Multi-Class Selection**: Choose from 10 different subjects including PRE-ALGEBRA, ALGEBRA I & II, GEOMETRY, TRIGONOMETRY, PRECALCULUS, CALCULUS I-III, and UNIT CIRCLE.
 - **Category Selection**: Select categories with checkboxes for each class (no Ctrl/Cmd needed)
+- **Drag-and-Drop Reordering**: Intuitively organize your cheat sheet by dragging individual formulas or entire collapsible class groups to reorder them before generating.
 - **Formula Generation**: Automatically generates formatted LaTeX for selected formulas
 - **Live Preview**: Split-view interface with LaTeX code editor and PDF preview
 - **PDF Compilation**: Compile to PDF using Tectonic LaTeX engine on the backend
@@ -92,6 +93,12 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **ALGEBRA I** - Linear Equations, Inequalities, Integer Rules, Decimals/Percents, Mean/Median/Mode, Quadratics, Polynomials, Exponents, Radicals, Functions, Absolute Value, Rational Expressions
 - **ALGEBRA II** - Complex Numbers, Logarithms, Exponential Functions, Polynomial Theorems, Conic Sections, Sequences/Series, Matrices, Binomial Theorem
 - **GEOMETRY** - Angle Relationships, Parallel Lines, Triangles, Pythagorean Theorem, Similar/Congruent Triangles, Quadrilaterals, Polygons, Circles, Circle Theorems, Coordinate Geometry, Surface Area/Volume, Transformations
+- **TRIGONOMETRY** - Right Triangle Trigonometry, Special Angles, Trigonometric Identities, Laws of Sines and Cosines
+- **PRECALCULUS** - Functions and Graphs, Polynomial and Rational Functions, Exponential and Logarithmic Functions, Conic Sections, Parametric Equations and Polar Coordinates, Sequences and Series
+- **CALCULUS I** - Limits and Continuity, Derivatives, Applications of Derivatives, Integrals
+- **CALCULUS II** - Techniques of Integration, Applications of Integration, Sequences and Series
+- **CALCULUS III** - Vectors and Geometry of Space, Vector Functions, Partial Derivatives, Multiple Integrals, Vector Calculus
+- **UNIT CIRCLE** - Complete visual representation of the unit circle with radians, degrees, and coordinates
 
 ## Getting Started
 
@@ -163,13 +170,14 @@ The project includes GitHub Actions CI that runs:
 ## User Flow
 
 1. **Enter Title**: Give your cheat sheet a name
-2. **Select Class**: Click on a class (PRE-ALGEBRA, ALGEBRA I, ALGEBRA II, GEOMETRY)
+2. **Select Class**: Click on a class (e.g., CALCULUS I, UNIT CIRCLE, ALGEBRA II)
 3. **Select Categories**: Check the categories you want
-4. **Generate**: Click "Generate Cheat Sheet" - LaTeX generates and PDF compiles automatically
-5. **Preview**: View the PDF in the preview pane, or click the circular button to recompile
-6. **Customize**: Edit the LaTeX directly or adjust formatting options
-7. **Download**: Download as `.tex` or `.pdf`
-8. **Save**: Click "Save Progress" to store your cheat sheet to the database
+4. **Reorder**: Drag and drop formulas or entire categories to set their final order
+5. **Generate**: Click "Generate Cheat Sheet" - LaTeX generates and PDF compiles automatically
+6. **Preview**: View the PDF in the preview pane, or click the circular button to recompile
+7. **Customize**: Edit the LaTeX directly or adjust formatting options
+8. **Download**: Download as `.tex` or `.pdf`
+9. **Save**: Click "Save Progress" to store your cheat sheet to the database
 
 ## Development
 
@@ -187,3 +195,9 @@ Add formulas to the appropriate file in `backend/api/formula_data/`:
 - `algebra_i.py`
 - `algebra_ii.py`
 - `geometry.py`
+- `trigonometry.py`
+- `precalculus.py`
+- `calculus_1.py`
+- `calculus_2.py`
+- `calculus_3.py`
+- `unit_circle.py`

@@ -4,32 +4,51 @@ export function useFormulas() {
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [selectedCategories, setSelectedCategories] = useState({});
-  const [formulaOrder, setFormulaOrder] = useState([]);
+  const [groupedFormulas, setGroupedFormulas] = useState([]);
 
   useEffect(() => {
     fetch('/api/classes/')
       .then((res) => res.json())
-      .then((data) => {
-        setClassesData(data.classes || []);
-      })
+      .then((data) => setClassesData(data.classes || []))
       .catch((err) => console.error('Failed to fetch classes', err));
   }, []);
 
   const addFormulasToOrder = useCallback((className, categoryName, formulas) => {
-    setFormulaOrder(prev => {
+    setGroupedFormulas(prev => {
+      const newState = [...prev];
+      let groupIndex = newState.findIndex(g => g.class === className);
+      if (groupIndex === -1) {
+        newState.push({ class: className, formulas: [] });
+        groupIndex = newState.length - 1;
+      }
+      const group = { ...newState[groupIndex], formulas: [...newState[groupIndex].formulas] };
       const newFormulas = formulas
-        .filter(f => !prev.some(p => p.class === className && p.category === categoryName && p.name === f.name))
-        .map(f => ({
-          class: className,
-          category: categoryName,
-          name: f.name
-        }));
-      return [...prev, ...newFormulas];
+        .filter(f => !group.formulas.some(p => p.category === categoryName && p.name === f.name))
+        .map(f => ({ class: className, category: categoryName, name: f.name }));
+      group.formulas = [...group.formulas, ...newFormulas];
+      newState[groupIndex] = group;
+      return newState;
     });
   }, []);
 
   const removeFormulasFromOrder = useCallback((className, categoryName) => {
-    setFormulaOrder(prev => prev.filter(f => !(f.class === className && f.category === categoryName)));
+    setGroupedFormulas(prev => prev.map(g => {
+        if (g.class !== className) return g;
+        return { ...g, formulas: g.formulas.filter(f => f.category !== categoryName) };
+      }).filter(g => g.formulas.length > 0)
+    );
+  }, []);
+
+  const removeClassFromOrder = useCallback((className) => {
+    setGroupedFormulas(prev => prev.filter(g => g.class !== className));
+  }, []);
+
+  const removeSingleFormula = useCallback((className, formulaName) => {
+    setGroupedFormulas(prev => prev.map(g => {
+        if (g.class !== className) return g;
+        return { ...g, formulas: g.formulas.filter(f => f.name !== formulaName) };
+      }).filter(g => g.formulas.length > 0)
+    );
   }, []);
 
   const toggleClass = (className) => {
@@ -41,23 +60,26 @@ export function useFormulas() {
           const updatedCategories = { ...prevCategories };
           Object.keys(updatedCategories).forEach((key) => {
             if (key.startsWith(className + ':')) {
-              const catName = key.substring(className.length + 1);
-              removeFormulasFromOrder(className, catName);
               delete updatedCategories[key];
             }
           });
           return updatedCategories;
         });
-        setFormulaOrder(prev => prev.filter(f => f.class !== className));
+        removeClassFromOrder(className);
       } else {
         newSelected[className] = true;
         const cls = classesData.find(c => c.name === className);
         if (cls && cls.categories && cls.categories.length > 0) {
-          if (cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name)) {
-            cls.categories[0].formulas.forEach(f => {
-              addFormulasToOrder(className, className, [{name: f.name}]);
+          setSelectedCategories(prevCategories => {
+            const updatedCategories = { ...prevCategories };
+            cls.categories.forEach(cat => {
+              updatedCategories[`${className}:${cat.name}`] = true;
             });
-          }
+            return updatedCategories;
+          });
+          cls.categories.forEach(cat => {
+            addFormulasToOrder(className, cat.name, cat.formulas);
+          });
         }
       }
       return newSelected;
@@ -85,8 +107,8 @@ export function useFormulas() {
     });
   };
 
-  const reorderFormula = useCallback((oldIndex, newIndex) => {
-    setFormulaOrder(prev => {
+  const reorderClass = useCallback((oldIndex, newIndex) => {
+    setGroupedFormulas(prev => {
       const newOrder = [...prev];
       const [removed] = newOrder.splice(oldIndex, 1);
       newOrder.splice(newIndex, 0, removed);
@@ -94,47 +116,25 @@ export function useFormulas() {
     });
   }, []);
 
-  const getSelectedFormulasList = () => {
-    if (formulaOrder.length > 0) {
-      return formulaOrder;
-    }
-    const formulas = [];
-    classesData.forEach((cls) => {
-      if (!selectedClasses[cls.name]) return;
-      
-      if (cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name)) {
-        cls.categories.forEach((cat) => {
-          cat.formulas.forEach((f) => {
-            formulas.push({
-              class: cls.name,
-              category: cls.name,
-              name: f.name
-            });
-          });
-        });
-        return;
-      }
-      
-      cls.categories.forEach((cat) => {
-        const key = `${cls.name}:${cat.name}`;
-        if (selectedCategories[key]) {
-          cat.formulas.forEach((f) => {
-            formulas.push({
-              class: cls.name,
-              category: cat.name,
-              name: f.name
-            });
-          });
-        }
-      });
+  const reorderFormula = useCallback((className, oldIndex, newIndex) => {
+    setGroupedFormulas(prev => {
+      const newOrder = [...prev];
+      const groupIndex = newOrder.findIndex(g => g.class === className);
+      if (groupIndex === -1) return prev;
+      const group = { ...newOrder[groupIndex], formulas: [...newOrder[groupIndex].formulas] };
+      const [removed] = group.formulas.splice(oldIndex, 1);
+      group.formulas.splice(newIndex, 0, removed);
+      newOrder[groupIndex] = group;
+      return newOrder;
     });
-    return formulas;
-  };
+  }, []);
+
+  const getSelectedFormulasList = () => groupedFormulas.flatMap(g => g.formulas);
 
   const clearSelections = () => {
     setSelectedClasses({});
     setSelectedCategories({});
-    setFormulaOrder([]);
+    setGroupedFormulas([]);
   };
 
   const selectedCount = getSelectedFormulasList().length;
@@ -144,13 +144,15 @@ export function useFormulas() {
     classesData,
     selectedClasses,
     selectedCategories,
-    formulaOrder,
-    setFormulaOrder,
+    groupedFormulas,
     toggleClass,
     toggleCategory,
     getSelectedFormulasList,
     clearSelections,
+    reorderClass,
     reorderFormula,
+    removeClassFromOrder,
+    removeSingleFormula,
     selectedCount,
     hasSelectedClasses
   };

@@ -62,3 +62,7 @@ backend/coverage/
 
 # Backup and temp files
 #*#
+
+# OpenCode/Sisyphus
+.sisyphus/
+

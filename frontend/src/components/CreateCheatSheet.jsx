@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
+import { Document, Page, pdfjs } from 'react-pdf';
 
-function SortableFormulaItem({ id, formula, onRemove, isGroupHeader, onToggleCollapse, isCollapsed, onMoveUp, onMoveDown }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
+
+function SortableFormulaItem({ id, formula, onRemove, className }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+    id,
+    data: { type: 'formula', class: formula.class }
+  });
   
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -16,39 +25,11 @@ function SortableFormulaItem({ id, formula, onRemove, isGroupHeader, onToggleCol
     boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
   };
 
-  if (isGroupHeader) {
-    return (
-      <div ref={setNodeRef} style={style} className={`formula-class-group ${isCollapsed ? 'collapsed' : ''}`}>
-        <div className="class-group-header" {...attributes} {...listeners}>
-          <div className="class-group-main">
-            <span className="drag-handle">⋮⋮</span>
-            <button 
-              type="button" 
-              className="collapse-toggle" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleCollapse();
-              }}
-            >
-              {isCollapsed ? '▶' : '▼'}
-            </button>
-            <span className="class-group-title">{formula.className} ({formula.count})</span>
-          </div>
-          <div className="class-group-actions" onClick={e => e.stopPropagation()}>
-            <button type="button" className="class-group-btn" onClick={onMoveUp} title="Move up">↑</button>
-            <button type="button" className="class-group-btn" onClick={onMoveDown} title="Move down">↓</button>
-            <button type="button" className="class-group-btn remove" onClick={onRemove} title="Remove all">×</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="sortable-formula-item">
-      <span className="drag-handle">⋮⋮</span>
-      <span className="formula-name">{formula.name}</span>
-      <span className="formula-class">{formula.class}</span>
+    <div ref={setNodeRef} style={style} className={`sortable-formula-item ${className || ''}`}>
+      <span className="drag-handle" {...attributes} {...listeners}>⋮⋮</span>
+      <span className="formula-name" style={{ fontStyle: 'italic' }}>{formula.name}</span>
+      <span className="formula-class" style={{ fontStyle: 'italic' }}>{formula.class}</span>
       <button 
         type="button" 
         className="remove-formula" 
@@ -63,103 +44,117 @@ function SortableFormulaItem({ id, formula, onRemove, isGroupHeader, onToggleCol
   );
 }
 
-function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
+function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClass, onRemoveFormula }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+    id: `class-${group.class}`,
+    data: { type: 'class' }
+  });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+    position: 'relative',
+    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`formula-class-group ${isCollapsed ? 'collapsed' : ''}`}>
+      <div 
+        className="class-group-header" 
+        onClick={onToggleCollapse}
+        {...attributes} 
+        {...listeners}
+      >
+        <div className="class-group-main">
+          <span className="drag-handle">⋮⋮</span>
+          <span className="collapse-icon">{isCollapsed ? '▶' : '▼'}</span>
+          <span 
+            className="class-group-title" 
+            style={{ fontWeight: 'bold', marginLeft: '0.5rem' }}
+          >
+            {group.class} ({group.formulas.length})
+          </span>
+        </div>
+        <div className="class-group-actions">
+          <button 
+            type="button" 
+            className="class-group-btn remove" 
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveClass(group.class);
+            }} 
+            title="Remove all"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+      
+      {!isCollapsed && (
+        <div className="class-group-formulas">
+          <SortableContext items={group.formulas.map(f => `formula-${group.class}-${f.name}`)} strategy={verticalListSortingStrategy}>
+            {group.formulas.map(f => (
+              <SortableFormulaItem 
+                key={f.name}
+                id={`formula-${group.class}-${f.name}`}
+                formula={f}
+                className="nested"
+                onRemove={() => onRemoveFormula(f.name)}
+              />
+            ))}
+          </SortableContext>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula, onRemoveClass, onRemoveFormula }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const [collapsedGroups, setCollapsedGroups] = React.useState({});
+  const [expandedGroups, setExpandedGroups] = React.useState({});
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
+    if (active.id === over.id) return;
 
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId !== overId) {
-      const activeData = visibleItems.find(item => item.id === activeId);
-      const overData = visibleItems.find(item => item.id === overId);
-
-      if (!activeData || !overData) return;
-
-      if (activeData.type === 'header' && overData.type === 'header') {
-        onReorder(activeData.group.startIndex, overData.group.startIndex);
-      } else if (activeData.type === 'formula' && overData.type === 'formula') {
-        onReorder(activeData.index, overData.index);
-      } else {
-        const fromIdx = activeData.type === 'header' ? activeData.group.startIndex : activeData.index;
-        const toIdx = overData.type === 'header' ? overData.group.startIndex : overData.index;
-        onReorder(fromIdx, toIdx);
+    const activeType = active.data.current?.type;
+    const overType = over.data.current?.type;
+    
+    if (activeType === 'class' && overType === 'class') {
+      const oldIndex = groupedFormulas.findIndex(g => `class-${g.class}` === active.id);
+      const newIndex = groupedFormulas.findIndex(g => `class-${g.class}` === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorderClass(oldIndex, newIndex);
+      }
+    } else if (activeType === 'formula' && overType === 'formula') {
+      const activeClass = active.data.current?.class;
+      const overClass = over.data.current?.class;
+      
+      if (activeClass === overClass) {
+        const group = groupedFormulas.find(g => g.class === activeClass);
+        if (group) {
+          const oldIndex = group.formulas.findIndex(f => `formula-${activeClass}-${f.name}` === active.id);
+          const newIndex = group.formulas.findIndex(f => `formula-${overClass}-${f.name}` === over.id);
+          if (oldIndex !== -1 && newIndex !== -1) {
+            onReorderFormula(activeClass, oldIndex, newIndex);
+          }
+        }
       }
     }
   };
 
   const toggleGroup = (className) => {
-    setCollapsedGroups(prev => ({
-      ...prev,
-      [className]: !prev[className]
-    }));
+    setExpandedGroups(prev => ({ ...prev, [className]: !prev[className] }));
   };
 
-  const groupByClass = () => {
-    const groups = [];
-    let currentClass = null;
-    let startIndex = 0;
-    
-    formulaOrder.forEach((formula, index) => {
-      if (formula.class !== currentClass) {
-        if (currentClass !== null) {
-          groups.push({
-            className: currentClass,
-            startIndex,
-            endIndex: index - 1,
-            count: index - startIndex
-          });
-        }
-        currentClass = formula.class;
-        startIndex = index;
-      }
-    });
-    
-    if (currentClass !== null) {
-      groups.push({
-        className: currentClass,
-        startIndex,
-        endIndex: formulaOrder.length - 1,
-        count: formulaOrder.length - startIndex
-      });
-    }
-    
-    return groups;
-  };
-
-  const classGroups = groupByClass();
-
-  const visibleItems = [];
-  classGroups.forEach((group) => {
-    const headerId = `header-${group.className}`;
-    visibleItems.push({
-      id: headerId,
-      type: 'header',
-      group: group,
-      className: group.className
-    });
-
-    if (!collapsedGroups[group.className]) {
-      for (let i = group.startIndex; i <= group.endIndex; i++) {
-        visibleItems.push({
-          id: `formula-${i}-${formulaOrder[i].name}`,
-          type: 'formula',
-          index: i,
-          formula: formulaOrder[i]
-        });
-      }
-    }
-  });
-
-  if (formulaOrder.length === 0) return null;
+  if (groupedFormulas.length === 0) return null;
 
   return (
     <div className="formula-reorder-panel">
@@ -167,40 +162,18 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
         Drag to reorder formulas (top appears first in PDF)
       </label>
       <div className="reorder-instructions">
-        <span>Drag ⋮⋮ to move. Collapse headers to move entire classes.</span>
+        <span>Click the bar to collapse. Click and hold to move.</span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={visibleItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-          {visibleItems.map((item) => (
-            <SortableFormulaItem 
-              key={item.id} 
-              id={item.id}
-              isGroupHeader={item.type === 'header'}
-              formula={item.type === 'header' ? item.group : item.formula}
-              isCollapsed={item.type === 'header' ? !!collapsedGroups[item.className] : false}
-              onToggleCollapse={() => toggleGroup(item.className)}
-              onRemove={item.type === 'header' ? 
-                () => {
-                  const indices = formulaOrder
-                    .map((f, i) => f.class === item.className ? i : -1)
-                    .filter(i => i !== -1);
-                  [...indices].reverse().forEach(idx => onRemove(idx));
-                } : 
-                () => onRemove(item.index)
-              }
-              onMoveUp={() => {
-                const indices = formulaOrder
-                  .map((f, i) => f.class === item.className ? i : -1)
-                  .filter(i => i !== -1);
-                if (indices[0] > 0) onReorder(indices[0], indices[0] - 1);
-              }}
-              onMoveDown={() => {
-                const indices = formulaOrder
-                  .map((f, i) => f.class === item.className ? i : -1)
-                  .filter(i => i !== -1);
-                if (indices[indices.length - 1] < formulaOrder.length - 1) 
-                  onReorder(indices[indices.length - 1], indices[indices.length - 1] + 1);
-              }}
+        <SortableContext items={groupedFormulas.map(g => `class-${g.class}`)} strategy={verticalListSortingStrategy}>
+          {groupedFormulas.map(group => (
+            <SortableClassGroup 
+              key={group.class}
+              group={group}
+              isCollapsed={!expandedGroups[group.class]}
+              onToggleCollapse={() => toggleGroup(group.class)}
+              onRemoveClass={onRemoveClass}
+              onRemoveFormula={(formulaName) => onRemoveFormula(group.class, formulaName)}
             />
           ))}
         </SortableContext>
@@ -213,14 +186,16 @@ const FormulaSelection = ({
   classesData, 
   selectedClasses, 
   selectedCategories, 
+  groupedFormulas,
   toggleClass, 
   toggleCategory, 
   onGenerate, 
   isGenerating, 
   selectedCount, 
   hasSelectedClasses,
-  formulaOrder,
+  onReorderClass,
   onReorderFormula,
+  onRemoveClass,
   onRemoveFormula
 }) => (
   <div className="formula-selection">
@@ -232,11 +207,14 @@ const FormulaSelection = ({
       {classesData.map((cls) => {
         const isChecked = !!selectedClasses[cls.name];
         return (
-          <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
+          <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`} onClick={(e) => {
+            e.preventDefault();
+            toggleClass(cls.name);
+          }}>
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={() => toggleClass(cls.name)}
+              readOnly
             />
             {cls.name}
           </label>
@@ -290,11 +268,14 @@ const FormulaSelection = ({
                   const key = `${cls.name}:${cat.name}`;
                   const isChecked = !!selectedCategories[key];
                   return (
-                    <label key={cat.name} className={`category-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                    <label key={cat.name} className={`category-checkbox-label ${isChecked ? 'checked' : ''}`} onClick={(e) => {
+                      e.preventDefault();
+                      toggleCategory(cls.name, cat.name);
+                    }}>
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleCategory(cls.name, cat.name)}
+                        readOnly
                       />
                       {cat.name} ({cat.formulas.length} formulas)
                     </label>
@@ -308,9 +289,11 @@ const FormulaSelection = ({
     )}
 
     <FormulaReorderPanel 
-      formulaOrder={formulaOrder} 
-      onReorder={onReorderFormula}
-      onRemove={onRemoveFormula}
+      groupedFormulas={groupedFormulas} 
+      onReorderClass={onReorderClass}
+      onReorderFormula={onReorderFormula}
+      onRemoveClass={onRemoveClass}
+      onRemoveFormula={onRemoveFormula}
     />
 
     <button
@@ -341,6 +324,7 @@ const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
         placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
         className="textarea-field"
         rows={15}
+        spellCheck="false"
       />
     </div>
 
@@ -357,26 +341,71 @@ const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
   </>
 );
 
-const PdfPreview = ({ pdfBlob }) => (
-  <div className="preview-section">
-    <label>PDF Preview:</label>
-    <div className="preview-box">
-      {pdfBlob ? (
-        <iframe
-          src={pdfBlob}
-          width="100%"
-          height="100%"
-          title="PDF Preview"
-          style={{ border: 'none' }}
-        />
-      ) : (
-        <div className="latex-content" style={{ padding: '20px', color: '#666' }}>
-          Generate a sheet to see the PDF.
-        </div>
-      )}
+const PdfPreview = ({ pdfBlob, compileError }) => {
+  const [numPages, setNumPages] = useState(null);
+  const containerRef = useRef(null);
+  const [containerWidth, setContainerWidth] = useState(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/compile/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: ' ' })
+    }).catch(e => console.log('Pre-warm compilation failed, ignoring:', e));
+  }, []);
+
+  return (
+    <div className="preview-section">
+      <label>PDF Preview:</label>
+      <div 
+        className="preview-box pdf-viewer-box" 
+        ref={containerRef}
+      >
+        {compileError ? (
+          <div style={{ padding: '20px', color: '#ff4444', backgroundColor: '#331111', borderRadius: '4px', border: '1px solid #ff4444', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '12px', overflowX: 'auto', width: '100%', boxSizing: 'border-box' }}>
+            <strong>Compilation Error:</strong><br /><br />
+            {compileError}
+          </div>
+        ) : pdfBlob ? (
+          <Document 
+            file={pdfBlob} 
+            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+            loading={<div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>Loading PDF...</div>}
+            error={<div style={{ padding: '2rem', color: '#ff4444', textAlign: 'center' }}>Failed to load PDF.</div>}
+          >
+            {Array.from(new Array(numPages), (el, index) => (
+              <Page 
+                key={`page_${index + 1}`} 
+                pageNumber={index + 1} 
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+                className="pdf-page"
+                width={containerWidth ? containerWidth : undefined}
+              />
+            ))}
+          </Document>
+        ) : (
+          <div className="latex-content" style={{ padding: '20px', color: '#666', textAlign: 'center' }}>
+            Generate a sheet to see the PDF.
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, content, handleClear }) => (
   <div className="actions">
@@ -399,13 +428,15 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     classesData,
     selectedClasses,
     selectedCategories,
-    formulaOrder,
-    setFormulaOrder,
+    groupedFormulas,
     toggleClass,
     toggleCategory,
     getSelectedFormulasList,
     clearSelections,
+    reorderClass,
     reorderFormula,
+    removeClassFromOrder,
+    removeSingleFormula,
     selectedCount,
     hasSelectedClasses
   } = useFormulas();
@@ -419,17 +450,13 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     isGenerating,
     isCompiling,
     isLoading,
+    compileError,
     handleGenerateSheet,
     handlePreview,
     handleDownloadPDF,
     handleDownloadTex,
     clearLatex
   } = useLatex(initialData);
-
-  const handleRemoveFormula = (index) => {
-    const newOrder = formulaOrder.filter((_, i) => i !== index);
-    setFormulaOrder(newOrder);
-  };
 
   const handleGenerate = () => {
     const formulasList = getSelectedFormulasList();
@@ -470,15 +497,17 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           classesData={classesData}
           selectedClasses={selectedClasses}
           selectedCategories={selectedCategories}
+          groupedFormulas={groupedFormulas}
           toggleClass={toggleClass}
           toggleCategory={toggleCategory}
           onGenerate={handleGenerate}
           isGenerating={isGenerating}
           selectedCount={selectedCount}
           hasSelectedClasses={hasSelectedClasses}
-          formulaOrder={formulaOrder}
+          onReorderClass={reorderClass}
           onReorderFormula={reorderFormula}
-          onRemoveFormula={handleRemoveFormula}
+          onRemoveClass={removeClassFromOrder}
+          onRemoveFormula={removeSingleFormula}
         />
 
         <div className="editor-container">
@@ -488,7 +517,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
             handlePreview={handlePreview}
             isCompiling={isCompiling}
           />
-          <PdfPreview pdfBlob={pdfBlob} />
+          <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
 
         <ActionToolbar
