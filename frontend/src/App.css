@@ -499,7 +499,7 @@ body {
 
 .formula-class {
   font-size: 0.8rem;
-  color: #999;
+  color: var(--text);
   padding: 0.2rem 0.5rem;
   background: var(--panel-bg);
   border-radius: 3px;
