@@ -477,7 +477,7 @@ body {
 }
 
 .sortable-formula-item:hover {
-  border-color: #5dade2;
+  border-color: var(--primary);
   background: var(--panel-bg);
 }
 
