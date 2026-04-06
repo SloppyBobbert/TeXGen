@@ -16,7 +16,11 @@ export default [
         console: 'readonly',
         window: 'readonly',
         document: 'readonly',
-        URL: 'readonly'
+        URL: 'readonly',
+        fetch: 'readonly',
+        alert: 'readonly',
+        localStorage: 'readonly',
+        Blob: 'readonly'
       }
     },
     plugins: {

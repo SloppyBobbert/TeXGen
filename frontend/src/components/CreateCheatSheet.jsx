@@ -1,6 +1,6 @@
 import React from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
@@ -84,7 +84,6 @@ const FormulaSelection = ({
     <div className="class-checkboxes">
       {classesData.map((cls) => {
         const isChecked = !!selectedClasses[cls.name];
-        const isSpecialClass = cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name);
         return (
           <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
             <input
