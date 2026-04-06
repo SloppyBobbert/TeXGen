@@ -45,12 +45,12 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 │   │   ├── models.py             # Database models
 │   │   ├── urls.py               # URL routing
 │   │   ├── serializers.py        # DRF serializers
-│   │   └── tests.py              # Test suite
-│   ├── formula_data/             # Formula definitions
-│   │   ├── pre_algebra.py
-│   │   ├── algebra_i.py
-│   │   ├── algebra_ii.py
-│   │   └── geometry.py
+│   │   ├── tests.py              # Test suite
+│   │   └── formula_data/         # Formula definitions
+│   │       ├── pre_algebra.py
+│   │       ├── algebra_i.py
+│   │       ├── algebra_ii.py
+│   │       └── geometry.py
 │   └── requirements.txt
 ├── frontend/                      # React + Vite
 │   ├── src/
