@@ -94,14 +94,14 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
       
       {!isCollapsed && (
         <div className="class-group-formulas">
-          <SortableContext items={group.formulas.map(f => `formula-${group.class}-${f.name}`)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={group.formulas.map(f => `formula-${group.class}-${f.category}-${f.name}`)} strategy={verticalListSortingStrategy}>
             {group.formulas.map(f => (
               <SortableFormulaItem 
-                key={f.name}
-                id={`formula-${group.class}-${f.name}`}
+                key={`${f.category}-${f.name}`}
+                id={`formula-${group.class}-${f.category}-${f.name}`}
                 formula={f}
                 className="nested"
-                onRemove={() => onRemoveFormula(f.name)}
+                onRemove={() => onRemoveFormula(f.category, f.name)}
               />
             ))}
           </SortableContext>
@@ -140,8 +140,8 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
       if (activeClass === overClass) {
         const group = groupedFormulas.find(g => g.class === activeClass);
         if (group) {
-          const oldIndex = group.formulas.findIndex(f => `formula-${activeClass}-${f.name}` === active.id);
-          const newIndex = group.formulas.findIndex(f => `formula-${overClass}-${f.name}` === over.id);
+          const oldIndex = group.formulas.findIndex(f => `formula-${activeClass}-${f.category}-${f.name}` === active.id);
+          const newIndex = group.formulas.findIndex(f => `formula-${overClass}-${f.category}-${f.name}` === over.id);
           if (oldIndex !== -1 && newIndex !== -1) {
             onReorderFormula(activeClass, oldIndex, newIndex);
           }
@@ -173,7 +173,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
               isCollapsed={!expandedGroups[group.class]}
               onToggleCollapse={() => toggleGroup(group.class)}
               onRemoveClass={onRemoveClass}
-              onRemoveFormula={(formulaName) => onRemoveFormula(group.class, formulaName)}
+              onRemoveFormula={(categoryName, formulaName) => onRemoveFormula(group.class, categoryName, formulaName)}
             />
           ))}
         </SortableContext>

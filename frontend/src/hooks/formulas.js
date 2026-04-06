@@ -43,10 +43,10 @@ export function useFormulas() {
     setGroupedFormulas(prev => prev.filter(g => g.class !== className));
   }, []);
 
-  const removeSingleFormula = useCallback((className, formulaName) => {
+  const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
     setGroupedFormulas(prev => prev.map(g => {
         if (g.class !== className) return g;
-        return { ...g, formulas: g.formulas.filter(f => f.name !== formulaName) };
+        return { ...g, formulas: g.formulas.filter(f => !(f.category === categoryName && f.name === formulaName)) };
       }).filter(g => g.formulas.length > 0)
     );
   }, []);

@@ -72,7 +72,7 @@ def build_latex_for_formulas(selected_formulas):
             body_lines.append(latex)
         else:
             # Escape special LaTeX characters in the formula name
-            escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "}")
+            escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
             body_lines.append("\\textbf{" + escaped_name + "}")
             body_lines.append("\\[ " + latex + " \\]")
             body_lines.append("\\\\[4pt]")

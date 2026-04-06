@@ -239,6 +239,86 @@ class TestPracticeProblemAPI:
 
 
 @pytest.mark.django_db
+class TestGenerateSheetEndpoint:
+    def test_generate_sheet_no_formulas(self, api_client):
+        resp = api_client.post("/api/generate-sheet/", {"formulas": []}, format="json")
+        assert resp.status_code == 400
+        assert "error" in resp.json()
+
+    def test_generate_sheet_missing_formulas_key(self, api_client):
+        resp = api_client.post("/api/generate-sheet/", {}, format="json")
+        assert resp.status_code == 400
+        assert "error" in resp.json()
+
+    def test_generate_sheet_valid_formula(self, api_client):
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "tex_code" in data
+        assert "\\section*{ALGEBRA I}" in data["tex_code"]
+        assert "Slope Formula" in data["tex_code"]
+
+    def test_generate_sheet_preserves_order(self, api_client):
+        """Selected formula order must be preserved in the LaTeX output."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"},
+                    {"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope-Intercept Form"},
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        slope_pos = tex.find("Slope Formula")
+        intercept_pos = tex.find("Slope-Intercept Form")
+        assert slope_pos != -1 and intercept_pos != -1
+        assert slope_pos < intercept_pos
+
+    def test_generate_sheet_special_class_unit_circle(self, api_client):
+        """Special class (UNIT CIRCLE) with no categories should generate valid LaTeX."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {"class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)"}
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "tex_code" in data
+        tex = data["tex_code"]
+        assert "\\section*{UNIT CIRCLE}" in tex
+        assert "\\begin{document}" in tex
+        assert "\\end{document}" in tex
+
+    def test_generate_sheet_invalid_formula_returns_400(self, api_client):
+        """Requesting a formula that does not exist should return 400."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {"class": "NONEXISTENT CLASS", "category": "Fake Category", "name": "Fake Formula"}
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+
+
+@pytest.mark.django_db
 class TestCompileEndpoint:
     def test_compile_requires_content_or_id(self, api_client):
         resp = api_client.post("/api/compile/", {}, format="json")
