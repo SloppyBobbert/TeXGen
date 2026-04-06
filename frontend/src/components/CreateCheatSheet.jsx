@@ -39,6 +39,73 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
     }
   };
 
+  const formulasByClass = formulaOrder.reduce((acc, formula) => {
+    if (!acc[formula.class]) acc[formula.class] = [];
+    acc[formula.class].push(formula);
+    return acc;
+  }, {});
+
+  const classNames = Object.keys(formulasByClass);
+  
+  const getIndicesForClass = (className) => {
+    return formulaOrder
+      .map((f, i) => f.class === className ? i : -1)
+      .filter(i => i !== -1);
+  };
+
+  const moveClassUp = (className) => {
+    const indices = getIndicesForClass(className);
+    if (indices.length === 0 || indices[0] === 0) return;
+    const firstIdx = indices[0];
+    onReorder(firstIdx, firstIdx - 1);
+  };
+
+  const moveClassDown = (className) => {
+    const indices = getIndicesForClass(className);
+    if (indices.length === 0 || indices[indices.length - 1] === formulaOrder.length - 1) return;
+    const lastIdx = indices[indices.length - 1];
+    onReorder(lastIdx, lastIdx + 1);
+  };
+
+  const removeClass = (className) => {
+    const indices = getIndicesForClass(className);
+    [...indices].reverse().forEach(idx => onRemove(idx));
+  };
+
+  const groupByClass = () => {
+    const groups = [];
+    let currentClass = null;
+    let startIndex = 0;
+    
+    formulaOrder.forEach((formula, index) => {
+      if (formula.class !== currentClass) {
+        if (currentClass !== null) {
+          groups.push({
+            className: currentClass,
+            startIndex,
+            endIndex: index - 1,
+            count: index - startIndex
+          });
+        }
+        currentClass = formula.class;
+        startIndex = index;
+      }
+    });
+    
+    if (currentClass !== null) {
+      groups.push({
+        className: currentClass,
+        startIndex,
+        endIndex: formulaOrder.length - 1,
+        count: formulaOrder.length - startIndex
+      });
+    }
+    
+    return groups;
+  };
+
+  const classGroups = groupByClass();
+
   if (formulaOrder.length === 0) return null;
 
   return (
@@ -46,15 +113,30 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
       <label style={{ fontWeight: 'bold', marginTop: '1rem', marginBottom: '0.5rem', display: 'block' }}>
         Drag to reorder formulas (top appears first in PDF)
       </label>
+      <div className="reorder-instructions">
+        <span>Drag individual formulas or drag class headers to move all</span>
+      </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={formulaOrder.map((_, i) => i)} strategy={verticalListSortingStrategy}>
-          {formulaOrder.map((formula, index) => (
-            <SortableFormulaItem 
-              key={index} 
-              id={index} 
-              formula={formula} 
-              onRemove={onRemove}
-            />
+          {classGroups.map((group) => (
+            <div key={group.className} className="formula-class-group">
+              <div className="class-group-header">
+                <span className="class-group-title">{group.className} ({group.count})</span>
+                <div className="class-group-actions">
+                  <button type="button" className="class-group-btn" onClick={() => moveClassUp(group.className)} title="Move up">↑</button>
+                  <button type="button" className="class-group-btn" onClick={() => moveClassDown(group.className)} title="Move down">↓</button>
+                  <button type="button" className="class-group-btn remove" onClick={() => removeClass(group.className)} title="Remove all">×</button>
+                </div>
+              </div>
+              {formulaOrder.slice(group.startIndex, group.endIndex + 1).map((formula, idx) => (
+                <SortableFormulaItem 
+                  key={group.startIndex + idx} 
+                  id={group.startIndex + idx} 
+                  formula={formula} 
+                  onRemove={onRemove}
+                />
+              ))}
+            </div>
           ))}
         </SortableContext>
       </DndContext>

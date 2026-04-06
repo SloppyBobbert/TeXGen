@@ -17,6 +17,79 @@
   --btn-clear-hover: #e11d48;
   --btn-preview: #8b5cf6;
   --btn-preview-hover: #7c3aed;
+  --btn-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --btn-shadow-hover: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+* {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.App {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem;
+}
+
+.create-cheat-sheet {
+  background: var(--panel-bg);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.btn {
+  padding: 0.55rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 0.6rem;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--btn-shadow);
+  letter-spacing: 0.01em;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  border-color: #4f46e5;
+}
+
+.btn.primary:hover {
+  background: linear-gradient(135deg, #7c7ff2 0%, #6366f1 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.btn.download {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-color: #059669;
+}
+
+.btn.download:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.btn.clear {
+  background: transparent;
+  color: #f43f5e;
+  border: 1px solid #f43f5e;
+}
+
+.btn.clear:hover {
+  background: #f43f5e;
+  color: white;
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
 }
 
 * {
@@ -230,17 +303,22 @@ body {
 }
 
 .btn.preview {
-  background-color: var(--btn-preview);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
+  border-color: #7c3aed;
 }
 
 .btn.preview:hover {
-  background-color: var(--btn-preview-hover);
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .btn.preview:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ---- Circular compile button ---- */
@@ -248,7 +326,7 @@ body {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: var(--btn-preview);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
   font-size: 1.5rem;
   display: flex;
@@ -401,4 +479,85 @@ body {
 
 .remove-formula:hover {
   color: #bd2130;
+}
+
+.reorder-instructions {
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
+.formula-class-group {
+  margin-bottom: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.class-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.6rem;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.class-group-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.class-group-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.class-group-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: white;
+  transition: all 0.15s ease;
+}
+
+.class-group-btn:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+.class-group-btn.remove {
+  background: rgba(244,63,94,0.3);
+}
+
+.class-group-btn.remove:hover {
+  background: #f43f5e;
+}
+
+.formula-reorder-panel {
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.formula-reorder-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.formula-reorder-panel::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.formula-reorder-panel::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.formula-reorder-panel::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
 }
