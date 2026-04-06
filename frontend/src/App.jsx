@@ -3,10 +3,14 @@ import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
 function App() {
+  const normalizeTheme = (value) => {
+    return value === 'dark' || value === 'light' ? value : 'dark';
+  };
+
   const [cheatSheet, setCheatSheet] = useState({ title: '', content: '' });
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
-    return saved || 'dark';
+    return normalizeTheme(saved);
   });
 
   useEffect(() => {
