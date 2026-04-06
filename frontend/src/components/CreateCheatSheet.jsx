@@ -1,8 +1,66 @@
 import React from 'react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
 
-//  Subcomponents 
+function SortableFormulaItem({ id, formula, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
+  
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+    position: 'relative',
+    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="sortable-formula-item">
+      <span className="drag-handle">⋮⋮</span>
+      <span className="formula-name">{formula.name}</span>
+      <span className="formula-class">{formula.class}</span>
+      <button type="button" className="remove-formula" onClick={() => onRemove(id)}>×</button>
+    </div>
+  );
+}
+
+function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      onReorder(active.id, over.id);
+    }
+  };
+
+  if (formulaOrder.length === 0) return null;
+
+  return (
+    <div className="formula-reorder-panel">
+      <label style={{ fontWeight: 'bold', marginTop: '1rem', marginBottom: '0.5rem', display: 'block' }}>
+        Drag to reorder formulas (top appears first in PDF)
+      </label>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={formulaOrder.map((_, i) => i)} strategy={verticalListSortingStrategy}>
+          {formulaOrder.map((formula, index) => (
+            <SortableFormulaItem 
+              key={index} 
+              id={index} 
+              formula={formula} 
+              onRemove={onRemove}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
 
 const FormulaSelection = ({ 
   classesData, 
@@ -13,11 +71,14 @@ const FormulaSelection = ({
   onGenerate, 
   isGenerating, 
   selectedCount, 
-  hasSelectedClasses 
+  hasSelectedClasses,
+  formulaOrder,
+  onReorderFormula,
+  onRemoveFormula
 }) => (
   <div className="formula-selection">
     <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
-      Step 1: Select your class(es)
+      Select classes
     </label>
     
     <div className="class-checkboxes">
@@ -40,16 +101,14 @@ const FormulaSelection = ({
     {hasSelectedClasses && (
       <div className="category-dropdowns">
         <label style={{ fontWeight: 'bold', marginTop: '1rem', marginBottom: '0.5rem', display: 'block' }}>
-          Step 2: Select category(ies)
+          Select sections
         </label>
         
         {classesData.map((cls) => {
           if (!selectedClasses[cls.name]) return null;
           
-          // Check if this is a special class (no category selection needed)
           const isSpecialClass = cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name);
           
-          // For special classes, don't show category selection
           if (isSpecialClass) {
             return (
               <div key={cls.name} className="class-category-section">
@@ -63,6 +122,23 @@ const FormulaSelection = ({
           return (
             <div key={cls.name} className="class-category-section">
               <label className="class-category-label">{cls.name}:</label>
+              <label className="select-all-label">
+                <input
+                  type="checkbox"
+                  checked={cls.categories.every(cat => selectedCategories[`${cls.name}:${cat.name}`])}
+                  onChange={() => {
+                    const allSelected = cls.categories.every(cat => selectedCategories[`${cls.name}:${cat.name}`]);
+                    cls.categories.forEach(cat => {
+                      if (allSelected) {
+                        toggleCategory(cls.name, cat.name);
+                      } else if (!selectedCategories[`${cls.name}:${cat.name}`]) {
+                        toggleCategory(cls.name, cat.name);
+                      }
+                    });
+                  }}
+                />
+                Include all sections
+              </label>
               <div className="category-checkboxes">
                 {cls.categories.map((cat) => {
                   const key = `${cls.name}:${cat.name}`;
@@ -84,6 +160,12 @@ const FormulaSelection = ({
         })}
       </div>
     )}
+
+    <FormulaReorderPanel 
+      formulaOrder={formulaOrder} 
+      onReorder={onReorderFormula}
+      onRemove={onRemoveFormula}
+    />
 
     <button
       type="button"
@@ -166,17 +248,18 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
-//  Main Component
-
 const CreateCheatSheet = ({ onSave, initialData }) => {
   const {
     classesData,
     selectedClasses,
     selectedCategories,
+    formulaOrder,
+    setFormulaOrder,
     toggleClass,
     toggleCategory,
     getSelectedFormulasList,
     clearSelections,
+    reorderFormula,
     selectedCount,
     hasSelectedClasses
   } = useFormulas();
@@ -196,6 +279,11 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     handleDownloadTex,
     clearLatex
   } = useLatex(initialData);
+
+  const handleRemoveFormula = (index) => {
+    const newOrder = formulaOrder.filter((_, i) => i !== index);
+    setFormulaOrder(newOrder);
+  };
 
   const handleGenerate = () => {
     const formulasList = getSelectedFormulasList();
@@ -219,7 +307,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     <div className="create-cheat-sheet">
       <form onSubmit={handleSave}>
         
-        {/* Title Input */}
         <div className="form-group">
           <label htmlFor="title">Title:</label>
           <input
@@ -243,6 +330,9 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           isGenerating={isGenerating}
           selectedCount={selectedCount}
           hasSelectedClasses={hasSelectedClasses}
+          formulaOrder={formulaOrder}
+          onReorderFormula={reorderFormula}
+          onRemoveFormula={handleRemoveFormula}
         />
 
         <div className="editor-container">

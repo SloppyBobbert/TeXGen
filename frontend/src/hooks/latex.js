@@ -32,12 +32,16 @@ export function useLatex(initialData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: contentToCompile }),
       });
-      if (!response.ok) throw new Error('Failed to compile LaTeX');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
+        throw new Error(errorMsg);
+      }
       const blob = await response.blob();
       setPdfBlob(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the backend service.');
+      alert(`Failed to compile: ${error.message}`);
     } finally {
       setIsCompiling(false);
       isCompilingRef.current = false;

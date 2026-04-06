@@ -47,6 +47,7 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "margins",
             "columns",
             "font_size",
+            "selected_formulas",
             "problems",
             "full_latex",
             "created_at",

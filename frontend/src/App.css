@@ -3,27 +3,35 @@
   --text: #f2f2f2;
   --panel-bg: #23232b;
   --border: #333;
-  --primary: #3b82f6;
+  --primary: #6366f1;
   --card-bg: #23232b;
   --box-bg: #222127;
   --input-bg: #18181c;
   --input-border: #444550;
   --input-text: #dbeaff;
-  --btn-primary: #3b82f6;
-  --btn-primary-hover: #2563eb;
-  --btn-download: #22c55e;
-  --btn-download-hover: #16a34a;
-  --btn-clear: #ef4444;
-  --btn-clear-hover: #b91c1c;
-  --btn-preview: #a78bfa;
+  --btn-primary: #6366f1;
+  --btn-primary-hover: #4f46e5;
+  --btn-download: #10b981;
+  --btn-download-hover: #059669;
+  --btn-clear: #f43f5e;
+  --btn-clear-hover: #e11d48;
+  --btn-preview: #8b5cf6;
   --btn-preview-hover: #7c3aed;
 }
 
+* {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 .App {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   max-width: 100%;
   margin: 0;
   padding: 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .create-cheat-sheet {
@@ -60,7 +68,8 @@
 
 .textarea-field {
   width: 100%;
-  min-height: 1000px;
+  height: 800px;
+  max-height: 80vh;
   padding: 1rem;
   font-family: 'Consolas', monospace;
   font-size: 14px;
@@ -134,9 +143,9 @@
   padding: 1rem;
   border: 1px solid var(--border);
   border-radius: 4px;
-  min-height: 1000px;
-  height: 100%;
-  overflow-y: visible;
+  height: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
   text-align: left;
   width: 100%;
   box-sizing: border-box;
@@ -296,6 +305,18 @@
   gap: 0.5rem;
 }
 
+.select-all-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #6366f1;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.select-all-label input {
+  margin-right: 0.3rem;
+}
+
 .input-section label,
 .preview-section label {
   display: block;
@@ -324,4 +345,60 @@
 .app-footer a:hover {
   color: var(--text);
   background-color: #f0f0f0;
+}
+
+.sortable-formula-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sortable-formula-item:hover {
+  border-color: #ccc;
+  background: #fff;
+}
+
+.sortable-formula-item:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  padding: 0 0.5rem;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: grab;
+}
+
+.formula-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.formula-class {
+  font-size: 0.8rem;
+  color: #666;
+  padding: 0.2rem 0.5rem;
+  background: #e9ecef;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+.remove-formula {
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+
+.remove-formula:hover {
+  color: #bd2130;
 }
