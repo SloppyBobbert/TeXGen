@@ -2,22 +2,37 @@ import subprocess
 import tempfile
 import os
 
-LATEX_HEADER = r"""\documentclass[fleqn]{article}
-\usepackage[margin=0.15in]{geometry}
-\usepackage{amsmath, amssymb}
-\usepackage{enumitem} 
-\usepackage{multicol}
-\usepackage{titlesec}
+LATEX_HEADER = r"""% =====================================================================
+%  PAGE SETUP
+%  These settings control margins, font size, and spacing.
+%  You generally won't need to change these.
+% =====================================================================
+\usepackage[margin=0.15in]{geometry}   % Very tight margins to fit more content
+\documentclass[fleqn]{article}
+\usepackage{amsmath, amssymb}          % Math symbols and environments
+\usepackage{enumitem}                  % Better list formatting
+\usepackage{multicol}                  % Allows multiple columns
+\usepackage{titlesec}                  % Controls section title spacing
+
 
 \setlength{\mathindent}{0pt}
 \setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}
-\pagestyle{empty}
+\pagestyle{empty}                      % No page numbers
 
+% Spacing above/below section headings
 \titlespacing*{\subsection}{0pt}{2pt}{1pt}
 \titlespacing*{\section}{0pt}{4pt}{2pt}
 
 \begin{document}
-\scriptsize
+\scriptsize  % Small font size to fit more content on the page
+
+% Spacing around math equations
+\setlength{\abovedisplayskip}{6pt}
+\setlength{\belowdisplayskip}{6pt}
+\setlength{\abovedisplayshortskip}{4pt}
+\setlength{\belowdisplayshortskip}{4pt}
+\setlength{\jot}{4pt}
+
 """
 
 LATEX_FOOTER = r"""
@@ -28,6 +43,8 @@ def build_latex_for_formulas(selected_formulas):
     """
     Given a list of selected formulas (each with class_name, category, name, latex),
     build a complete LaTeX document.
+    
+    Special handling for classes without categories (like UNIT CIRCLE).
     """
     body_lines = []
     
@@ -38,7 +55,13 @@ def build_latex_for_formulas(selected_formulas):
         if class_name not in by_class:
             by_class[class_name] = {}
         
+        # Handle special classes that don't have categories
+        # They may have category=None or be marked specially
         category = formula.get("category")
+        if category is None or category == class_name:
+            # This is a special class - use the class name as the category
+            category = "__special__"
+        
         if category not in by_class[class_name]:
             by_class[class_name][category] = []
         
@@ -50,18 +73,29 @@ def build_latex_for_formulas(selected_formulas):
         body_lines.append("")
         
         for category_name, formulas in categories.items():
-            body_lines.append("\\subsection*{" + category_name + "}")
-            body_lines.append("")
-            body_lines.append(r"\begin{flushleft}")
-            
-            for formula in formulas:
-                name = formula.get("name", "")
-                latex = formula.get("latex", "")
-                body_lines.append("\\textbf{" + name + "}")
-                body_lines.append("\\[ " + latex + " \\]")
-                body_lines.append("\\\\[4pt]")
-            
-            body_lines.append(r"\end{flushleft}")
+            # Skip the special marker for special classes
+            if category_name == "__special__":
+                # Just output the formulas directly without subsection
+                body_lines.append(r"\begin{flushleft}")
+                for formula in formulas:
+                    latex = formula.get("latex", "")
+                    # For special classes, the latex may contain subsection/title
+                    body_lines.append(latex)
+                    body_lines.append("\\[4pt]")
+                body_lines.append(r"\end{flushleft}")
+            else:
+                body_lines.append("\\subsection*{" + category_name + "}")
+                body_lines.append("")
+                body_lines.append(r"\begin{flushleft}")
+                
+                for formula in formulas:
+                    name = formula.get("name", "")
+                    latex = formula.get("latex", "")
+                    body_lines.append("\\textbf{" + name + "}")
+                    body_lines.append("\\[ " + latex + " \\]")
+                    body_lines.append("\\\\[4pt]")
+                
+                body_lines.append(r"\end{flushleft}")
             body_lines.append("")
     
     body = "\n".join(body_lines)

@@ -53,6 +53,23 @@ export function useFormulas() {
     const formulas = [];
     classesData.forEach((cls) => {
       if (!selectedClasses[cls.name]) return;
+      
+      // Check if this is a special class (no categories - like UNIT CIRCLE)
+      if (cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name)) {
+        // For special classes, include all formulas directly
+        cls.categories.forEach((cat) => {
+          cat.formulas.forEach((f) => {
+            formulas.push({
+              class: cls.name,
+              category: cls.name,  // Use class name as category for special
+              name: f.name
+            });
+          });
+        });
+        return;
+      }
+      
+      // Normal classes with categories
       cls.categories.forEach((cat) => {
         const key = `${cls.name}:${cat.name}`;
         if (selectedCategories[key]) {

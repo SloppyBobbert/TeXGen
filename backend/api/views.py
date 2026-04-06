@@ -9,7 +9,7 @@ import os
 
 from .models import Template, CheatSheet, PracticeProblem
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer
-from .formula_data import get_formula_data, get_classes_with_details
+from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
 from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
 
 # ------------------------------------------------------------------
@@ -38,7 +38,7 @@ def generate_sheet(request):
     POST /api/generate-sheet/
     Accepts { "formulas": [...] }
     Each formula: { "class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula" }
-    Or can also use: { "class_name", "category", "name" }
+    Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
     """
     selected = request.data.get("formulas", [])
@@ -55,7 +55,18 @@ def generate_sheet(request):
         category = sel.get("category")
         name = sel.get("name")
         
-        if class_name in formula_data:
+        # Check if this is a special class (no categories)
+        if is_special_class(class_name):
+            # Get the formula directly for special classes
+            formula = get_special_class_formula(class_name)
+            if formula:
+                selected_formulas.append({
+                    "class_name": class_name,
+                    "category": class_name,  # Use class name as category for special
+                    "name": formula["name"],
+                    "latex": formula["latex"]
+                })
+        elif class_name in formula_data:
             categories = formula_data[class_name]
             if category in categories:
                 formulas = categories[category]

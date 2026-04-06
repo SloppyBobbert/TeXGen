@@ -23,6 +23,7 @@ const FormulaSelection = ({
     <div className="class-checkboxes">
       {classesData.map((cls) => {
         const isChecked = !!selectedClasses[cls.name];
+        const isSpecialClass = cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name);
         return (
           <label key={cls.name} className={`class-checkbox-label ${isChecked ? 'checked' : ''}`}>
             <input
@@ -30,7 +31,7 @@ const FormulaSelection = ({
               checked={isChecked}
               onChange={() => toggleClass(cls.name)}
             />
-            {cls.name}
+            {cls.name} {isSpecialClass && '(No categories needed)'}
           </label>
         );
       })}
@@ -44,6 +45,20 @@ const FormulaSelection = ({
         
         {classesData.map((cls) => {
           if (!selectedClasses[cls.name]) return null;
+          
+          // Check if this is a special class (no category selection needed)
+          const isSpecialClass = cls.is_special || (cls.categories.length === 1 && cls.categories[0].name === cls.name);
+          
+          // For special classes, don't show category selection
+          if (isSpecialClass) {
+            return (
+              <div key={cls.name} className="class-category-section">
+                <p style={{ fontSize: '0.9rem', color: '#666', marginLeft: '0.5rem' }}>
+                  ✓ {cls.name} selected - all formulas included
+                </p>
+              </div>
+            );
+          }
           
           return (
             <div key={cls.name} className="class-category-section">
