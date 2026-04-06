@@ -1,16 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const backendTarget = process.env.BACKEND_URL || 'http://backend:8000'
-
+// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'pdf': ['react-pdf', 'pdfjs-dist'],
+          'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities']
+        }
+      }
+    }
+  },
   server: {
-    host: '0.0.0.0',
-    port: 5173,
     proxy: {
       '/api': {
-        target: backendTarget,
+        target: process.env.VITE_API_URL || 'http://localhost:8000',
         changeOrigin: true,
       },
     },

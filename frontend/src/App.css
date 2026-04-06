@@ -3,27 +3,106 @@
   --text: #f2f2f2;
   --panel-bg: #23232b;
   --border: #333;
-  --primary: #3b82f6;
+  --primary: #3498db;
   --card-bg: #23232b;
   --box-bg: #222127;
   --input-bg: #18181c;
   --input-border: #444550;
   --input-text: #dbeaff;
-  --btn-primary: #3b82f6;
-  --btn-primary-hover: #2563eb;
-  --btn-download: #22c55e;
-  --btn-download-hover: #16a34a;
-  --btn-clear: #ef4444;
-  --btn-clear-hover: #b91c1c;
-  --btn-preview: #a78bfa;
-  --btn-preview-hover: #7c3aed;
+  --btn-primary: #3498db;
+  --btn-primary-hover: #2980b9;
+  --btn-download: #10b981;
+  --btn-download-hover: #059669;
+  --btn-clear: #f43f5e;
+  --btn-clear-hover: #e11d48;
+  --btn-preview: #3498db;
+  --btn-preview-hover: #2980b9;
+  --btn-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --btn-shadow-hover: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+* {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body {
 }
 
 .App {
   max-width: 100%;
   margin: 0;
   padding: 0.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+.create-cheat-sheet {
+  background: var(--panel-bg);
+  padding: 0.5rem;
+  border-radius: 8px;
+}
+
+.btn {
+  padding: 0.55rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: 0.6rem;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--btn-shadow);
+  letter-spacing: 0.01em;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  border-color: #2980b9;
+}
+
+.btn.primary:hover {
+  background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.btn.download {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border-color: #059669;
+}
+
+.btn.download:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.btn.clear {
+  background: transparent;
+  color: #f43f5e;
+  border: 1px solid #f43f5e;
+}
+
+.btn.clear:hover {
+  background: #f43f5e;
+  color: white;
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
+}
+
+* {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.App {
+  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.5rem;
 }
 
 .create-cheat-sheet {
@@ -49,18 +128,26 @@
 }
 
 .input-section {
-  flex: 1;
+  flex: 1 1 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-section {
-  flex: 1;
+  flex: 1 1 50%;
+  min-width: 0;
   background: transparent;
   padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .textarea-field {
   width: 100%;
-  min-height: 1000px;
+  height: 800px;
+  flex-grow: 1;
+  max-height: 80vh;
   padding: 1rem;
   font-family: 'Consolas', monospace;
   font-size: 14px;
@@ -131,12 +218,13 @@
 
 .preview-box {
   background: var(--box-bg);
-  padding: 1rem;
   border: 1px solid var(--border);
   border-radius: 4px;
-  min-height: 1000px;
-  height: 100%;
-  overflow-y: visible;
+  height: 800px;
+  flex-grow: 1;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   text-align: left;
   width: 100%;
   box-sizing: border-box;
@@ -221,17 +309,22 @@
 }
 
 .btn.preview {
-  background-color: var(--btn-preview);
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: white;
+  border-color: #2980b9;
 }
 
 .btn.preview:hover {
-  background-color: var(--btn-preview-hover);
+  background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+  box-shadow: var(--btn-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .btn.preview:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ---- Circular compile button ---- */
@@ -239,7 +332,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: var(--btn-preview);
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: white;
   font-size: 1.5rem;
   display: flex;
@@ -296,6 +389,18 @@
   gap: 0.5rem;
 }
 
+.select-all-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #6366f1;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.select-all-label input {
+  margin-right: 0.3rem;
+}
+
 .input-section label,
 .preview-section label {
   display: block;
@@ -324,4 +429,212 @@
 .app-footer a:hover {
   color: var(--text);
   background-color: #f0f0f0;
+}
+
+.sortable-formula-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sortable-formula-item:hover {
+  border-color: #ccc;
+  background: #fff;
+}
+
+.sortable-formula-item:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  padding: 0 0.5rem;
+  color: #888;
+  font-size: 1.2rem;
+  cursor: grab;
+}
+
+.formula-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.formula-class {
+  font-size: 0.8rem;
+  color: #666;
+  padding: 0.2rem 0.5rem;
+  background: #e9ecef;
+  border-radius: 3px;
+  margin-right: 0.5rem;
+}
+
+.remove-formula {
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+
+.remove-formula:hover {
+  color: #bd2130;
+}
+
+.reorder-instructions {
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
+.formula-class-group {
+  margin-bottom: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.formula-class-group.collapsed {
+  margin-bottom: 0.25rem;
+}
+
+.sortable-formula-item.nested {
+  padding-left: 1.5rem;
+  background: #fbfbfb;
+  border-left: 3px solid #3498db;
+}
+
+.sortable-formula-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  margin: 0.25rem 0;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.formula-name.italic {
+  font-style: italic;
+}
+
+.formula-class.italic {
+  font-style: italic;
+}
+
+.class-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.class-group-header:hover {
+  filter: brightness(1.1);
+}
+
+.class-group-header:active {
+  cursor: grabbing;
+}
+
+.class-group-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
+.drag-handle {
+  padding: 0 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.2rem;
+  cursor: grab;
+}
+
+.sortable-formula-item .drag-handle {
+  color: #888;
+}
+
+.class-group-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.class-group-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: white;
+  transition: all 0.15s ease;
+}
+
+.class-group-btn:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+.class-group-btn.remove {
+  background: rgba(244,63,94,0.3);
+}
+
+.class-group-btn.remove:hover {
+  background: #f43f5e;
+}
+
+.formula-reorder-panel {
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.formula-reorder-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.formula-reorder-panel::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.formula-reorder-panel::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.pdf-viewer-box {
+  overflow-y: auto;
+  align-items: center;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-page {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  background-color: white;
+  border-radius: 2px;
+}
+
+.pdf-page:last-child {
+  margin-bottom: 0;
 }

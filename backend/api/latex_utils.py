@@ -29,40 +29,56 @@ def build_latex_for_formulas(selected_formulas):
     Given a list of selected formulas (each with class_name, category, name, latex),
     build a complete LaTeX document.
     """
+    if not selected_formulas:
+        return LATEX_HEADER + LATEX_FOOTER
+    
     body_lines = []
+    current_class = None
+    current_category = None
+    in_flushleft = False
     
-    # Group formulas by class
-    by_class = {}
     for formula in selected_formulas:
-        class_name = formula.get("class_name") or formula.get("class")
-        if class_name not in by_class:
-            by_class[class_name] = {}
+        class_name = formula.get("class_name") or formula.get("class", "")
+        category = formula.get("category", "")
+        name = formula.get("name", "")
+        latex = formula.get("latex", "")
         
-        category = formula.get("category")
-        if category not in by_class[class_name]:
-            by_class[class_name][category] = []
+        if class_name != current_class:
+            if in_flushleft:
+                body_lines.append(r"\end{flushleft}")
+                in_flushleft = False
+            if current_class is not None:
+                body_lines.append("")
+            escaped_class = class_name.replace("&", "\\&")
+            body_lines.append("\\section*{" + escaped_class + "}")
+            body_lines.append("")
+            current_class = class_name
+            current_category = None
         
-        by_class[class_name][category].append(formula)
+        if category != current_category:
+            is_special = (category == class_name)
+            if in_flushleft and not is_special:
+                body_lines.append(r"\end{flushleft}")
+                in_flushleft = False
+            if not is_special:
+                escaped_category = category.replace("&", "\\&")
+                body_lines.append("\\subsection*{" + escaped_category + "}")
+                body_lines.append("")
+                body_lines.append(r"\begin{flushleft}")
+                in_flushleft = True
+            current_category = category
+        
+        if category == class_name:
+            body_lines.append(latex)
+        else:
+            # Escape special LaTeX characters in the formula name
+            escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
+            body_lines.append("\\textbf{" + escaped_name + "}")
+            body_lines.append("\\[ " + latex + " \\]")
+            body_lines.append("\\\\[4pt]")
     
-    # Build LaTeX for each class
-    for class_name, categories in by_class.items():
-        body_lines.append("\\section*{" + class_name + "}")
-        body_lines.append("")
-        
-        for category_name, formulas in categories.items():
-            body_lines.append("\\subsection*{" + category_name + "}")
-            body_lines.append("")
-            body_lines.append(r"\begin{flushleft}")
-            
-            for formula in formulas:
-                name = formula.get("name", "")
-                latex = formula.get("latex", "")
-                body_lines.append("\\textbf{" + name + "}")
-                body_lines.append("\\[ " + latex + " \\]")
-                body_lines.append("\\\\[4pt]")
-            
-            body_lines.append(r"\end{flushleft}")
-            body_lines.append("")
+    if in_flushleft:
+        body_lines.append(r"\end{flushleft}")
     
     body = "\n".join(body_lines)
     return LATEX_HEADER + body + LATEX_FOOTER

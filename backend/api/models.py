@@ -24,6 +24,8 @@ class CheatSheet(models.Model):
     columns = models.IntegerField(default=2)
     margins = models.CharField(max_length=20, default="0.5in")
     font_size = models.CharField(max_length=10, default="10pt")
+    # Stores selected formulas with user-defined order: [{"class": "...", "category": "...", "name": "..."}]
+    selected_formulas = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -7,6 +7,7 @@ export function useLatex(initialData) {
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [compileError, setCompileError] = useState(null);
   
   const isCompilingRef = useRef(false);
   const isGeneratingRef = useRef(false);
@@ -26,18 +27,31 @@ export function useLatex(initialData) {
     
     isCompilingRef.current = true;
     setIsCompiling(true);
+    setCompileError(null);
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: contentToCompile }),
       });
-      if (!response.ok) throw new Error('Failed to compile LaTeX');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
+        
+        errorMsg = errorMsg
+          .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
+          .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
+          .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
+          .replace(/\n\s*\n/g, '\n')
+          .trim();
+
+        throw new Error(errorMsg);
+      }
       const blob = await response.blob();
       setPdfBlob(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please check the backend service.');
+      setCompileError(error.message);
     } finally {
       setIsCompiling(false);
       isCompilingRef.current = false;
@@ -119,6 +133,7 @@ export function useLatex(initialData) {
     setTitle('');
     setContent('');
     setPdfBlob(null);
+    setCompileError(null);
   };
 
   return {
@@ -130,6 +145,7 @@ export function useLatex(initialData) {
     isGenerating,
     isCompiling,
     isLoading,
+    compileError,
     handleGenerateSheet,
     handlePreview,
     handleDownloadPDF,
