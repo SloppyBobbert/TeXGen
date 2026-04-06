@@ -39,12 +39,6 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
     }
   };
 
-  const formulasByClass = formulaOrder.reduce((acc, formula) => {
-    if (!acc[formula.class]) acc[formula.class] = [];
-    acc[formula.class].push(formula);
-    return acc;
-  }, {});
-
   const getIndicesForClass = (className) => {
     return formulaOrder
       .map((f, i) => f.class === className ? i : -1)
