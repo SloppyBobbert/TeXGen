@@ -171,7 +171,7 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
-          {visibleItems.map((item, idx) => (
+          {visibleItems.map((item) => (
             <SortableFormulaItem 
               key={item.id} 
               id={item.id}
