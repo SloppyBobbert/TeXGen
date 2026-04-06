@@ -21,11 +21,37 @@
   --btn-shadow-hover: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
 }
 
+[data-theme="light"] {
+  --bg: #f9f9fa;
+  --text: #18181c;
+  --panel-bg: #ffffff;
+  --border: #e2e8f0;
+  --primary: #3b82f6;
+  --card-bg: #f3f4f6;
+  --box-bg: #f8fafc;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-text: #1e293b;
+  --btn-primary: #3b82f6;
+  --btn-primary-hover: #2563eb;
+  --btn-download: #10b981;
+  --btn-download-hover: #059669;
+  --btn-clear: #ef4444;
+  --btn-clear-hover: #dc2626;
+  --btn-preview: #3b82f6;
+  --btn-preview-hover: #2563eb;
+  --btn-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  --btn-shadow-hover: 0 4px 6px rgba(0,0,0,0.1);
+}
+
 * {
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .App {
@@ -96,6 +122,8 @@ body {
 
 body {
   font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
 }
 
 .App {
@@ -151,6 +179,8 @@ body {
   padding: 1rem;
   font-family: 'Consolas', monospace;
   font-size: 14px;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   border: 1px solid var(--border);
   border-radius: 4px;
   resize: vertical;
@@ -161,6 +191,8 @@ body {
   width: 100%;
   padding: 0.8rem;
   margin-bottom: 1.5rem;
+  background-color: var(--input-bg);
+  color: var(--input-text);
   border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 1.1rem;
@@ -245,7 +277,7 @@ body {
   gap: 0.4rem;
   padding: 0.5rem 1rem;
   background: var(--panel-bg);
-  border: 2px solid var(--border);
+  border: #696969 solid 1px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
@@ -417,7 +449,7 @@ body {
 }
 
 .app-footer a {
-  color: #666;
+  color: #999;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -428,7 +460,7 @@ body {
 
 .app-footer a:hover {
   color: var(--text);
-  background-color: #f0f0f0;
+  background-color: var(--panel-bg);
 }
 
 .sortable-formula-item {
@@ -436,8 +468,8 @@ body {
   align-items: center;
   padding: 0.5rem;
   margin: 0.25rem 0;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--box-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   cursor: grab;
   touch-action: none;
@@ -445,8 +477,8 @@ body {
 }
 
 .sortable-formula-item:hover {
-  border-color: #ccc;
-  background: #fff;
+  border-color: #5dade2;
+  background: var(--panel-bg);
 }
 
 .sortable-formula-item:active {
@@ -467,9 +499,9 @@ body {
 
 .formula-class {
   font-size: 0.8rem;
-  color: #666;
+  color: #999;
   padding: 0.2rem 0.5rem;
-  background: #e9ecef;
+  background: var(--panel-bg);
   border-radius: 3px;
   margin-right: 0.5rem;
 }
@@ -496,10 +528,10 @@ body {
 
 .formula-class-group {
   margin-bottom: 0.5rem;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  background: #fafafa;
+  background: var(--box-bg);
   transition: all 0.2s ease;
 }
 
@@ -509,7 +541,7 @@ body {
 
 .sortable-formula-item.nested {
   padding-left: 1.5rem;
-  background: #fbfbfb;
+  background: var(--card-bg);
   border-left: 3px solid #3498db;
 }
 
@@ -518,8 +550,8 @@ body {
   align-items: center;
   padding: 0.5rem;
   margin: 0.25rem 0;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  background: var(--box-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   cursor: grab;
   touch-action: none;
