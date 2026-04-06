@@ -31,7 +31,7 @@ const FormulaSelection = ({
               checked={isChecked}
               onChange={() => toggleClass(cls.name)}
             />
-            {cls.name} {isSpecialClass && '(No categories needed)'}
+            {cls.name}
           </label>
         );
       })}

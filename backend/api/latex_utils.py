@@ -50,18 +50,28 @@ def build_latex_for_formulas(selected_formulas):
         body_lines.append("")
         
         for category_name, formulas in categories.items():
-            body_lines.append("\\subsection*{" + category_name + "}")
-            body_lines.append("")
-            body_lines.append(r"\begin{flushleft}")
+            # Check if this is a special class (category name equals class name)
+            # Special classes like UNIT CIRCLE have raw LaTeX that shouldn't be wrapped
+            is_special = (category_name == class_name)
             
-            for formula in formulas:
-                name = formula.get("name", "")
-                latex = formula.get("latex", "")
-                body_lines.append("\\textbf{" + name + "}")
-                body_lines.append("\\[ " + latex + " \\]")
-                body_lines.append("\\\\[4pt]")
-            
-            body_lines.append(r"\end{flushleft}")
+            if is_special:
+                # Special class: output raw LaTeX directly without name/title wrapping
+                for formula in formulas:
+                    latex = formula.get("latex", "")
+                    body_lines.append(latex)
+            else:
+                body_lines.append("\\subsection*{" + category_name + "}")
+                body_lines.append("")
+                body_lines.append(r"\begin{flushleft}")
+                
+                for formula in formulas:
+                    name = formula.get("name", "")
+                    latex = formula.get("latex", "")
+                    body_lines.append("\\textbf{" + name + "}")
+                    body_lines.append("\\[ " + latex + " \\]")
+                    body_lines.append("\\\\[4pt]")
+                
+                body_lines.append(r"\end{flushleft}")
             body_lines.append("")
     
     body = "\n".join(body_lines)
