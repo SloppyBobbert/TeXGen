@@ -26,11 +26,9 @@
 }
 
 body {
-  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 .App {
-  font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
   max-width: 100%;
   margin: 0;
   padding: 0.5rem;
