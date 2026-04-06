@@ -494,6 +494,11 @@ body {
   border-radius: 6px;
   overflow: hidden;
   background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.formula-class-group.collapsed {
+  margin-bottom: 0.25rem;
 }
 
 .class-group-header {
@@ -503,11 +508,43 @@ body {
   padding: 0.4rem 0.6rem;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   color: white;
+  cursor: grab;
+}
+
+.class-group-header:active {
+  cursor: grabbing;
+}
+
+.class-group-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.collapse-toggle {
+  background: none;
+  border: none;
+  color: white;
+  padding: 0;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  opacity: 0.8;
+}
+
+.collapse-toggle:hover {
+  opacity: 1;
 }
 
 .class-group-title {
   font-weight: 600;
   font-size: 0.85rem;
+  user-select: none;
 }
 
 .class-group-actions {

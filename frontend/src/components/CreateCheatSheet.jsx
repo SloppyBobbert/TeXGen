@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
 
-function SortableFormulaItem({ id, formula, onRemove }) {
+function SortableFormulaItem({ id, formula, onRemove, isGroupHeader, onToggleCollapse, isCollapsed, onMoveUp, onMoveDown }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
   
   const style = {
@@ -16,12 +16,49 @@ function SortableFormulaItem({ id, formula, onRemove }) {
     boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
   };
 
+  if (isGroupHeader) {
+    return (
+      <div ref={setNodeRef} style={style} className={`formula-class-group ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className="class-group-header" {...attributes} {...listeners}>
+          <div className="class-group-main">
+            <span className="drag-handle">⋮⋮</span>
+            <button 
+              type="button" 
+              className="collapse-toggle" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleCollapse();
+              }}
+            >
+              {isCollapsed ? '▶' : '▼'}
+            </button>
+            <span className="class-group-title">{formula.className} ({formula.count})</span>
+          </div>
+          <div className="class-group-actions" onClick={e => e.stopPropagation()}>
+            <button type="button" className="class-group-btn" onClick={onMoveUp} title="Move up">↑</button>
+            <button type="button" className="class-group-btn" onClick={onMoveDown} title="Move down">↓</button>
+            <button type="button" className="class-group-btn remove" onClick={onRemove} title="Remove all">×</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="sortable-formula-item">
       <span className="drag-handle">⋮⋮</span>
       <span className="formula-name">{formula.name}</span>
       <span className="formula-class">{formula.class}</span>
-      <button type="button" className="remove-formula" onClick={() => onRemove(id)}>×</button>
+      <button 
+        type="button" 
+        className="remove-formula" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
@@ -32,36 +69,38 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const [collapsedGroups, setCollapsedGroups] = React.useState({});
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      onReorder(active.id, over.id);
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId !== overId) {
+      const activeData = visibleItems.find(item => item.id === activeId);
+      const overData = visibleItems.find(item => item.id === overId);
+
+      if (!activeData || !overData) return;
+
+      if (activeData.type === 'header' && overData.type === 'header') {
+        onReorder(activeData.group.startIndex, overData.group.startIndex);
+      } else if (activeData.type === 'formula' && overData.type === 'formula') {
+        onReorder(activeData.index, overData.index);
+      } else {
+        const fromIdx = activeData.type === 'header' ? activeData.group.startIndex : activeData.index;
+        const toIdx = overData.type === 'header' ? overData.group.startIndex : overData.index;
+        onReorder(fromIdx, toIdx);
+      }
     }
   };
 
-  const getIndicesForClass = (className) => {
-    return formulaOrder
-      .map((f, i) => f.class === className ? i : -1)
-      .filter(i => i !== -1);
-  };
-
-  const moveClassUp = (className) => {
-    const indices = getIndicesForClass(className);
-    if (indices.length === 0 || indices[0] === 0) return;
-    const firstIdx = indices[0];
-    onReorder(firstIdx, firstIdx - 1);
-  };
-
-  const moveClassDown = (className) => {
-    const indices = getIndicesForClass(className);
-    if (indices.length === 0 || indices[indices.length - 1] === formulaOrder.length - 1) return;
-    const lastIdx = indices[indices.length - 1];
-    onReorder(lastIdx, lastIdx + 1);
-  };
-
-  const removeClass = (className) => {
-    const indices = getIndicesForClass(className);
-    [...indices].reverse().forEach(idx => onRemove(idx));
+  const toggleGroup = (className) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [className]: !prev[className]
+    }));
   };
 
   const groupByClass = () => {
@@ -98,6 +137,28 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
 
   const classGroups = groupByClass();
 
+  const visibleItems = [];
+  classGroups.forEach((group) => {
+    const headerId = `header-${group.className}`;
+    visibleItems.push({
+      id: headerId,
+      type: 'header',
+      group: group,
+      className: group.className
+    });
+
+    if (!collapsedGroups[group.className]) {
+      for (let i = group.startIndex; i <= group.endIndex; i++) {
+        visibleItems.push({
+          id: `formula-${i}-${formulaOrder[i].name}`,
+          type: 'formula',
+          index: i,
+          formula: formulaOrder[i]
+        });
+      }
+    }
+  });
+
   if (formulaOrder.length === 0) return null;
 
   return (
@@ -106,29 +167,41 @@ function FormulaReorderPanel({ formulaOrder, onReorder, onRemove }) {
         Drag to reorder formulas (top appears first in PDF)
       </label>
       <div className="reorder-instructions">
-        <span>Drag individual formulas or drag class headers to move all</span>
+        <span>Drag ⋮⋮ to move. Collapse headers to move entire classes.</span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={formulaOrder.map((_, i) => i)} strategy={verticalListSortingStrategy}>
-          {classGroups.map((group) => (
-            <div key={group.className} className="formula-class-group">
-              <div className="class-group-header">
-                <span className="class-group-title">{group.className} ({group.count})</span>
-                <div className="class-group-actions">
-                  <button type="button" className="class-group-btn" onClick={() => moveClassUp(group.className)} title="Move up">↑</button>
-                  <button type="button" className="class-group-btn" onClick={() => moveClassDown(group.className)} title="Move down">↓</button>
-                  <button type="button" className="class-group-btn remove" onClick={() => removeClass(group.className)} title="Remove all">×</button>
-                </div>
-              </div>
-              {formulaOrder.slice(group.startIndex, group.endIndex + 1).map((formula, idx) => (
-                <SortableFormulaItem 
-                  key={group.startIndex + idx} 
-                  id={group.startIndex + idx} 
-                  formula={formula} 
-                  onRemove={onRemove}
-                />
-              ))}
-            </div>
+        <SortableContext items={visibleItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+          {visibleItems.map((item, idx) => (
+            <SortableFormulaItem 
+              key={item.id} 
+              id={item.id}
+              isGroupHeader={item.type === 'header'}
+              formula={item.type === 'header' ? item.group : item.formula}
+              isCollapsed={item.type === 'header' ? !!collapsedGroups[item.className] : false}
+              onToggleCollapse={() => toggleGroup(item.className)}
+              onRemove={item.type === 'header' ? 
+                () => {
+                  const indices = formulaOrder
+                    .map((f, i) => f.class === item.className ? i : -1)
+                    .filter(i => i !== -1);
+                  [...indices].reverse().forEach(idx => onRemove(idx));
+                } : 
+                () => onRemove(item.index)
+              }
+              onMoveUp={() => {
+                const indices = formulaOrder
+                  .map((f, i) => f.class === item.className ? i : -1)
+                  .filter(i => i !== -1);
+                if (indices[0] > 0) onReorder(indices[0], indices[0] - 1);
+              }}
+              onMoveDown={() => {
+                const indices = formulaOrder
+                  .map((f, i) => f.class === item.className ? i : -1)
+                  .filter(i => i !== -1);
+                if (indices[indices.length - 1] < formulaOrder.length - 1) 
+                  onReorder(indices[indices.length - 1], indices[indices.length - 1] + 1);
+              }}
+            />
           ))}
         </SortableContext>
       </DndContext>
