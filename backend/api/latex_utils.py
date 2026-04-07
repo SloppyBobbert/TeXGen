@@ -33,12 +33,21 @@ FONT_SIZE_MAP = {
     "12pt": "\\normalsize",
 }
 
+# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_spacing)
+SPACING_MAP = {
+    "tiny": ("1pt", "0.5pt", "0.5pt", "0.25pt", "1pt"),
+    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt"),
+    "medium": ("3pt", "1.5pt", "1.5pt", "0.75pt", "3pt"),
+    "large": ("4pt", "2pt", "2pt", "1pt", "4pt"),
+}
 
-def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in"):
+
+def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
     """
     Build a dynamic LaTeX header based on user-selected options.
     """
     size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
+    sec_before, sec_after, subsec_before, subsec_after, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
     
     header_lines = [
         f"\\documentclass[{font_size},fleqn]{{article}}",
@@ -52,8 +61,10 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in"):
         "\\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}",
         "\\pagestyle{empty}",
         "",
-        "\\titlespacing*{\\subsection}{0pt}{2pt}{1pt}",
-        "\\titlespacing*{\\section}{0pt}{4pt}{2pt}",
+        f"\\titleformat{{\\section}}{{\\normalfont\\footnotesize\\bfseries}}{{}}{{0pt}}{{}}",
+        f"\\titleformat{{\\subsection}}{{\\normalfont\\scriptsize\\bfseries}}{{}}{{0pt}}{{}}",
+        f"\\titlespacing*{{\\section}}{{0pt}}{{{sec_before}}}{{{sec_after}}}",
+        f"\\titlespacing*{{\\subsection}}{{0pt}}{{{subsec_before}}}{{{subsec_after}}}",
         "",
         "\\begin{document}",
         size_command,
@@ -80,13 +91,14 @@ def build_dynamic_footer(columns=2):
     return "\n".join(footer_lines)
 
 
-def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", margins="0.25in"):
+def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", margins="0.25in", spacing="large"):
     """
     Given a list of selected formulas (each with class_name, category, name, latex),
     build a complete LaTeX document.
     """
-    header = build_dynamic_header(columns, font_size, margins)
+    header = build_dynamic_header(columns, font_size, margins, spacing)
     footer = build_dynamic_footer(columns)
+    _, _, _, _, formula_gap = SPACING_MAP.get(spacing, SPACING_MAP["large"])
     
     if not selected_formulas:
         return header + footer
@@ -134,7 +146,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
             body_lines.append("\\textbf{" + escaped_name + "}")
             body_lines.append("\\[ " + latex + " \\]")
-            body_lines.append("\\\\[4pt]")
+            body_lines.append(f"\\\\[{formula_gap}]")
     
     if in_flushleft:
         body_lines.append(r"\end{flushleft}")

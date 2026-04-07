@@ -5,6 +5,7 @@ export function useLatex(initialData) {
   const [content, setContent] = useState(initialData?.content ?? '');
   const [columns, setColumns] = useState(initialData?.columns ?? 2);
   const [fontSize, setFontSize] = useState(initialData?.fontSize ?? '10pt');
+  const [spacing, setSpacing] = useState(initialData?.spacing ?? 'large');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -20,6 +21,7 @@ export function useLatex(initialData) {
       setContent(initialData.content ?? '');
       setColumns(initialData.columns ?? 2);
       setFontSize(initialData.fontSize ?? '10pt');
+      setSpacing(initialData.spacing ?? 'large');
     }
   }, [initialData]);
 
@@ -37,6 +39,7 @@ export function useLatex(initialData) {
             formulas: regenerateOptions.formulas,
             columns: regenerateOptions.columns,
             font_size: regenerateOptions.fontSize,
+            spacing: regenerateOptions.spacing,
             margins: '0.25in'
           }),
         });
@@ -102,6 +105,7 @@ export function useLatex(initialData) {
           formulas: selectedList,
           columns: columns,
           font_size: fontSize,
+          spacing: spacing,
           margins: '0.25in'
         }),
       });
@@ -166,6 +170,7 @@ export function useLatex(initialData) {
     setContent('');
     setColumns(2);
     setFontSize('10pt');
+    setSpacing('large');
     setPdfBlob(null);
     setCompileError(null);
   };
@@ -179,6 +184,8 @@ export function useLatex(initialData) {
     setColumns,
     fontSize,
     setFontSize,
+    spacing,
+    setSpacing,
     pdfBlob,
     isGenerating,
     isCompiling,

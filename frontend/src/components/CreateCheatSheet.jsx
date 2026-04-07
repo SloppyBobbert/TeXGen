@@ -423,7 +423,7 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
-const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize }) => (
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing }) => (
   <div className="layout-options">
     <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
       Layout Options
@@ -457,6 +457,20 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize }) => (
           <option value="12pt">Large (12pt)</option>
         </select>
       </div>
+      <div className="layout-control">
+        <label htmlFor="spacing">Spacing:</label>
+        <select 
+          id="spacing" 
+          value={spacing} 
+          onChange={(e) => setSpacing(e.target.value)}
+          className="layout-select"
+        >
+          <option value="tiny">Tiny</option>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </div>
     </div>
   </div>
 );
@@ -488,6 +502,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     setColumns,
     fontSize,
     setFontSize,
+    spacing,
+    setSpacing,
     pdfBlob,
     isGenerating,
     isCompiling,
@@ -503,7 +519,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
   const handleCompileClick = () => {
     const formulasList = getSelectedFormulasList();
     if (formulasList.length > 0) {
-      handlePreview(null, { formulas: formulasList, columns, fontSize });
+      handlePreview(null, { formulas: formulasList, columns, fontSize, spacing });
     } else {
       handlePreview();
     }
@@ -516,14 +532,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSave({ title, content, columns, fontSize });
+    onSave({ title, content, columns, fontSize, spacing });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '', columns: 2, fontSize: '10pt' }, false);
+      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' }, false);
     }
   };
 
@@ -566,6 +582,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           setColumns={setColumns}
           fontSize={fontSize}
           setFontSize={setFontSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
         />
 
         <div className="editor-container">

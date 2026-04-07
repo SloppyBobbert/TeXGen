@@ -36,7 +36,7 @@ def get_classes(request):
 def generate_sheet(request):
     """
     POST /api/generate-sheet/
-    Accepts { "formulas": [...], "columns": 2, "font_size": "10pt", "margins": "0.25in" }
+    Accepts { "formulas": [...], "columns": 2, "font_size": "10pt", "margins": "0.25in", "spacing": "large" }
     Each formula: { "class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula" }
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
@@ -45,6 +45,7 @@ def generate_sheet(request):
     columns = request.data.get("columns", 2)
     font_size = request.data.get("font_size", "10pt")
     margins = request.data.get("margins", "0.25in")
+    spacing = request.data.get("spacing", "large")
     
     if not selected:
         return Response({"error": "No formulas selected"}, status=400)
@@ -84,7 +85,7 @@ def generate_sheet(request):
     if not selected_formulas:
         return Response({"error": "No valid formulas found"}, status=400)
     
-    tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins)
+    tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins, spacing)
     return Response({"tex_code": tex_code})
 
 
