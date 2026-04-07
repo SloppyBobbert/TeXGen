@@ -3,7 +3,24 @@ import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
 function App() {
+  const normalizeTheme = (value) => {
+    return value === 'dark' || value === 'light' ? value : 'dark';
+  };
+
   const [cheatSheet, setCheatSheet] = useState({ title: '', content: '' });
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return normalizeTheme(saved);
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   useEffect(() => {
     const savedSheet = localStorage.getItem('currentCheatSheet');
@@ -27,8 +44,15 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1>Cheat Sheet Generator</h1>
-        <p>Write cheat sheets with LaTeX support</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1>Cheat Sheet Generator</h1>
+            <p>Write cheat sheets with LaTeX support</p>
+          </div>
+          <button onClick={toggleTheme} className="btn primary" style={{ margin: 0, height: 'fit-content' }}>
+            {theme === 'dark' ? 'Light' : 'Dark'}
+          </button>
+        </div>
       </header>
       <main>
         <CreateCheatSheet 
