@@ -61,6 +61,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in"):
     
     if columns > 1:
         header_lines.append(f"\\begin{{multicols}}{{{columns}}}")
+        header_lines.append("\\raggedcolumns")
     
     header_lines.append("")
     return "\n".join(header_lines)
