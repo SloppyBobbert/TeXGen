@@ -36,17 +36,21 @@ def get_classes(request):
 def generate_sheet(request):
     """
     POST /api/generate-sheet/
-    Accepts { "formulas": [...] }
+    Accepts { "formulas": [...], "columns": 2, "font_size": "10pt", "margins": "0.25in" }
     Each formula: { "class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula" }
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
     """
     selected = request.data.get("formulas", [])
+    columns = request.data.get("columns", 2)
+    font_size = request.data.get("font_size", "10pt")
+    margins = request.data.get("margins", "0.25in")
     
     if not selected:
         return Response({"error": "No formulas selected"}, status=400)
     
-    # Get formula details from formula_data
+    columns = max(1, min(3, int(columns)))
+    
     formula_data = get_formula_data()
     selected_formulas = []
     
@@ -55,14 +59,12 @@ def generate_sheet(request):
         category = sel.get("category")
         name = sel.get("name")
         
-        # Check if this is a special class (no categories)
         if is_special_class(class_name):
-            # Get the formula directly for special classes
             formula = get_special_class_formula(class_name)
             if formula:
                 selected_formulas.append({
                     "class_name": class_name,
-                    "category": class_name,  # Use class name as category for special
+                    "category": class_name,
                     "name": formula["name"],
                     "latex": formula["latex"]
                 })
@@ -82,7 +84,7 @@ def generate_sheet(request):
     if not selected_formulas:
         return Response({"error": "No valid formulas found"}, status=400)
     
-    tex_code = build_latex_for_formulas(selected_formulas)
+    tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins)
     return Response({"tex_code": tex_code})
 
 

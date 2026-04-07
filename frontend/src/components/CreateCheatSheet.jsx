@@ -313,7 +313,7 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
+const LatexEditor = ({ content, setContent, handleCompileClick, isCompiling }) => (
   <>
     <div className="input-section">
       <label htmlFor="content">Generated LaTeX Code:</label>
@@ -330,7 +330,7 @@ const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
 
     <button
       type="button"
-      onClick={() => handlePreview()}
+      onClick={handleCompileClick}
       className="btn compile-circle"
       disabled={isCompiling || !content}
       title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
@@ -423,6 +423,44 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize }) => (
+  <div className="layout-options">
+    <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
+      Layout Options
+    </label>
+    <div className="layout-controls">
+      <div className="layout-control">
+        <label htmlFor="columns">Columns:</label>
+        <select 
+          id="columns" 
+          value={columns} 
+          onChange={(e) => setColumns(Number(e.target.value))}
+          className="layout-select"
+        >
+          <option value={1}>1 Column</option>
+          <option value={2}>2 Columns</option>
+          <option value={3}>3 Columns</option>
+        </select>
+      </div>
+      <div className="layout-control">
+        <label htmlFor="fontSize">Text Size:</label>
+        <select 
+          id="fontSize" 
+          value={fontSize} 
+          onChange={(e) => setFontSize(e.target.value)}
+          className="layout-select"
+        >
+          <option value="8pt">Compact (8pt)</option>
+          <option value="9pt">Small (9pt)</option>
+          <option value="10pt">Normal (10pt)</option>
+          <option value="11pt">Medium (11pt)</option>
+          <option value="12pt">Large (12pt)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+);
+
 const CreateCheatSheet = ({ onSave, initialData }) => {
   const {
     classesData,
@@ -446,6 +484,10 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     setTitle,
     content,
     setContent,
+    columns,
+    setColumns,
+    fontSize,
+    setFontSize,
     pdfBlob,
     isGenerating,
     isCompiling,
@@ -458,6 +500,15 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     clearLatex
   } = useLatex(initialData);
 
+  const handleCompileClick = () => {
+    const formulasList = getSelectedFormulasList();
+    if (formulasList.length > 0) {
+      handlePreview(null, { formulas: formulasList, columns, fontSize });
+    } else {
+      handlePreview();
+    }
+  };
+
   const handleGenerate = () => {
     const formulasList = getSelectedFormulasList();
     handleGenerateSheet(formulasList);
@@ -465,14 +516,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSave({ title, content });
+    onSave({ title, content, columns, fontSize });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '' }, false);
+      onSave({ title: '', content: '', columns: 2, fontSize: '10pt' }, false);
     }
   };
 
@@ -510,11 +561,18 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           onRemoveFormula={removeSingleFormula}
         />
 
+        <LayoutOptions 
+          columns={columns}
+          setColumns={setColumns}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+        />
+
         <div className="editor-container">
           <LatexEditor
             content={content}
             setContent={setContent}
-            handlePreview={handlePreview}
+            handleCompileClick={handleCompileClick}
             isCompiling={isCompiling}
           />
           <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />

@@ -3,6 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 export function useLatex(initialData) {
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
+  const [columns, setColumns] = useState(initialData?.columns ?? 2);
+  const [fontSize, setFontSize] = useState(initialData?.fontSize ?? '10pt');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -16,13 +18,38 @@ export function useLatex(initialData) {
     if (initialData) {
       setTitle(initialData.title ?? '');
       setContent(initialData.content ?? '');
+      setColumns(initialData.columns ?? 2);
+      setFontSize(initialData.fontSize ?? '10pt');
     }
   }, [initialData]);
 
-  const handlePreview = useCallback(async (latexContent = null) => {
+  const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
     
-    const contentToCompile = latexContent || content;
+    let contentToCompile = latexContent || content;
+    
+    if (regenerateOptions) {
+      try {
+        const response = await fetch('/api/generate-sheet/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            formulas: regenerateOptions.formulas,
+            columns: regenerateOptions.columns,
+            font_size: regenerateOptions.fontSize,
+            margins: '0.25in'
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          contentToCompile = data.tex_code;
+          setContent(data.tex_code);
+        }
+      } catch (e) {
+        console.error('Failed to regenerate:', e);
+      }
+    }
+    
     if (!contentToCompile) return;
     
     isCompilingRef.current = true;
@@ -71,13 +98,18 @@ export function useLatex(initialData) {
       const response = await fetch('/api/generate-sheet/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formulas: selectedList }),
+        body: JSON.stringify({ 
+          formulas: selectedList,
+          columns: columns,
+          font_size: fontSize,
+          margins: '0.25in'
+        }),
       });
       if (!response.ok) throw new Error('Failed to generate sheet');
-      const data = await response.json();
-      setContent(data.tex_code);
-      setPdfBlob(null);
-      handlePreview(data.tex_code);
+        const data = await response.json();
+        setContent(data.tex_code);
+        setPdfBlob(null);
+        handlePreview(data.tex_code, null);
     } catch (error) {
       console.error('Error generating sheet:', error);
       alert('Failed to generate LaTeX. Is the backend running?');
@@ -132,6 +164,8 @@ export function useLatex(initialData) {
   const clearLatex = () => {
     setTitle('');
     setContent('');
+    setColumns(2);
+    setFontSize('10pt');
     setPdfBlob(null);
     setCompileError(null);
   };
@@ -141,6 +175,10 @@ export function useLatex(initialData) {
     setTitle,
     content,
     setContent,
+    columns,
+    setColumns,
+    fontSize,
+    setFontSize,
     pdfBlob,
     isGenerating,
     isCompiling,

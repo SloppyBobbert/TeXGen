@@ -24,13 +24,71 @@ LATEX_FOOTER = r"""
 \end{document}
 """
 
-def build_latex_for_formulas(selected_formulas):
+# Font size to LaTeX size command mapping for cheat sheet density
+FONT_SIZE_MAP = {
+    "8pt": "\\tiny",
+    "9pt": "\\scriptsize", 
+    "10pt": "\\footnotesize",
+    "11pt": "\\small",
+    "12pt": "\\normalsize",
+}
+
+
+def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in"):
+    """
+    Build a dynamic LaTeX header based on user-selected options.
+    """
+    size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
+    
+    header_lines = [
+        f"\\documentclass[{font_size},fleqn]{{article}}",
+        f"\\usepackage[margin={margins}]{{geometry}}",
+        "\\usepackage{amsmath, amssymb}",
+        "\\usepackage{enumitem}",
+        "\\usepackage{multicol}",
+        "\\usepackage{titlesec}",
+        "",
+        "\\setlength{\\mathindent}{0pt}",
+        "\\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}",
+        "\\pagestyle{empty}",
+        "",
+        "\\titlespacing*{\\subsection}{0pt}{2pt}{1pt}",
+        "\\titlespacing*{\\section}{0pt}{4pt}{2pt}",
+        "",
+        "\\begin{document}",
+        size_command,
+    ]
+    
+    if columns > 1:
+        header_lines.append(f"\\begin{{multicols}}{{{columns}}}")
+    
+    header_lines.append("")
+    return "\n".join(header_lines)
+
+
+def build_dynamic_footer(columns=2):
+    """
+    Build a dynamic LaTeX footer based on user-selected options.
+    """
+    footer_lines = []
+    
+    if columns > 1:
+        footer_lines.append("\\end{multicols}")
+    
+    footer_lines.append("\\end{document}")
+    return "\n".join(footer_lines)
+
+
+def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", margins="0.25in"):
     """
     Given a list of selected formulas (each with class_name, category, name, latex),
     build a complete LaTeX document.
     """
+    header = build_dynamic_header(columns, font_size, margins)
+    footer = build_dynamic_footer(columns)
+    
     if not selected_formulas:
-        return LATEX_HEADER + LATEX_FOOTER
+        return header + footer
     
     body_lines = []
     current_class = None
@@ -81,7 +139,7 @@ def build_latex_for_formulas(selected_formulas):
         body_lines.append(r"\end{flushleft}")
     
     body = "\n".join(body_lines)
-    return LATEX_HEADER + body + LATEX_FOOTER
+    return header + body + footer
 
 def compile_latex_to_pdf(content):
     """

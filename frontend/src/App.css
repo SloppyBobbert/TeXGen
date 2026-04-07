@@ -396,6 +396,48 @@ body {
   border-radius: 8px;
 }
 
+/* ---- Layout Options ---- */
+.layout-options {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.layout-controls {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.layout-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.layout-control label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.layout-select {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--input-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.layout-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
 /* ---- Class + Dropdown Selection ---- */
 .category-dropdowns {
   margin-top: 1rem;
