@@ -1,16 +1,15 @@
 services:
   db:
-    image: mysql:8.0
+    image: postgres:15
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpass
-      MYSQL_DATABASE: cheatsheet_db
-      MYSQL_USER: cheatsheet_user
-      MYSQL_PASSWORD: cheatsheet_pass
+      POSTGRES_DB: cheatsheet_db
+      POSTGRES_USER: cheatsheet_user
+      POSTGRES_PASSWORD: cheatsheet_pass
     # ports: comment out for now we'e not using atm
-    #   - "3306:3306"
+    #   - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
   backend:
     build: ./backend
     ports:
@@ -18,7 +17,7 @@ services:
     env_file:
       - ./backend/.env.docker
     environment:
-      - DATABASE_URL=mysql://cheatsheet_user:cheatsheet_pass@db:3306/cheatsheet_db
+      - DATABASE_URL=postgres://cheatsheet_user:cheatsheet_pass@db:5432/cheatsheet_db
     volumes:
       - ./backend:/app
     depends_on:
@@ -41,4 +40,4 @@ services:
       backend:
         condition: service_healthy
 volumes:
-  mysql_data:
+  postgres_data:
