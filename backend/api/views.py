@@ -13,6 +13,31 @@ from .formula_data import get_formula_data, get_classes_with_details, get_specia
 from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
 
 # ------------------------------------------------------------------
+# Whitelist validation for layout parameters
+# ------------------------------------------------------------------
+
+VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
+VALID_SPACING = {"tiny", "small", "medium", "large"}
+VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
+
+def validate_layout_params(columns, font_size, margins, spacing):
+    try:
+        columns = max(1, min(3, int(columns)))
+    except (TypeError, ValueError):
+        columns = 2
+    
+    if font_size not in VALID_FONT_SIZES:
+        font_size = "10pt"
+    
+    if margins not in VALID_MARGINS:
+        margins = "0.25in"
+    
+    if spacing not in VALID_SPACING:
+        spacing = "large"
+    
+    return columns, font_size, margins, spacing
+
+# ------------------------------------------------------------------
 # API endpoints
 # ------------------------------------------------------------------
 
@@ -50,7 +75,7 @@ def generate_sheet(request):
     if not selected:
         return Response({"error": "No formulas selected"}, status=400)
     
-    columns = max(1, min(3, int(columns)))
+    columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
     
     formula_data = get_formula_data()
     selected_formulas = []

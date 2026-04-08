@@ -432,7 +432,7 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
-const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing }) => (
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => (
   <div className="layout-options">
     <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
       Layout Options
@@ -480,6 +480,20 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value="large">Large</option>
         </select>
       </div>
+      <div className="layout-control">
+        <label htmlFor="margins">Margins:</label>
+        <select 
+          id="margins" 
+          value={margins} 
+          onChange={(e) => setMargins(e.target.value)}
+          className="layout-select"
+        >
+          <option value="0.15in">Narrow (0.15in)</option>
+          <option value="0.25in">Normal (0.25in)</option>
+          <option value="0.5in">Wide (0.5in)</option>
+          <option value="0.75in">Extra Wide (0.75in)</option>
+        </select>
+      </div>
     </div>
   </div>
 );
@@ -513,6 +527,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     setFontSize,
     spacing,
     setSpacing,
+    margins,
+    setMargins,
     pdfBlob,
     isGenerating,
     isCompiling,
@@ -523,19 +539,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     goBack,
     goForward,
     handleGenerateSheet,
-    handlePreview,
+    handleCompileOnly,
     handleDownloadPDF,
     handleDownloadTex,
     clearLatex
   } = useLatex(initialData);
 
   const handleCompileClick = () => {
-    const formulasList = getSelectedFormulasList();
-    if (formulasList.length > 0) {
-      handlePreview(null, { formulas: formulasList, columns, fontSize, spacing });
-    } else {
-      handlePreview();
-    }
+    handleCompileOnly();
   };
 
   const handleGenerate = () => {
@@ -597,6 +608,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           setFontSize={setFontSize}
           spacing={spacing}
           setSpacing={setSpacing}
+          margins={margins}
+          setMargins={setMargins}
         />
       </div>
 

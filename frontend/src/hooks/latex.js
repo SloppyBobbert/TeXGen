@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 const STORAGE_KEY = 'cheatSheetLatex';
+const SAVE_DEBOUNCE_MS = 500;
 
 function loadLatexStorage() {
   try {
@@ -28,6 +29,7 @@ export function useLatex(initialData) {
   const [columns, setColumns] = useState(initialData?.columns ?? 2);
   const [fontSize, setFontSize] = useState(initialData?.fontSize ?? '10pt');
   const [spacing, setSpacing] = useState(initialData?.spacing ?? 'large');
+  const [margins, setMargins] = useState(initialData?.margins ?? '0.25in');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -75,13 +77,14 @@ export function useLatex(initialData) {
     if (initialLoaded.current) return;
     
     const saved = loadLatexStorage();
-    if (saved && !initialData?.content) {
+    if (saved && initialData?.content == null) {
       initialLoaded.current = true;
       setTitle(saved.title ?? '');
       setContent(saved.content ?? '');
       setColumns(saved.columns ?? 2);
       setFontSize(saved.fontSize ?? '10pt');
       setSpacing(saved.spacing ?? 'large');
+      setMargins(saved.margins ?? '0.25in');
     } else if (initialData) {
       initialLoaded.current = true;
       setTitle(initialData.title ?? '');
@@ -89,12 +92,58 @@ export function useLatex(initialData) {
       setColumns(initialData.columns ?? 2);
       setFontSize(initialData.fontSize ?? '10pt');
       setSpacing(initialData.spacing ?? 'large');
+      setMargins(initialData.margins ?? '0.25in');
     }
   }, [initialData]);
 
+  const saveTimerRef = useRef(null);
+
   useEffect(() => {
-    saveLatexStorage({ title, content, columns, fontSize, spacing });
-  }, [title, content, columns, fontSize, spacing]);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveLatexStorage({ title, content, columns, fontSize, spacing, margins });
+    }, SAVE_DEBOUNCE_MS);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [title, content, columns, fontSize, spacing, margins]);
+
+  const handleCompileOnly = useCallback(async () => {
+    if (isCompilingRef.current) return;
+    if (!content) return;
+    
+    isCompilingRef.current = true;
+    setIsCompiling(true);
+    setCompileError(null);
+    try {
+      const response = await fetch('/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
+        
+        errorMsg = errorMsg
+          .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
+          .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
+          .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
+          .replace(/\n\s*\n/g, '\n')
+          .trim();
+
+        throw new Error(errorMsg);
+      }
+      const blob = await response.blob();
+      setPdfBlob(URL.createObjectURL(blob));
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setCompileError(error.message);
+    } finally {
+      setIsCompiling(false);
+      isCompilingRef.current = false;
+    }
+  }, [content, margins]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
@@ -111,7 +160,7 @@ export function useLatex(initialData) {
             columns: regenerateOptions.columns,
             font_size: regenerateOptions.fontSize,
             spacing: regenerateOptions.spacing,
-            margins: '0.25in'
+            margins: margins
           }),
         });
         if (response.ok) {
@@ -158,7 +207,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content]);
+  }, [content, margins]);
 
   const handleGenerateSheet = async (selectedList) => {
     if (isGeneratingRef.current) return;
@@ -178,7 +227,7 @@ export function useLatex(initialData) {
           columns: columns,
           font_size: fontSize,
           spacing: spacing,
-          margins: '0.25in'
+          margins: margins
         }),
       });
       if (!response.ok) throw new Error('Failed to generate sheet');
@@ -260,6 +309,8 @@ export function useLatex(initialData) {
     setFontSize,
     spacing,
     setSpacing,
+    margins,
+    setMargins,
     pdfBlob,
     isGenerating,
     isCompiling,
@@ -271,6 +322,7 @@ export function useLatex(initialData) {
     goForward,
     handleGenerateSheet,
     handlePreview,
+    handleCompileOnly,
     handleDownloadPDF,
     handleDownloadTex,
     clearLatex
