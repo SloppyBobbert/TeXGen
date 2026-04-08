@@ -149,7 +149,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content, margins]);
+  }, [content]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
@@ -213,7 +213,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content, margins]);
+  }, [content, margins, saveToHistory]);
 
   const handleGenerateSheet = async (selectedList) => {
     if (isGeneratingRef.current) return;

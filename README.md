@@ -20,7 +20,7 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 ### Formatting Options
 - **Column Layout**: Single, two, or three column layouts with auto-scaling formulas that fit within column boundaries
 - **Margins**: Adjustable page margins
-- **Font Size**: Configurable font scaling (8pt - 14pt)
+- **Font Size**: Configurable font scaling (8pt - 12pt)
 - **Spacing**: Adjustable spacing between formula sections
 
 ### Database Features

@@ -520,7 +520,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     title,
     setTitle,
     content,
-    setContent,
     contentModified,
     handleContentChange,
     columns,
