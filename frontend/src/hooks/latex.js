@@ -26,6 +26,7 @@ function saveLatexStorage(data) {
 export function useLatex(initialData) {
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
+  const [contentModified, setContentModified] = useState(false);
   const [columns, setColumns] = useState(initialData?.columns ?? 2);
   const [fontSize, setFontSize] = useState(initialData?.fontSize ?? '10pt');
   const [spacing, setSpacing] = useState(initialData?.spacing ?? 'large');
@@ -95,6 +96,11 @@ export function useLatex(initialData) {
       setMargins(initialData.margins ?? '0.25in');
     }
   }, [initialData]);
+
+  const handleContentChange = useCallback((newContent) => {
+    setContent(newContent);
+    setContentModified(true);
+  }, []);
 
   const saveTimerRef = useRef(null);
 
@@ -234,6 +240,7 @@ export function useLatex(initialData) {
         const data = await response.json();
         if (content) saveToHistory(data.tex_code);
         setContent(data.tex_code);
+        setContentModified(false);
         setPdfBlob(null);
         handlePreview(data.tex_code, null);
     } catch (error) {
@@ -303,6 +310,8 @@ export function useLatex(initialData) {
     setTitle,
     content,
     setContent,
+    contentModified,
+    handleContentChange,
     columns,
     setColumns,
     fontSize,

@@ -313,7 +313,7 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, setContent }) => {
+const LatexEditor = ({ content, onChange, isModified }) => {
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
 
@@ -338,10 +338,10 @@ const LatexEditor = ({ content, setContent }) => {
           ref={textareaRef}
           id="content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
-          className="textarea-field"
+          className={`textarea-field ${isModified ? 'modified' : ''}`}
           rows={15}
           spellCheck="false"
         />
@@ -521,6 +521,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     setTitle,
     content,
     setContent,
+    contentModified,
+    handleContentChange,
     columns,
     setColumns,
     fontSize,
@@ -618,7 +620,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
         <div className="editor-container">
           <LatexEditor
             content={content}
-            setContent={setContent}
+            onChange={handleContentChange}
+            isModified={contentModified}
           />
           <div className="compile-button-column">
             <div className="history-buttons">

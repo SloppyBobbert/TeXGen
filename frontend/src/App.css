@@ -298,11 +298,15 @@ label {
   font-size: 13px;
   line-height: 1.6;
   background-color: var(--input-bg);
-  color: #3b82f6;
+  color: var(--input-text);
   border: none;
   border-radius: 0;
   resize: none;
   outline: none;
+}
+
+.textarea-field.modified {
+  color: #ffffff;
 }
 
 .textarea-field:focus {
