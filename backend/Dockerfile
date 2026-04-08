@@ -11,10 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     tar \
     fontconfig \
-    default-libmysqlclient-dev \
+    libpq-dev \
     pkg-config \
     gcc \
-    default-mysql-client \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Download and extract the appropriate Tectonic binary
@@ -35,4 +35,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "until mysqladmin ping -hdb -ucheatsheet_user -pcheatsheet_pass --ssl=0 --silent; do sleep 2; done && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+CMD ["sh", "-c", "until pg_isready -h db -U cheatsheet_user; do sleep 2; done && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
