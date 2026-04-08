@@ -1,5 +1,27 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+const STORAGE_KEY = 'cheatSheetLatex';
+
+function loadLatexStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load latex storage', e);
+  }
+  return null;
+}
+
+function saveLatexStorage(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to save latex storage', e);
+  }
+}
+
 export function useLatex(initialData) {
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
@@ -11,12 +33,57 @@ export function useLatex(initialData) {
   const [isCompiling, setIsCompiling] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [compileError, setCompileError] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   
   const isCompilingRef = useRef(false);
   const isGeneratingRef = useRef(false);
+  const initialLoaded = useRef(false);
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+
+  const goBack = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]?.content || '');
+    }
+  }, [historyIndex, history]);
+
+  const goForward = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]?.content || '');
+    }
+  }, [historyIndex, history]);
+
+  const saveToHistory = useCallback((newContent) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push({ content: newContent, timestamp: Date.now() });
+      if (newHistory.length > 7) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 6));
+  }, [historyIndex]);
 
   useEffect(() => {
-    if (initialData) {
+    if (initialLoaded.current) return;
+    
+    const saved = loadLatexStorage();
+    if (saved && !initialData?.content) {
+      initialLoaded.current = true;
+      setTitle(saved.title ?? '');
+      setContent(saved.content ?? '');
+      setColumns(saved.columns ?? 2);
+      setFontSize(saved.fontSize ?? '10pt');
+      setSpacing(saved.spacing ?? 'large');
+    } else if (initialData) {
+      initialLoaded.current = true;
       setTitle(initialData.title ?? '');
       setContent(initialData.content ?? '');
       setColumns(initialData.columns ?? 2);
@@ -24,6 +91,10 @@ export function useLatex(initialData) {
       setSpacing(initialData.spacing ?? 'large');
     }
   }, [initialData]);
+
+  useEffect(() => {
+    saveLatexStorage({ title, content, columns, fontSize, spacing });
+  }, [title, content, columns, fontSize, spacing]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
@@ -47,6 +118,7 @@ export function useLatex(initialData) {
           const data = await response.json();
           contentToCompile = data.tex_code;
           setContent(data.tex_code);
+          if (content) saveToHistory(data.tex_code);
         }
       } catch (e) {
         console.error('Failed to regenerate:', e);
@@ -111,6 +183,7 @@ export function useLatex(initialData) {
       });
       if (!response.ok) throw new Error('Failed to generate sheet');
         const data = await response.json();
+        if (content) saveToHistory(data.tex_code);
         setContent(data.tex_code);
         setPdfBlob(null);
         handlePreview(data.tex_code, null);
@@ -173,6 +246,7 @@ export function useLatex(initialData) {
     setSpacing('large');
     setPdfBlob(null);
     setCompileError(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   return {
@@ -191,6 +265,10 @@ export function useLatex(initialData) {
     isCompiling,
     isLoading,
     compileError,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     handleGenerateSheet,
     handlePreview,
     handleDownloadPDF,

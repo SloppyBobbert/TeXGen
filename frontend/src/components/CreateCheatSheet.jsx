@@ -518,6 +518,10 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     isCompiling,
     isLoading,
     compileError,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     handleGenerateSheet,
     handlePreview,
     handleDownloadPDF,
@@ -604,6 +608,28 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
             setContent={setContent}
           />
           <div className="compile-button-column">
+            <div className="history-buttons">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={!canGoBack}
+                className="btn history-btn"
+                title="Go back to previous version"
+                aria-label="Go back"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={goForward}
+                disabled={!canGoForward}
+                className="btn history-btn"
+                title="Go forward to next version"
+                aria-label="Go forward"
+              >
+                →
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleCompileClick}

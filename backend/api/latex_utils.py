@@ -56,7 +56,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "\\usepackage{enumitem}",
         "\\usepackage{multicol}",
         "\\usepackage{titlesec}",
-        "\\usepackage{graphicx}",  # For \resizebox to constrain equation width
+        "\\usepackage{adjustbox}",  # For auto-scaling equations to fit column width
         "",
         "\\setlength{\\mathindent}{0pt}",
         "\\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}",
@@ -66,17 +66,6 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         f"\\titleformat{{\\subsection}}{{\\normalfont\\scriptsize\\bfseries}}{{}}{{0pt}}{{}}",
         f"\\titlespacing*{{\\section}}{{0pt}}{{{sec_before}}}{{{sec_after}}}",
         f"\\titlespacing*{{\\subsection}}{{0pt}}{{{subsec_before}}}{{{subsec_after}}}",
-        "",
-        # Command to auto-scale equations that exceed column width
-        # This macro is designed to be used INSIDE math mode: \[ \fitmath{...} \]
-        "\\newcommand{\\fitmath}[1]{%",
-        "  \\sbox0{$\\displaystyle#1$}%",
-        "  \\ifdim\\wd0>\\linewidth",
-        "    \\resizebox{\\linewidth}{!}{\\ensuremath{\\displaystyle#1}}%",
-        "  \\else",
-        "    #1%",
-        "  \\fi",
-        "}",
         "",
         "\\begin{document}",
         size_command,
@@ -157,7 +146,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             # Escape special LaTeX characters in the formula name
             escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
             body_lines.append("\\textbf{" + escaped_name + "}")
-            body_lines.append("\\[ \\fitmath{" + latex + "} \\]")
+            body_lines.append("\\[ \\adjustbox{max width=\\linewidth}{$\\displaystyle " + latex + "$} \\]")
             body_lines.append(f"\\\\[{formula_gap}]")
     
     if in_flushleft:

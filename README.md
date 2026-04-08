@@ -14,11 +14,14 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **Live Preview**: Split-pane interface with line-numbered LaTeX editor (45% width) and PDF preview (45% width)
 - **PDF Compilation**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as `.tex` source or `.pdf`
+- **Auto-Save**: Progress automatically saved to browser localStorage - survives page refresh
+- **Version History**: Navigate through last 3 compiled versions with back/forward buttons
 
 ### Formatting Options
 - **Column Layout**: Single, two, or three column layouts with auto-scaling formulas that fit within column boundaries
 - **Margins**: Adjustable page margins
 - **Font Size**: Configurable font scaling (8pt - 14pt)
+- **Spacing**: Adjustable spacing between formula sections
 
 ### Database Features
 - **Templates**: Save and manage reusable LaTeX templates

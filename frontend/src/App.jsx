@@ -7,7 +7,17 @@ function App() {
     return value === 'dark' || value === 'light' ? value : 'dark';
   };
 
-  const [cheatSheet, setCheatSheet] = useState({ title: '', content: '' });
+  const [cheatSheet, setCheatSheet] = useState(() => {
+    const saved = localStorage.getItem('currentCheatSheet');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse sheet", e);
+      }
+    }
+    return { title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' };
+  });
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     return normalizeTheme(saved);
