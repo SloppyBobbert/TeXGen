@@ -11,12 +11,12 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **Category Selection**: Select categories with checkboxes for each class (no Ctrl/Cmd needed)
 - **Drag-and-Drop Reordering**: Intuitively organize your cheat sheet by dragging individual formulas or entire collapsible class groups to reorder them before generating.
 - **Formula Generation**: Automatically generates formatted LaTeX for selected formulas
-- **Live Preview**: Split-view interface with LaTeX code editor and PDF preview
+- **Live Preview**: Split-pane interface with line-numbered LaTeX editor (45% width) and PDF preview (45% width)
 - **PDF Compilation**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as `.tex` source or `.pdf`
 
 ### Formatting Options
-- **Column Layout**: Single, two, or three column layouts
+- **Column Layout**: Single, two, or three column layouts with auto-scaling formulas that fit within column boundaries
 - **Margins**: Adjustable page margins
 - **Font Size**: Configurable font scaling (8pt - 14pt)
 
@@ -43,6 +43,7 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 │   ├── api/                      # Main API app
 │   │   ├── views.py              # API endpoints
 │   │   ├── models.py             # Database models
+│   │   ├── latex_utils.py        # LaTeX generation utilities
 │   │   ├── urls.py               # URL routing
 │   │   ├── serializers.py        # DRF serializers
 │   │   ├── tests.py              # Test suite

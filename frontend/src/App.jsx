@@ -44,7 +44,7 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
           <div>
             <h1>Cheat Sheet Generator</h1>
             <p>Write cheat sheets with LaTeX support</p>

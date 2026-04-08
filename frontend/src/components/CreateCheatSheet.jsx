@@ -313,33 +313,42 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, setContent, handleCompileClick, isCompiling }) => (
-  <>
+const LatexEditor = ({ content, setContent }) => {
+  const textareaRef = useRef(null);
+  const lineNumbersRef = useRef(null);
+
+  const lineCount = content ? content.split('\n').length : 1;
+
+  const handleScroll = () => {
+    if (lineNumbersRef.current && textareaRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  return (
     <div className="input-section">
       <label htmlFor="content">Generated LaTeX Code:</label>
-      <textarea
-        id="content"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
-        className="textarea-field"
-        rows={15}
-        spellCheck="false"
-      />
+      <div className="editor-wrapper">
+        <div className="line-numbers" ref={lineNumbersRef}>
+          {Array.from({ length: lineCount }, (_, i) => (
+            <div key={i + 1} className="line-number">{i + 1}</div>
+          ))}
+        </div>
+        <textarea
+          ref={textareaRef}
+          id="content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onScroll={handleScroll}
+          placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
+          className="textarea-field"
+          rows={15}
+          spellCheck="false"
+        />
+      </div>
     </div>
-
-    <button
-      type="button"
-      onClick={handleCompileClick}
-      className="btn compile-circle"
-      disabled={isCompiling || !content}
-      title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
-      aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
-    >
-      {isCompiling ? '...' : '↻'}
-    </button>
-  </>
-);
+  );
+};
 
 const PdfPreview = ({ pdfBlob, compileError }) => {
   const [numPages, setNumPages] = useState(null);
@@ -349,7 +358,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new window.ResizeObserver((entries) => {
       for (let entry of entries) {
         setContainerWidth(entry.contentRect.width);
       }
@@ -544,9 +553,9 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
   };
 
   return (
-    <div className="create-cheat-sheet">
-      <form onSubmit={handleSave}>
-        
+    <form onSubmit={handleSave}>
+      {/* Box 1: Selection controls */}
+      <div className="create-cheat-sheet panel-box selection-panel">
         <div className="form-group">
           <label htmlFor="title">Title:</label>
           <input
@@ -585,14 +594,27 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           spacing={spacing}
           setSpacing={setSpacing}
         />
+      </div>
 
+      {/* Box 2: Editor and preview */}
+      <div className="create-cheat-sheet panel-box">
         <div className="editor-container">
           <LatexEditor
             content={content}
             setContent={setContent}
-            handleCompileClick={handleCompileClick}
-            isCompiling={isCompiling}
           />
+          <div className="compile-button-column">
+            <button
+              type="button"
+              onClick={handleCompileClick}
+              className="btn compile-circle"
+              disabled={isCompiling || !content}
+              title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+              aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
+            >
+              {isCompiling ? '...' : '↻'}
+            </button>
+          </div>
           <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
 
@@ -603,9 +625,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           content={content}
           handleClear={handleClear}
         />
-        
-      </form>
-    </div>
+      </div>
+    </form>
   );
 };
 
