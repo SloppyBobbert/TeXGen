@@ -416,6 +416,51 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "titlespacing" in tex
 
+    def test_generate_sheet_8pt_uses_extarticle(self, api_client):
+        """8pt font size should use extarticle, not article."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "8pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[8pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[8pt,fleqn]{article}" not in tex
+
+    def test_generate_sheet_9pt_uses_extarticle(self, api_client):
+        """9pt font size should use extarticle, not article."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "9pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[9pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[9pt,fleqn]{article}" not in tex
+
+    def test_generate_sheet_10pt_uses_article(self, api_client):
+        """10pt font size should use standard article class."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[10pt,fleqn]{article}" in tex
+        assert "extarticle" not in tex
+
     def test_generate_sheet_latex_injection_blocked(self, api_client):
         """LaTeX injection attempts in parameters should be sanitized."""
         resp = api_client.post(

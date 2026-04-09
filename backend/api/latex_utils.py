@@ -48,9 +48,13 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
     """
     size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
     sec_before, sec_after, subsec_before, subsec_after, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
-    
+
+    # The standard `article` class only supports 10pt/11pt/12pt.
+    # Use `extarticle` (from the extsizes package) for 8pt and 9pt.
+    doc_class = "extarticle" if font_size in ("8pt", "9pt") else "article"
+
     header_lines = [
-        f"\\documentclass[{font_size},fleqn]{{article}}",
+        f"\\documentclass[{font_size},fleqn]{{{doc_class}}}",
         f"\\usepackage[margin={margins}]{{geometry}}",
         "\\usepackage{amsmath, amssymb}",
         "\\usepackage{enumitem}",
