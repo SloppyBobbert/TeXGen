@@ -150,7 +150,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             # Escape special LaTeX characters in the formula name
             escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
             body_lines.append("\\textbf{" + escaped_name + "}")
-            body_lines.append("\\[ \\adjustbox{max width=\\linewidth}{$\\displaystyle " + latex + "$} \\]")
+            body_lines.append("\\[ \\adjustbox{max width=\\linewidth}{\\displaystyle " + latex + "} \\]")
             body_lines.append(f"\\\\[{formula_gap}]")
     
     if in_flushleft:

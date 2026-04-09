@@ -403,7 +403,7 @@ class TestGenerateSheetEndpoint:
         assert "margin=0.25in" in tex
 
     def test_generate_sheet_invalid_spacing_defaults(self, api_client):
-        """Invalid spacing should be replaced with default."""
+        """Invalid spacing should be replaced with default (large preset)."""
         resp = api_client.post(
             "/api/generate-sheet/",
             {
@@ -414,7 +414,9 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "titlespacing" in tex
+        # The "large" preset uses 16pt/8pt; assert those values appear in titlespacing
+        assert "\\titlespacing*{\\section}{0pt}{16pt}{8pt}" in tex
+        assert "\\titlespacing*{\\subsection}{0pt}{8pt}{4pt}" in tex
 
     def test_generate_sheet_8pt_uses_extarticle(self, api_client):
         """8pt font size should use extarticle, not article."""

@@ -201,8 +201,8 @@ label {
 .btn.history-btn {
   padding: 4px 8px;
   font-size: 0.875rem;
-  background: var(--surface);
-  color: var(--text-primary);
+  background: var(--box-bg);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;

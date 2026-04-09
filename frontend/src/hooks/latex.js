@@ -42,6 +42,16 @@ export function useLatex(initialData) {
   const isCompilingRef = useRef(false);
   const isGeneratingRef = useRef(false);
   const initialLoaded = useRef(false);
+  const pdfBlobUrlRef = useRef(null);
+
+  // Revoke the object URL when the component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+    };
+  }, []);
 
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
@@ -141,7 +151,11 @@ export function useLatex(initialData) {
         throw new Error(errorMsg);
       }
       const blob = await response.blob();
-      setPdfBlob(URL.createObjectURL(blob));
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+      pdfBlobUrlRef.current = URL.createObjectURL(blob);
+      setPdfBlob(pdfBlobUrlRef.current);
     } catch (error) {
       console.error('Error generating PDF:', error);
       setCompileError(error.message);
@@ -205,7 +219,11 @@ export function useLatex(initialData) {
         throw new Error(errorMsg);
       }
       const blob = await response.blob();
-      setPdfBlob(URL.createObjectURL(blob));
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+      pdfBlobUrlRef.current = URL.createObjectURL(blob);
+      setPdfBlob(pdfBlobUrlRef.current);
     } catch (error) {
       console.error('Error generating PDF:', error);
       setCompileError(error.message);
@@ -300,6 +318,11 @@ export function useLatex(initialData) {
     setColumns(2);
     setFontSize('10pt');
     setSpacing('large');
+    setMargins('0.25in');
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+      pdfBlobUrlRef.current = null;
+    }
     setPdfBlob(null);
     setCompileError(null);
     localStorage.removeItem(STORAGE_KEY);

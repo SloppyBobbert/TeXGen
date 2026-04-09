@@ -557,14 +557,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSave({ title, content, columns, fontSize, spacing });
+    onSave({ title, content, columns, fontSize, spacing, margins });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' }, false);
+      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large', margins: '0.25in' }, false);
     }
   };
 
