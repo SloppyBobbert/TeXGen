@@ -164,14 +164,20 @@ export function useLatex(initialData) {
           
           const newParts = newLatex.split('\\begin{multicols}');
           if (newParts.length > 1) {
-            const afterMulticols = newParts[1].split('}');
-            const columnCount = afterMulticols[0];
-            const restOfDoc = afterMulticols.slice(1).join('}');
+            const afterMulticols = newParts[1];
+            const columnMatch = afterMulticols.match(/^\{(\d+)\}/);
             
-            const beforeEnd = restOfDoc.split('\\end{multicols}')[0];
-            const afterEnd = restOfDoc.split('\\end{multicols}').slice(1).join('\\end{multicols}');
-            
-            contentToCompile = newParts[0] + '\\begin{multicols}' + columnCount + '}' + beforeEnd + formulaContent + '\\end{multicols}' + afterEnd;
+            if (columnMatch) {
+              const columnCount = columnMatch[1];
+              const afterColumn = afterMulticols.slice(columnMatch[0].length);
+              
+              const beforeEnd = afterColumn.split('\\end{multicols}')[0];
+              const afterEnd = afterColumn.split('\\end{multicols}').slice(1).join('\\end{multicols}');
+              
+              contentToCompile = newParts[0] + '\\begin{multicols}{' + columnCount + '}' + beforeEnd + formulaContent + '\\end{multicols}' + afterEnd;
+            } else {
+              contentToCompile = newLatex;
+            }
           } else {
             contentToCompile = newLatex;
           }
