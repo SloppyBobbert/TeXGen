@@ -317,6 +317,168 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 400
 
+    def test_generate_sheet_with_columns(self, api_client):
+        """Test that columns parameter produces multicols environment."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "columns": 3
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\begin{multicols}{3}" in tex
+        assert "\\end{multicols}" in tex
+
+    def test_generate_sheet_with_font_size(self, api_client):
+        """Test that font_size parameter affects the LaTeX output."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "8pt"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\tiny" in tex
+
+    def test_generate_sheet_with_margins(self, api_client):
+        """Test that margins parameter is reflected in geometry package."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "margins": "0.5in"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "margin=0.5in" in tex
+
+    def test_generate_sheet_with_spacing(self, api_client):
+        """Test that spacing parameter affects titlesec spacing."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "spacing": "tiny"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "titlespacing" in tex
+
+    def test_generate_sheet_invalid_font_size_defaults(self, api_client):
+        """Invalid font_size should be replaced with default."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "invalid-size"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[10pt" in tex
+
+    def test_generate_sheet_invalid_margins_defaults(self, api_client):
+        """Invalid margins should be replaced with default."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "margins": "bad-margin"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "margin=0.25in" in tex
+
+    def test_generate_sheet_invalid_spacing_defaults(self, api_client):
+        """Invalid spacing should be replaced with default (large preset)."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "spacing": "huge"
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        # The "large" preset uses 16pt/8pt; assert those values appear in titlespacing
+        assert "\\titlespacing*{\\section}{0pt}{16pt}{8pt}" in tex
+        assert "\\titlespacing*{\\subsection}{0pt}{8pt}{4pt}" in tex
+
+    def test_generate_sheet_8pt_uses_extarticle(self, api_client):
+        """8pt font size should use extarticle, not article."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "8pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[8pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[8pt,fleqn]{article}" not in tex
+
+    def test_generate_sheet_9pt_uses_extarticle(self, api_client):
+        """9pt font size should use extarticle, not article."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "9pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[9pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[9pt,fleqn]{article}" not in tex
+
+    def test_generate_sheet_10pt_uses_article(self, api_client):
+        """10pt font size should use standard article class."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\documentclass[10pt,fleqn]{article}" in tex
+        assert "extarticle" not in tex
+
+    def test_generate_sheet_latex_injection_blocked(self, api_client):
+        """LaTeX injection attempts in parameters should be sanitized."""
+        resp = api_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "8pt\\usepackage{hacked}",
+                "margins": "0.25in\\input{/etc/passwd}",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\usepackage{hacked}" not in tex
+        assert "\\input{/etc/passwd}" not in tex
+
 
 @pytest.mark.django_db
 class TestCompileEndpoint:

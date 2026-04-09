@@ -20,7 +20,9 @@ export default [
         fetch: 'readonly',
         alert: 'readonly',
         localStorage: 'readonly',
-        Blob: 'readonly'
+        Blob: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly'
       }
     },
     plugins: {

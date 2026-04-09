@@ -313,33 +313,42 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, setContent, handlePreview, isCompiling }) => (
-  <>
+const LatexEditor = ({ content, onChange, isModified }) => {
+  const textareaRef = useRef(null);
+  const lineNumbersRef = useRef(null);
+
+  const lineCount = content ? content.split('\n').length : 1;
+
+  const handleScroll = () => {
+    if (lineNumbersRef.current && textareaRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  };
+
+  return (
     <div className="input-section">
       <label htmlFor="content">Generated LaTeX Code:</label>
-      <textarea
-        id="content"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
-        className="textarea-field"
-        rows={15}
-        spellCheck="false"
-      />
+      <div className="editor-wrapper">
+        <div className="line-numbers" ref={lineNumbersRef}>
+          {Array.from({ length: lineCount }, (_, i) => (
+            <div key={i + 1} className="line-number">{i + 1}</div>
+          ))}
+        </div>
+        <textarea
+          ref={textareaRef}
+          id="content"
+          value={content}
+          onChange={(e) => onChange(e.target.value)}
+          onScroll={handleScroll}
+          placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
+          className={`textarea-field ${isModified ? 'modified' : ''}`}
+          rows={15}
+          spellCheck="false"
+        />
+      </div>
     </div>
-
-    <button
-      type="button"
-      onClick={() => handlePreview()}
-      className="btn compile-circle"
-      disabled={isCompiling || !content}
-      title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
-      aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
-    >
-      {isCompiling ? '...' : '↻'}
-    </button>
-  </>
-);
+  );
+};
 
 const PdfPreview = ({ pdfBlob, compileError }) => {
   const [numPages, setNumPages] = useState(null);
@@ -349,7 +358,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new window.ResizeObserver((entries) => {
       for (let entry of entries) {
         setContainerWidth(entry.contentRect.width);
       }
@@ -423,6 +432,72 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => (
+  <div className="layout-options">
+    <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
+      Layout Options
+    </label>
+    <div className="layout-controls">
+      <div className="layout-control">
+        <label htmlFor="columns">Columns:</label>
+        <select 
+          id="columns" 
+          value={columns} 
+          onChange={(e) => setColumns(Number(e.target.value))}
+          className="layout-select"
+        >
+          <option value={1}>1 Column</option>
+          <option value={2}>2 Columns</option>
+          <option value={3}>3 Columns</option>
+        </select>
+      </div>
+      <div className="layout-control">
+        <label htmlFor="fontSize">Text Size:</label>
+        <select 
+          id="fontSize" 
+          value={fontSize} 
+          onChange={(e) => setFontSize(e.target.value)}
+          className="layout-select"
+        >
+          <option value="8pt">Compact (8pt)</option>
+          <option value="9pt">Small (9pt)</option>
+          <option value="10pt">Normal (10pt)</option>
+          <option value="11pt">Medium (11pt)</option>
+          <option value="12pt">Large (12pt)</option>
+        </select>
+      </div>
+      <div className="layout-control">
+        <label htmlFor="spacing">Spacing:</label>
+        <select 
+          id="spacing" 
+          value={spacing} 
+          onChange={(e) => setSpacing(e.target.value)}
+          className="layout-select"
+        >
+          <option value="tiny">Tiny</option>
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </div>
+      <div className="layout-control">
+        <label htmlFor="margins">Margins:</label>
+        <select 
+          id="margins" 
+          value={margins} 
+          onChange={(e) => setMargins(e.target.value)}
+          className="layout-select"
+        >
+          <option value="0.15in">Narrow (0.15in)</option>
+          <option value="0.25in">Normal (0.25in)</option>
+          <option value="0.5in">Wide (0.5in)</option>
+          <option value="0.75in">Extra Wide (0.75in)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+);
+
 const CreateCheatSheet = ({ onSave, initialData }) => {
   const {
     classesData,
@@ -445,18 +520,35 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     title,
     setTitle,
     content,
-    setContent,
+    contentModified,
+    handleContentChange,
+    columns,
+    setColumns,
+    fontSize,
+    setFontSize,
+    spacing,
+    setSpacing,
+    margins,
+    setMargins,
     pdfBlob,
     isGenerating,
     isCompiling,
     isLoading,
     compileError,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     handleGenerateSheet,
-    handlePreview,
+    handleCompileOnly,
     handleDownloadPDF,
     handleDownloadTex,
     clearLatex
   } = useLatex(initialData);
+
+  const handleCompileClick = () => {
+    handleCompileOnly();
+  };
 
   const handleGenerate = () => {
     const formulasList = getSelectedFormulasList();
@@ -465,21 +557,21 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
   const handleSave = (e) => {
     e.preventDefault();
-    onSave({ title, content });
+    onSave({ title, content, columns, fontSize, spacing, margins });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '' }, false);
+      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large', margins: '0.25in' }, false);
     }
   };
 
   return (
-    <div className="create-cheat-sheet">
-      <form onSubmit={handleSave}>
-        
+    <form onSubmit={handleSave}>
+      {/* Box 1: Selection controls */}
+      <div className="create-cheat-sheet panel-box selection-panel">
         <div className="form-group">
           <label htmlFor="title">Title:</label>
           <input
@@ -510,13 +602,60 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           onRemoveFormula={removeSingleFormula}
         />
 
+        <LayoutOptions 
+          columns={columns}
+          setColumns={setColumns}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
+          margins={margins}
+          setMargins={setMargins}
+        />
+      </div>
+
+      {/* Box 2: Editor and preview */}
+      <div className="create-cheat-sheet panel-box">
         <div className="editor-container">
           <LatexEditor
             content={content}
-            setContent={setContent}
-            handlePreview={handlePreview}
-            isCompiling={isCompiling}
+            onChange={handleContentChange}
+            isModified={contentModified}
           />
+          <div className="compile-button-column">
+            <div className="history-buttons">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={!canGoBack}
+                className="btn history-btn"
+                title="Go back to previous version"
+                aria-label="Go back"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={goForward}
+                disabled={!canGoForward}
+                className="btn history-btn"
+                title="Go forward to next version"
+                aria-label="Go forward"
+              >
+                →
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleCompileClick}
+              className="btn compile-circle"
+              disabled={isCompiling || !content}
+              title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+              aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
+            >
+              {isCompiling ? '...' : '↻'}
+            </button>
+          </div>
           <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
 
@@ -527,9 +666,8 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           content={content}
           handleClear={handleClear}
         />
-        
-      </form>
-    </div>
+      </div>
+    </form>
   );
 };
 

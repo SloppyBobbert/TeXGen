@@ -1,28 +1,199 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 
+const STORAGE_KEY = 'cheatSheetLatex';
+const SAVE_DEBOUNCE_MS = 500;
+
+function loadLatexStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load latex storage', e);
+  }
+  return null;
+}
+
+function saveLatexStorage(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to save latex storage', e);
+  }
+}
+
 export function useLatex(initialData) {
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
+  const [contentModified, setContentModified] = useState(false);
+  const [columns, setColumns] = useState(initialData?.columns ?? 2);
+  const [fontSize, setFontSize] = useState(initialData?.fontSize ?? '10pt');
+  const [spacing, setSpacing] = useState(initialData?.spacing ?? 'large');
+  const [margins, setMargins] = useState(initialData?.margins ?? '0.25in');
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [compileError, setCompileError] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   
   const isCompilingRef = useRef(false);
   const isGeneratingRef = useRef(false);
+  const initialLoaded = useRef(false);
+  const pdfBlobUrlRef = useRef(null);
+
+  // Revoke the object URL when the component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+    };
+  }, []);
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+
+  const goBack = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]?.content || '');
+    }
+  }, [historyIndex, history]);
+
+  const goForward = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setContent(history[newIndex]?.content || '');
+    }
+  }, [historyIndex, history]);
+
+  const saveToHistory = useCallback((newContent) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      newHistory.push({ content: newContent, timestamp: Date.now() });
+      if (newHistory.length > 7) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 6));
+  }, [historyIndex]);
 
   useEffect(() => {
-    if (initialData) {
+    if (initialLoaded.current) return;
+    
+    const saved = loadLatexStorage();
+    if (saved && initialData?.content == null) {
+      initialLoaded.current = true;
+      setTitle(saved.title ?? '');
+      setContent(saved.content ?? '');
+      setColumns(saved.columns ?? 2);
+      setFontSize(saved.fontSize ?? '10pt');
+      setSpacing(saved.spacing ?? 'large');
+      setMargins(saved.margins ?? '0.25in');
+    } else if (initialData) {
+      initialLoaded.current = true;
       setTitle(initialData.title ?? '');
       setContent(initialData.content ?? '');
+      setColumns(initialData.columns ?? 2);
+      setFontSize(initialData.fontSize ?? '10pt');
+      setSpacing(initialData.spacing ?? 'large');
+      setMargins(initialData.margins ?? '0.25in');
     }
   }, [initialData]);
 
-  const handlePreview = useCallback(async (latexContent = null) => {
+  const handleContentChange = useCallback((newContent) => {
+    setContent(newContent);
+    setContentModified(true);
+  }, []);
+
+  const saveTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveLatexStorage({ title, content, columns, fontSize, spacing, margins });
+    }, SAVE_DEBOUNCE_MS);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [title, content, columns, fontSize, spacing, margins]);
+
+  const handleCompileOnly = useCallback(async () => {
+    if (isCompilingRef.current) return;
+    if (!content) return;
+    
+    isCompilingRef.current = true;
+    setIsCompiling(true);
+    setCompileError(null);
+    try {
+      const response = await fetch('/api/compile/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        let errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
+        
+        errorMsg = errorMsg
+          .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
+          .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
+          .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
+          .replace(/\n\s*\n/g, '\n')
+          .trim();
+
+        throw new Error(errorMsg);
+      }
+      const blob = await response.blob();
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+      pdfBlobUrlRef.current = URL.createObjectURL(blob);
+      setPdfBlob(pdfBlobUrlRef.current);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setCompileError(error.message);
+    } finally {
+      setIsCompiling(false);
+      isCompilingRef.current = false;
+    }
+  }, [content]);
+
+  const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
     
-    const contentToCompile = latexContent || content;
+    let contentToCompile = latexContent || content;
+    
+    if (regenerateOptions) {
+      try {
+        const response = await fetch('/api/generate-sheet/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            formulas: regenerateOptions.formulas,
+            columns: regenerateOptions.columns,
+            font_size: regenerateOptions.fontSize,
+            spacing: regenerateOptions.spacing,
+            margins: margins
+          }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          contentToCompile = data.tex_code;
+          setContent(data.tex_code);
+          if (content) saveToHistory(data.tex_code);
+        }
+      } catch (e) {
+        console.error('Failed to regenerate:', e);
+      }
+    }
+    
     if (!contentToCompile) return;
     
     isCompilingRef.current = true;
@@ -48,7 +219,11 @@ export function useLatex(initialData) {
         throw new Error(errorMsg);
       }
       const blob = await response.blob();
-      setPdfBlob(URL.createObjectURL(blob));
+      if (pdfBlobUrlRef.current) {
+        URL.revokeObjectURL(pdfBlobUrlRef.current);
+      }
+      pdfBlobUrlRef.current = URL.createObjectURL(blob);
+      setPdfBlob(pdfBlobUrlRef.current);
     } catch (error) {
       console.error('Error generating PDF:', error);
       setCompileError(error.message);
@@ -56,7 +231,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content]);
+  }, [content, margins, saveToHistory]);
 
   const handleGenerateSheet = async (selectedList) => {
     if (isGeneratingRef.current) return;
@@ -71,13 +246,21 @@ export function useLatex(initialData) {
       const response = await fetch('/api/generate-sheet/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formulas: selectedList }),
+        body: JSON.stringify({ 
+          formulas: selectedList,
+          columns: columns,
+          font_size: fontSize,
+          spacing: spacing,
+          margins: margins
+        }),
       });
       if (!response.ok) throw new Error('Failed to generate sheet');
-      const data = await response.json();
-      setContent(data.tex_code);
-      setPdfBlob(null);
-      handlePreview(data.tex_code);
+        const data = await response.json();
+        if (content) saveToHistory(data.tex_code);
+        setContent(data.tex_code);
+        setContentModified(false);
+        setPdfBlob(null);
+        handlePreview(data.tex_code, null);
     } catch (error) {
       console.error('Error generating sheet:', error);
       alert('Failed to generate LaTeX. Is the backend running?');
@@ -132,8 +315,17 @@ export function useLatex(initialData) {
   const clearLatex = () => {
     setTitle('');
     setContent('');
+    setColumns(2);
+    setFontSize('10pt');
+    setSpacing('large');
+    setMargins('0.25in');
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+      pdfBlobUrlRef.current = null;
+    }
     setPdfBlob(null);
     setCompileError(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   return {
@@ -141,13 +333,28 @@ export function useLatex(initialData) {
     setTitle,
     content,
     setContent,
+    contentModified,
+    handleContentChange,
+    columns,
+    setColumns,
+    fontSize,
+    setFontSize,
+    spacing,
+    setSpacing,
+    margins,
+    setMargins,
     pdfBlob,
     isGenerating,
     isCompiling,
     isLoading,
     compileError,
+    canGoBack,
+    canGoForward,
+    goBack,
+    goForward,
     handleGenerateSheet,
     handlePreview,
+    handleCompileOnly,
     handleDownloadPDF,
     handleDownloadTex,
     clearLatex

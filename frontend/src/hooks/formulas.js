@@ -1,17 +1,57 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+const STORAGE_KEY = 'cheatSheetData';
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error('Failed to load from localStorage', e);
+  }
+  return null;
+}
+
+function saveToStorage(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error('Failed to save to localStorage', e);
+  }
+}
 
 export function useFormulas() {
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [selectedCategories, setSelectedCategories] = useState({});
   const [groupedFormulas, setGroupedFormulas] = useState([]);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     fetch('/api/classes/')
       .then((res) => res.json())
-      .then((data) => setClassesData(data.classes || []))
+      .then((data) => {
+        setClassesData(data.classes || []);
+        
+        if (!initialLoadDone.current) {
+          initialLoadDone.current = true;
+          const saved = loadFromStorage();
+          if (saved) {
+            setSelectedClasses(saved.selectedClasses || {});
+            setSelectedCategories(saved.selectedCategories || {});
+            setGroupedFormulas(saved.groupedFormulas || []);
+          }
+        }
+      })
       .catch((err) => console.error('Failed to fetch classes', err));
   }, []);
+
+  useEffect(() => {
+    if (!initialLoadDone.current) return;
+    saveToStorage({ selectedClasses, selectedCategories, groupedFormulas });
+  }, [selectedClasses, selectedCategories, groupedFormulas]);
 
   const addFormulasToOrder = useCallback((className, categoryName, formulas) => {
     setGroupedFormulas(prev => {
@@ -135,6 +175,7 @@ export function useFormulas() {
     setSelectedClasses({});
     setSelectedCategories({});
     setGroupedFormulas([]);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const selectedCount = getSelectedFormulasList().length;

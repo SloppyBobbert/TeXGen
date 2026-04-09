@@ -7,7 +7,17 @@ function App() {
     return value === 'dark' || value === 'light' ? value : 'dark';
   };
 
-  const [cheatSheet, setCheatSheet] = useState({ title: '', content: '' });
+  const [cheatSheet, setCheatSheet] = useState(() => {
+    const saved = localStorage.getItem('currentCheatSheet');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse sheet", e);
+      }
+    }
+    return { title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' };
+  });
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     return normalizeTheme(saved);
@@ -44,7 +54,7 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
           <div>
             <h1>Cheat Sheet Generator</h1>
             <p>Write cheat sheets with LaTeX support</p>

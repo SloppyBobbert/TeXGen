@@ -13,6 +13,31 @@ from .formula_data import get_formula_data, get_classes_with_details, get_specia
 from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
 
 # ------------------------------------------------------------------
+# Whitelist validation for layout parameters
+# ------------------------------------------------------------------
+
+VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
+VALID_SPACING = {"tiny", "small", "medium", "large"}
+VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
+
+def validate_layout_params(columns, font_size, margins, spacing):
+    try:
+        columns = max(1, min(3, int(columns)))
+    except (TypeError, ValueError):
+        columns = 2
+    
+    if font_size not in VALID_FONT_SIZES:
+        font_size = "10pt"
+    
+    if margins not in VALID_MARGINS:
+        margins = "0.25in"
+    
+    if spacing not in VALID_SPACING:
+        spacing = "large"
+    
+    return columns, font_size, margins, spacing
+
+# ------------------------------------------------------------------
 # API endpoints
 # ------------------------------------------------------------------
 
@@ -36,17 +61,22 @@ def get_classes(request):
 def generate_sheet(request):
     """
     POST /api/generate-sheet/
-    Accepts { "formulas": [...] }
+    Accepts { "formulas": [...], "columns": 2, "font_size": "10pt", "margins": "0.25in", "spacing": "large" }
     Each formula: { "class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula" }
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
     """
     selected = request.data.get("formulas", [])
+    columns = request.data.get("columns", 2)
+    font_size = request.data.get("font_size", "10pt")
+    margins = request.data.get("margins", "0.25in")
+    spacing = request.data.get("spacing", "large")
     
     if not selected:
         return Response({"error": "No formulas selected"}, status=400)
     
-    # Get formula details from formula_data
+    columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
+    
     formula_data = get_formula_data()
     selected_formulas = []
     
@@ -55,14 +85,12 @@ def generate_sheet(request):
         category = sel.get("category")
         name = sel.get("name")
         
-        # Check if this is a special class (no categories)
         if is_special_class(class_name):
-            # Get the formula directly for special classes
             formula = get_special_class_formula(class_name)
             if formula:
                 selected_formulas.append({
                     "class_name": class_name,
-                    "category": class_name,  # Use class name as category for special
+                    "category": class_name,
                     "name": formula["name"],
                     "latex": formula["latex"]
                 })
@@ -82,7 +110,7 @@ def generate_sheet(request):
     if not selected_formulas:
         return Response({"error": "No valid formulas found"}, status=400)
     
-    tex_code = build_latex_for_formulas(selected_formulas)
+    tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins, spacing)
     return Response({"tex_code": tex_code})
 
 
