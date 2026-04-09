@@ -72,10 +72,11 @@ def generate_sheet(request):
     margins = request.data.get("margins", "0.25in")
     spacing = request.data.get("spacing", "large")
     
-    if not selected:
-        return Response({"error": "No formulas selected"}, status=400)
-    
     columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
+    
+    if not selected:
+        tex_code = build_latex_for_formulas([], columns, font_size, margins, spacing)
+        return Response({"tex_code": tex_code})
     
     formula_data = get_formula_data()
     selected_formulas = []

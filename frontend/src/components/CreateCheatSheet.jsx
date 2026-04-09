@@ -602,17 +602,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           onRemoveClass={removeClassFromOrder}
           onRemoveFormula={removeSingleFormula}
         />
-
-        <LayoutOptions 
-          columns={columns}
-          setColumns={setColumns}
-          fontSize={fontSize}
-          setFontSize={setFontSize}
-          spacing={spacing}
-          setSpacing={setSpacing}
-          margins={margins}
-          setMargins={setMargins}
-        />
       </div>
 
       {/* Box 2: Editor and preview */}
@@ -659,6 +648,17 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           </div>
           <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
+
+        <LayoutOptions 
+          columns={columns}
+          setColumns={setColumns}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
+          margins={margins}
+          setMargins={setMargins}
+        />
 
         <ActionToolbar
           handleDownloadTex={handleDownloadTex}

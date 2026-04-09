@@ -242,13 +242,13 @@ class TestPracticeProblemAPI:
 class TestGenerateSheetEndpoint:
     def test_generate_sheet_no_formulas(self, api_client):
         resp = api_client.post("/api/generate-sheet/", {"formulas": []}, format="json")
-        assert resp.status_code == 400
-        assert "error" in resp.json()
+        assert resp.status_code == 200
+        assert "tex_code" in resp.json()
 
     def test_generate_sheet_missing_formulas_key(self, api_client):
         resp = api_client.post("/api/generate-sheet/", {}, format="json")
-        assert resp.status_code == 400
-        assert "error" in resp.json()
+        assert resp.status_code == 200
+        assert "tex_code" in resp.json()
 
     def test_generate_sheet_valid_formula(self, api_client):
         resp = api_client.post(
