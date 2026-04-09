@@ -153,11 +153,27 @@ export function useLatex(initialData) {
         const oldBodyMatch = content.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
         
         if (oldBodyMatch) {
-          const newHeader = newLatex.split('\\begin{document}')[0];
-          contentToCompile = newHeader + '\\begin{document}' + oldBodyMatch[1];
+          const oldBody = oldBodyMatch[1];
           
-          if (!contentToCompile.includes('\\end{document}')) {
-            contentToCompile = contentToCompile + '\\end{document}';
+          const multicolMatch = oldBody.match(/\\begin\{multicols\}\{(\d+)\}([\s\S]*?)\\end\{multicols\}/);
+          
+          let formulaContent = oldBody;
+          if (multicolMatch) {
+            formulaContent = multicolMatch[2];
+          }
+          
+          const newParts = newLatex.split('\\begin{multicols}');
+          if (newParts.length > 1) {
+            const afterMulticols = newParts[1].split('}');
+            const columnCount = afterMulticols[0];
+            const restOfDoc = afterMulticols.slice(1).join('}');
+            
+            const beforeEnd = restOfDoc.split('\\end{multicols}')[0];
+            const afterEnd = restOfDoc.split('\\end{multicols}').slice(1).join('\\end{multicols}');
+            
+            contentToCompile = newParts[0] + '\\begin{multicols}' + columnCount + '}' + beforeEnd + formulaContent + '\\end{multicols}' + afterEnd;
+          } else {
+            contentToCompile = newLatex;
           }
         } else {
           contentToCompile = newLatex;
