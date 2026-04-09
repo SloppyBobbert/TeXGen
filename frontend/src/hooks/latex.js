@@ -148,7 +148,17 @@ export function useLatex(initialData) {
       });
       if (response.ok) {
         const data = await response.json();
-        contentToCompile = data.tex_code;
+        const newLatex = data.tex_code;
+        
+        const oldBodyMatch = content.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
+        const newBodyMatch = newLatex.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
+        
+        if (oldBodyMatch && newBodyMatch) {
+          const newHeader = newLatex.split('\\begin{document}')[0];
+          contentToCompile = newHeader + '\\begin{document}' + oldBodyMatch[1] + '\\end{document}';
+        } else {
+          contentToCompile = newLatex;
+        }
       }
     } catch (e) {
       console.log('Regenerate failed, using existing content:', e);
