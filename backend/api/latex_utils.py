@@ -33,12 +33,12 @@ FONT_SIZE_MAP = {
     "12pt": "\\normalsize",
 }
 
-# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_spacing)
+# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_gap, baselineskip)
 SPACING_MAP = {
-    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt"),
-    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt"),
-    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt"),
-    "large": ("16pt", "8pt", "8pt", "4pt", "16pt"),
+    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt", "6pt"),
+    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt", "8pt"),
+    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt", "11pt"),
+    "large": ("16pt", "8pt", "8pt", "4pt", "16pt", "14pt"),
 }
 
 
@@ -47,7 +47,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
     Build a dynamic LaTeX header based on user-selected options.
     """
     size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
-    sec_before, sec_after, subsec_before, subsec_after, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
+    sec_before, sec_after, subsec_before, subsec_after, _, baseline_skip = SPACING_MAP.get(spacing, SPACING_MAP["large"])
 
     # The standard `article` class only supports 10pt/11pt/12pt.
     # Use `extarticle` (from the extsizes package) for 8pt and 9pt.
@@ -70,6 +70,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "\\titleformat{\\subsection}{\\normalfont\\scriptsize\\bfseries}{}{0pt}{}",
         f"\\titlespacing*{{\\section}}{{0pt}}{{{sec_before}}}{{{sec_after}}}",
         f"\\titlespacing*{{\\subsection}}{{0pt}}{{{subsec_before}}}{{{subsec_after}}}",
+        f"\\setlength{{\\baselineskip}}{{{baseline_skip}}}",
         "",
         "\\begin{document}",
         size_command,
@@ -103,7 +104,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
     """
     header = build_dynamic_header(columns, font_size, margins, spacing)
     footer = build_dynamic_footer(columns)
-    _, _, _, _, formula_gap = SPACING_MAP.get(spacing, SPACING_MAP["large"])
+    _, _, _, _, formula_gap, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
     
     if not selected_formulas:
         return header + footer
