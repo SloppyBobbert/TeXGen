@@ -449,6 +449,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value={1}>1 Column</option>
           <option value={2}>2 Columns</option>
           <option value={3}>3 Columns</option>
+          <option value={4}>4 Columns</option>
         </select>
       </div>
       <div className="layout-control">

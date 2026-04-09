@@ -131,11 +131,34 @@ export function useLatex(initialData) {
     isCompilingRef.current = true;
     setIsCompiling(true);
     setCompileError(null);
+    
+    let contentToCompile = content;
+    
+    try {
+      const response = await fetch('/api/generate-sheet/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formulas: [],
+          columns: columns,
+          font_size: fontSize,
+          spacing: spacing,
+          margins: margins
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        contentToCompile = data.tex_code;
+      }
+    } catch (e) {
+      console.log('Regenerate failed, using existing content:', e);
+    }
+    
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: contentToCompile }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -163,7 +186,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content]);
+  }, [content, columns, fontSize, spacing, margins]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;

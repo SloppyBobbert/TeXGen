@@ -22,7 +22,7 @@ VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
 
 def validate_layout_params(columns, font_size, margins, spacing):
     try:
-        columns = max(1, min(3, int(columns)))
+        columns = max(1, min(4, int(columns)))
     except (TypeError, ValueError):
         columns = 2
     

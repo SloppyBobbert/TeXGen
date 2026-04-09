@@ -35,9 +35,9 @@ FONT_SIZE_MAP = {
 
 # Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_gap, baselineskip)
 SPACING_MAP = {
-    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt", "6pt"),
-    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt", "8pt"),
-    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt", "11pt"),
+    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt", "4pt"),
+    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt", "6pt"),
+    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt", "10pt"),
     "large": ("16pt", "8pt", "8pt", "4pt", "16pt", "14pt"),
 }
 
