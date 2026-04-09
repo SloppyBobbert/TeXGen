@@ -606,6 +606,17 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
 
       {/* Box 2: Editor and preview */}
       <div className="create-cheat-sheet panel-box">
+        <LayoutOptions 
+          columns={columns}
+          setColumns={setColumns}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
+          margins={margins}
+          setMargins={setMargins}
+        />
+        
         <div className="editor-container">
           <LatexEditor
             content={content}
@@ -648,17 +659,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           </div>
           <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
-
-        <LayoutOptions 
-          columns={columns}
-          setColumns={setColumns}
-          fontSize={fontSize}
-          setFontSize={setFontSize}
-          spacing={spacing}
-          setSpacing={setSpacing}
-          margins={margins}
-          setMargins={setMargins}
-        />
 
         <ActionToolbar
           handleDownloadTex={handleDownloadTex}

@@ -151,11 +151,14 @@ export function useLatex(initialData) {
         const newLatex = data.tex_code;
         
         const oldBodyMatch = content.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
-        const newBodyMatch = newLatex.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
         
-        if (oldBodyMatch && newBodyMatch) {
+        if (oldBodyMatch) {
           const newHeader = newLatex.split('\\begin{document}')[0];
-          contentToCompile = newHeader + '\\begin{document}' + oldBodyMatch[1] + '\\end{document}';
+          contentToCompile = newHeader + '\\begin{document}' + oldBodyMatch[1];
+          
+          if (!contentToCompile.includes('\\end{document}')) {
+            contentToCompile = contentToCompile + '\\end{document}';
+          }
         } else {
           contentToCompile = newLatex;
         }
