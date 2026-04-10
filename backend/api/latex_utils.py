@@ -125,10 +125,10 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
                 body_lines.append(r"\end{flushleft}")
                 in_flushleft = False
             if current_class is not None:
-                body_lines.append("")
+                body_lines.append("%")  # Suppress paragraph break between sections
             escaped_class = class_name.replace("&", "\\&")
             body_lines.append("\\section*{" + escaped_class + "}")
-            body_lines.append("")
+            body_lines.append("%")  # Suppress paragraph break after section
             current_class = class_name
             current_category = None
         
@@ -140,7 +140,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             if not is_special:
                 escaped_category = category.replace("&", "\\&")
                 body_lines.append("\\subsection*{" + escaped_category + "}")
-                body_lines.append("")
+                body_lines.append("%")
                 body_lines.append(r"\begin{flushleft}")
                 in_flushleft = True
             current_category = category
@@ -150,9 +150,10 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
         else:
             # Escape special LaTeX characters in the formula name
             escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
-            body_lines.append("\\textbf{" + escaped_name + "}")
-            body_lines.append("\\[ \\adjustbox{max width=\\linewidth}{$" + latex + "$} \\]")
-            body_lines.append(f"\\\\[{formula_gap}]")
+            body_lines.append(r"\textbf{" + escaped_name + "}")
+            body_lines.append(r"\[" + r" \adjustbox{max width=\linewidth}{$" + latex + r"$} " + r"\]")
+            if formula_gap != "0pt":
+                body_lines.append(r"\vspace{" + formula_gap + "}")
     
     if in_flushleft:
         body_lines.append(r"\end{flushleft}")
