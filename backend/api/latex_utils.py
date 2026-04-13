@@ -33,12 +33,12 @@ FONT_SIZE_MAP = {
     "12pt": "\\normalsize",
 }
 
-# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_spacing)
+# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_gap, baselineskip)
 SPACING_MAP = {
-    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt"),
-    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt"),
-    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt"),
-    "large": ("16pt", "8pt", "8pt", "4pt", "16pt"),
+    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt", "4pt"),
+    "small": ("2pt", "1pt", "1pt", "0.5pt", "2pt", "6pt"),
+    "medium": ("8pt", "4pt", "4pt", "2pt", "8pt", "10pt"),
+    "large": ("16pt", "8pt", "8pt", "4pt", "16pt", "14pt"),
 }
 
 
@@ -47,7 +47,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
     Build a dynamic LaTeX header based on user-selected options.
     """
     size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
-    sec_before, sec_after, subsec_before, subsec_after, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
+    sec_before, sec_after, subsec_before, subsec_after, _, baseline_skip = SPACING_MAP.get(spacing, SPACING_MAP["large"])
 
     # The standard `article` class only supports 10pt/11pt/12pt.
     # Use `extarticle` (from the extsizes package) for 8pt and 9pt.
@@ -70,6 +70,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "\\titleformat{\\subsection}{\\normalfont\\scriptsize\\bfseries}{}{0pt}{}",
         f"\\titlespacing*{{\\section}}{{0pt}}{{{sec_before}}}{{{sec_after}}}",
         f"\\titlespacing*{{\\subsection}}{{0pt}}{{{subsec_before}}}{{{subsec_after}}}",
+        f"\\setlength{{\\baselineskip}}{{{baseline_skip}}}",
         "",
         "\\begin{document}",
         size_command,
@@ -103,7 +104,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
     """
     header = build_dynamic_header(columns, font_size, margins, spacing)
     footer = build_dynamic_footer(columns)
-    _, _, _, _, formula_gap = SPACING_MAP.get(spacing, SPACING_MAP["large"])
+    _, _, _, _, formula_gap, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
     
     if not selected_formulas:
         return header + footer
@@ -124,10 +125,10 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
                 body_lines.append(r"\end{flushleft}")
                 in_flushleft = False
             if current_class is not None:
-                body_lines.append("")
+                body_lines.append("%")  # Suppress paragraph break between sections
             escaped_class = class_name.replace("&", "\\&")
             body_lines.append("\\section*{" + escaped_class + "}")
-            body_lines.append("")
+            body_lines.append("%")  # Suppress paragraph break after section
             current_class = class_name
             current_category = None
         
@@ -139,7 +140,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             if not is_special:
                 escaped_category = category.replace("&", "\\&")
                 body_lines.append("\\subsection*{" + escaped_category + "}")
-                body_lines.append("")
+                body_lines.append("%")
                 body_lines.append(r"\begin{flushleft}")
                 in_flushleft = True
             current_category = category
@@ -149,9 +150,10 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
         else:
             # Escape special LaTeX characters in the formula name
             escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
-            body_lines.append("\\textbf{" + escaped_name + "}")
-            body_lines.append("\\[ \\adjustbox{max width=\\linewidth}{\\displaystyle " + latex + "} \\]")
-            body_lines.append(f"\\\\[{formula_gap}]")
+            body_lines.append(r"\textbf{" + escaped_name + "}")
+            body_lines.append(r"\[" + r" \adjustbox{max width=\linewidth}{$" + latex + r"$} " + r"\]")
+            if formula_gap != "0pt":
+                body_lines.append(r"\vspace{" + formula_gap + "}")
     
     if in_flushleft:
         body_lines.append(r"\end{flushleft}")

@@ -22,7 +22,7 @@ VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
 
 def validate_layout_params(columns, font_size, margins, spacing):
     try:
-        columns = max(1, min(3, int(columns)))
+        columns = max(1, min(4, int(columns)))
     except (TypeError, ValueError):
         columns = 2
     
@@ -72,10 +72,11 @@ def generate_sheet(request):
     margins = request.data.get("margins", "0.25in")
     spacing = request.data.get("spacing", "large")
     
-    if not selected:
-        return Response({"error": "No formulas selected"}, status=400)
-    
     columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
+    
+    if not selected:
+        tex_code = build_latex_for_formulas([], columns, font_size, margins, spacing)
+        return Response({"tex_code": tex_code})
     
     formula_data = get_formula_data()
     selected_formulas = []

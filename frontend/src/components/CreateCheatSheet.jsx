@@ -449,6 +449,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value={1}>1 Column</option>
           <option value={2}>2 Columns</option>
           <option value={3}>3 Columns</option>
+          <option value={4}>4 Columns</option>
         </select>
       </div>
       <div className="layout-control">
@@ -601,7 +602,10 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           onRemoveClass={removeClassFromOrder}
           onRemoveFormula={removeSingleFormula}
         />
+      </div>
 
+      {/* Box 2: Editor and preview */}
+      <div className="create-cheat-sheet panel-box">
         <LayoutOptions 
           columns={columns}
           setColumns={setColumns}
@@ -612,10 +616,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           margins={margins}
           setMargins={setMargins}
         />
-      </div>
-
-      {/* Box 2: Editor and preview */}
-      <div className="create-cheat-sheet panel-box">
+        
         <div className="editor-container">
           <LatexEditor
             content={content}

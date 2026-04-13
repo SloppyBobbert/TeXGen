@@ -131,11 +131,69 @@ export function useLatex(initialData) {
     isCompilingRef.current = true;
     setIsCompiling(true);
     setCompileError(null);
+    
+    let contentToCompile = content;
+    
+    try {
+      const response = await fetch('/api/generate-sheet/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          formulas: [],
+          columns: columns,
+          font_size: fontSize,
+          spacing: spacing,
+          margins: margins
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const newLatex = data.tex_code;
+        
+        const oldBodyMatch = content.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
+        
+        if (oldBodyMatch) {
+          const oldBody = oldBodyMatch[1];
+          
+          const multicolMatch = oldBody.match(/\\begin\{multicols\}\{(\d+)\}([\s\S]*?)\\end\{multicols\}/);
+          
+          let formulaContent = oldBody;
+          if (multicolMatch) {
+            formulaContent = multicolMatch[2];
+          }
+          
+          const newParts = newLatex.split('\\begin{multicols}');
+          if (newParts.length > 1) {
+            const afterMulticols = newParts[1];
+            const columnMatch = afterMulticols.match(/^\{(\d+)\}/);
+            
+            if (columnMatch) {
+              const columnCount = columnMatch[1];
+              const afterColumn = afterMulticols.slice(columnMatch[0].length);
+              
+              const beforeEnd = afterColumn.split('\\end{multicols}')[0];
+              const afterEnd = afterColumn.split('\\end{multicols}').slice(1).join('\\end{multicols}');
+              
+              contentToCompile = newParts[0] + '\\begin{multicols}{' + columnCount + '}' + beforeEnd + formulaContent + '\\end{multicols}' + afterEnd;
+            } else {
+              contentToCompile = newLatex;
+            }
+          } else {
+            contentToCompile = newLatex;
+          }
+        } else {
+          contentToCompile = newLatex;
+        }
+      }
+    } catch (e) {
+      console.log('Regenerate failed, using existing content:', e);
+    }
+    
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: contentToCompile }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -163,7 +221,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content]);
+  }, [content, columns, fontSize, spacing, margins]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
