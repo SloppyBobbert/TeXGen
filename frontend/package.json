@@ -26,6 +26,9 @@
     "eslint": "^9.0.0",
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^5.0.0",
-    "vite": "^6.0.0"
+    "vite": "^6.4.2"
+  },
+  "overrides": {
+    "picomatch": "^4.0.4"
   }
 }
