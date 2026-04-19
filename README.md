@@ -35,7 +35,7 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 | Frontend | React 18 + Vite |
 | Backend | Django 6 + Django REST Framework |
 | LaTeX Engine | Tectonic |
-| Database | SQLite (dev) / MariaDB (prod) |
+| Database | SQLite (dev) / PostgreSQL (Docker/prod) |
 | Container | Docker Compose |
 
 ## Project Structure
@@ -141,7 +141,7 @@ The frontend will be available at `http://localhost:5173/`.
 docker compose up --build
 ```
 
-This builds and starts the Django backend, React frontend, and MariaDB database.
+This builds and starts the Django backend, React frontend, and PostgreSQL database.
 
 ## Running Tests
 
