@@ -22,7 +22,37 @@ function saveToStorage(data) {
   }
 }
 
-export function useFormulas() {
+function buildSelectionState(selectedFormulas = []) {
+  const groupedMap = new Map();
+  const selectedClasses = {};
+  const selectedCategories = {};
+
+  selectedFormulas.forEach((formula) => {
+    if (!formula?.class || !formula?.category || !formula?.name) return;
+
+    selectedClasses[formula.class] = true;
+    selectedCategories[`${formula.class}:${formula.category}`] = true;
+
+    const formulas = groupedMap.get(formula.class) || [];
+    formulas.push({
+      class: formula.class,
+      category: formula.category,
+      name: formula.name,
+    });
+    groupedMap.set(formula.class, formulas);
+  });
+
+  return {
+    selectedClasses,
+    selectedCategories,
+    groupedFormulas: Array.from(groupedMap.entries()).map(([className, formulas]) => ({
+      class: className,
+      formulas,
+    })),
+  };
+}
+
+export function useFormulas(initialData) {
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [selectedCategories, setSelectedCategories] = useState({});
@@ -42,11 +72,16 @@ export function useFormulas() {
             setSelectedClasses(saved.selectedClasses || {});
             setSelectedCategories(saved.selectedCategories || {});
             setGroupedFormulas(saved.groupedFormulas || []);
+          } else if (initialData?.selectedFormulas?.length) {
+            const restored = buildSelectionState(initialData.selectedFormulas);
+            setSelectedClasses(restored.selectedClasses);
+            setSelectedCategories(restored.selectedCategories);
+            setGroupedFormulas(restored.groupedFormulas);
           }
         }
       })
       .catch((err) => console.error('Failed to fetch classes', err));
-  }, []);
+  }, [initialData]);
 
   useEffect(() => {
     if (!initialLoadDone.current) return;

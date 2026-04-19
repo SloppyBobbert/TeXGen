@@ -416,9 +416,9 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   );
 };
 
-const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, content, handleClear }) => (
+const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, isSaving, content, handleClear }) => (
   <div className="actions">
-    <button type="submit" className="btn primary">Save Progress</button>
+    <button type="submit" className="btn primary" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
     <button type="button" onClick={handleDownloadTex} className="btn download">Download .tex</button>
     <button
       type="button"
@@ -499,7 +499,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
   </div>
 );
 
-const CreateCheatSheet = ({ onSave, initialData }) => {
+const CreateCheatSheet = ({ onSave, initialData, isSaving = false }) => {
   const {
     classesData,
     selectedClasses,
@@ -515,7 +515,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     removeSingleFormula,
     selectedCount,
     hasSelectedClasses
-  } = useFormulas();
+  } = useFormulas(initialData);
 
   const {
     title,
@@ -556,9 +556,17 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     handleGenerateSheet(formulasList);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    onSave({ title, content, columns, fontSize, spacing, margins });
+    await onSave({
+      title,
+      content,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      selectedFormulas: getSelectedFormulasList(),
+    });
   };
 
   const handleClear = () => {
@@ -664,6 +672,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           handleDownloadTex={handleDownloadTex}
           handleDownloadPDF={handleDownloadPDF}
           isLoading={isLoading}
+          isSaving={isSaving}
           content={content}
           handleClear={handleClear}
         />

@@ -2,6 +2,16 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
+const DEFAULT_SHEET = {
+  title: '',
+  content: '',
+  columns: 2,
+  fontSize: '10pt',
+  spacing: 'large',
+  margins: '0.25in',
+  selectedFormulas: [],
+};
+
 function App() {
   const normalizeTheme = (value) => {
     return value === 'dark' || value === 'light' ? value : 'dark';
@@ -16,8 +26,9 @@ function App() {
         console.error("Failed to parse sheet", e);
       }
     }
-    return { title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' };
+    return DEFAULT_SHEET;
   });
+  const [isSaving, setIsSaving] = useState(false);
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     return normalizeTheme(saved);
@@ -43,11 +54,61 @@ function App() {
     }
   }, []);
 
-  const handleSave = (data, showFeedback = true) => {
-    setCheatSheet(data);
-    localStorage.setItem('currentCheatSheet', JSON.stringify(data));
-    if (showFeedback) {
+  const handleSave = async (data, showFeedback = true) => {
+    const nextSheet = {
+      ...cheatSheet,
+      ...data,
+      selectedFormulas: data.selectedFormulas ?? cheatSheet.selectedFormulas ?? [],
+    };
+
+    setCheatSheet(nextSheet);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(nextSheet));
+
+    if (!showFeedback) {
+      return nextSheet;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const sheetId = nextSheet.id;
+      const response = await fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
+        method: sheetId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: nextSheet.title,
+          latex_content: nextSheet.content,
+          columns: nextSheet.columns,
+          margins: nextSheet.margins,
+          font_size: nextSheet.fontSize,
+          selected_formulas: nextSheet.selectedFormulas,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.error || 'Failed to save cheat sheet');
+      }
+
+      const savedSheet = await response.json();
+      const persistedSheet = {
+        ...nextSheet,
+        id: savedSheet.id,
+        content: savedSheet.latex_content ?? nextSheet.content,
+        fontSize: savedSheet.font_size ?? nextSheet.fontSize,
+        selectedFormulas: savedSheet.selected_formulas ?? nextSheet.selectedFormulas,
+      };
+
+      setCheatSheet(persistedSheet);
+      localStorage.setItem('currentCheatSheet', JSON.stringify(persistedSheet));
       alert('Progress saved!');
+      return persistedSheet;
+    } catch (error) {
+      console.error('Failed to save cheat sheet', error);
+      alert(`Failed to save progress: ${error.message}`);
+      throw error;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -68,6 +129,7 @@ function App() {
         <CreateCheatSheet 
           initialData={cheatSheet} 
           onSave={handleSave} 
+          isSaving={isSaving}
           onCancel={() => {}} 
         />
       </main>
