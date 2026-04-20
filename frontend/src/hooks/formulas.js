@@ -58,6 +58,7 @@ export function useFormulas(initialData) {
   const [selectedCategories, setSelectedCategories] = useState({});
   const [groupedFormulas, setGroupedFormulas] = useState([]);
   const initialLoadDone = useRef(false);
+  const skipNextPersist = useRef(false);
 
   useEffect(() => {
     fetch('/api/classes/')
@@ -85,6 +86,13 @@ export function useFormulas(initialData) {
 
   useEffect(() => {
     if (!initialLoadDone.current) return;
+
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
     saveToStorage({ selectedClasses, selectedCategories, groupedFormulas });
   }, [selectedClasses, selectedCategories, groupedFormulas]);
 
@@ -232,6 +240,7 @@ export function useFormulas(initialData) {
   const getSelectedFormulasList = () => groupedFormulas.flatMap(g => g.formulas);
 
   const clearSelections = () => {
+    skipNextPersist.current = true;
     setSelectedClasses({});
     setSelectedCategories({});
     setGroupedFormulas([]);
