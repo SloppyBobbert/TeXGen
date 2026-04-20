@@ -7,13 +7,11 @@ const AuthContext = createContext();
 export default AuthContext;
 
 export const AuthProvider = ({ children }) => {
-  const [authTokens, setAuthTokens] = useState(() =>
-    localStorage.getItem('authTokens') ? JSON.parse(localStorage.getItem('authTokens')) : null
-  );
-  const [user, setUser] = useState(() =>
-    localStorage.getItem('authTokens') ? jwtDecode(localStorage.getItem('authTokens')) : null
-  );
-  
+  // Tokens are stored in-memory only (not localStorage) to reduce XSS risk.
+  // Users will need to log in again after a page refresh.
+  const [authTokens, setAuthTokens] = useState(null);
+  const [user, setUser] = useState(null);
+
   const navigate = useNavigate();
 
   const loginUser = async (username, password) => {
@@ -26,12 +24,11 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (response.status === 200) {
+      if (response.ok) {
         setAuthTokens(data);
         setUser(jwtDecode(data.access));
-        localStorage.setItem('authTokens', JSON.stringify(data));
         navigate('/');
       } else {
         alert(data.detail || 'Invalid credentials');
@@ -54,9 +51,9 @@ export const AuthProvider = ({ children }) => {
 
       if (response.status === 201) {
         // Auto login after registration
-        loginUser(username, password);
+        await loginUser(username, password);
       } else {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         const errorMessage = typeof data === 'object' ? JSON.stringify(data) : 'Registration failed';
         alert(`Registration failed: ${errorMessage}`);
       }
@@ -69,7 +66,6 @@ export const AuthProvider = ({ children }) => {
   const logoutUser = () => {
     setAuthTokens(null);
     setUser(null);
-    localStorage.removeItem('authTokens');
     navigate('/login');
   };
 
@@ -86,20 +82,21 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify({ refresh: authTokens?.refresh }),
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
-        if (response.status === 200) {
+        if (response.ok) {
           setAuthTokens(data);
           setUser(jwtDecode(data.access));
-          localStorage.setItem('authTokens', JSON.stringify(data));
         } else {
           setAuthTokens(null);
           setUser(null);
-          localStorage.removeItem('authTokens');
           navigate('/login');
         }
       } catch (err) {
         console.error('Token refresh failed', err);
+        setAuthTokens(null);
+        setUser(null);
+        navigate('/login');
       }
     };
 

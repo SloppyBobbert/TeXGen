@@ -17,25 +17,29 @@ const Login = () => {
       <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Welcome Back</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Username</label>
+          <label htmlFor="login-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Username</label>
           <input
+            id="login-username"
             type="text"
             placeholder="Enter your username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="input-field"
+            autoComplete="username"
             required
             style={{ marginBottom: 0 }}
           />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Password</label>
+          <label htmlFor="login-password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Password</label>
           <input
+            id="login-password"
             type="password"
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input-field"
+            autoComplete="current-password"
             required
             style={{ marginBottom: 0 }}
           />

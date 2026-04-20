@@ -17,25 +17,29 @@ const SignUp = () => {
       <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Create an Account</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Username</label>
+          <label htmlFor="signup-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Username</label>
           <input
+            id="signup-username"
             type="text"
             placeholder="Choose a username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="input-field"
+            autoComplete="username"
             required
             style={{ marginBottom: 0 }}
           />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Password</label>
+          <label htmlFor="signup-password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Password</label>
           <input
+            id="signup-password"
             type="password"
             placeholder="Choose a password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input-field"
+            autoComplete="new-password"
             required
             style={{ marginBottom: 0 }}
           />
