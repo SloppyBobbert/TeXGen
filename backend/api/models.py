@@ -31,6 +31,44 @@ class CheatSheet(models.Model):
 
     def __str__(self):
         return self.title
+
+    def _build_practice_problems_section(self):
+        problems = list(self.problems.all())
+        if not problems:
+            return ""
+
+        section_lines = ["\\section*{Practice Problems}"]
+        for problem in problems:
+            section_lines.append(
+                f"\\textbf{{Problem {problem.order}:}} {problem.question_latex}"
+            )
+            if problem.answer_latex:
+                section_lines.append(f"\\textbf{{Answer:}} {problem.answer_latex}")
+            section_lines.append("")
+
+        return "\n".join(section_lines).rstrip()
+
+    def _inject_practice_problems_into_document(self, content):
+        practice_problems = self._build_practice_problems_section()
+        if not practice_problems:
+            return content
+
+        end_document = r"\end{document}"
+        end_multicols = r"\end{multicols}"
+
+        insert_before = end_document
+        if end_multicols in content and content.rfind(end_multicols) < content.rfind(end_document):
+            insert_before = end_multicols
+
+        insert_index = content.rfind(insert_before)
+        if insert_index == -1:
+            return content
+
+        return (
+            f"{content[:insert_index].rstrip()}\n\n"
+            f"{practice_problems}\n"
+            f"{content[insert_index:]}"
+        )
     
     def build_full_latex(self):
         """
@@ -40,13 +78,14 @@ class CheatSheet(models.Model):
         """
         content = self.latex_content or ""
         
-        # If it's already a complete document, return as-is
-        if r"\begin{document}" in content:
-            return content
+        # If it's already a complete document, keep its layout and inject problems if needed
+        if r"\begin{document}" in content and r"\end{document}" in content:
+            return self._inject_practice_problems_into_document(content)
             
         # Build document header
+        document_class = "extarticle" if self.font_size in {"8pt", "9pt"} else "article"
         header = [
-            "\\documentclass{article}",
+            f"\\documentclass{{{document_class}}}",
             "\\usepackage[utf8]{inputenc}",
             "\\usepackage{amsmath, amssymb}",
             f"\\usepackage[a4paper, margin={self.margins}]{{geometry}}",
@@ -54,7 +93,7 @@ class CheatSheet(models.Model):
         
         # Add font size if specified
         if self.font_size and self.font_size != "10pt":
-            header[0] = f"\\documentclass[{self.font_size}]{{article}}"
+            header[0] = f"\\documentclass[{self.font_size}]{{{document_class}}}"
             
         # Add multicolumn support if needed
         if self.columns > 1:
@@ -75,15 +114,9 @@ class CheatSheet(models.Model):
         # Add main content
         document_parts.append(content)
         
-        # Add practice problems if they exist
-        problems = self.problems.all()
-        if problems:
-            document_parts.append("\\section*{Practice Problems}")
-            for problem in problems:
-                document_parts.append(f"\\textbf{{Problem {problem.order}:}} {problem.question_latex}")
-                if problem.answer_latex:
-                    document_parts.append(f"\\textbf{{Answer:}} {problem.answer_latex}")
-                document_parts.append("")  # Add spacing
+        practice_problems = self._build_practice_problems_section()
+        if practice_problems:
+            document_parts.append(practice_problems)
         
         # Close multicolumn environment if needed
         if self.columns > 1:

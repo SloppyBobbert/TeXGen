@@ -95,6 +95,50 @@ class TestCheatSheetModel(TestCase):
         )
         assert sheet.build_full_latex() == raw
 
+    def test_build_full_latex_passthrough_inserts_problems_before_document_end(self):
+        raw = "\\documentclass{article}\n\\begin{document}\nCustom\n\\end{document}"
+        sheet = CheatSheet.objects.create(
+            title="Raw With Problems",
+            latex_content=raw,
+        )
+        PracticeProblem.objects.create(
+            cheat_sheet=sheet,
+            question_latex="Show that $x^2 \\ge 0$.",
+            answer_latex="Because squares are nonnegative.",
+            order=1,
+        )
+
+        full = sheet.build_full_latex()
+
+        assert "Practice Problems" in full
+        assert "Show that $x^2 \\ge 0$." in full
+        assert full.index("Practice Problems") < full.index("\\end{document}")
+
+    def test_build_full_latex_passthrough_inserts_problems_before_end_multicols(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\usepackage{multicol}\n"
+            "\\begin{document}\n"
+            "\\begin{multicols}{2}\n"
+            "Custom\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+        sheet = CheatSheet.objects.create(
+            title="Raw Multi",
+            latex_content=raw,
+        )
+        PracticeProblem.objects.create(
+            cheat_sheet=sheet,
+            question_latex="Integrate $x$.",
+            answer_latex="$x^2 / 2 + C$",
+            order=1,
+        )
+
+        full = sheet.build_full_latex()
+
+        assert full.index("Practice Problems") < full.index("\\end{multicols}")
+
     def test_build_full_latex_with_problems(self):
         sheet = CheatSheet.objects.create(
             title="With Problems",
@@ -110,6 +154,17 @@ class TestCheatSheetModel(TestCase):
         assert "Practice Problems" in full
         assert "What is $1+1$?" in full
         assert "$2$" in full
+
+    def test_build_full_latex_8pt_uses_extarticle(self):
+        sheet = CheatSheet.objects.create(
+            title="Small Font",
+            latex_content="Content",
+            font_size="8pt",
+        )
+
+        full = sheet.build_full_latex()
+
+        assert "\\documentclass[8pt]{extarticle}" in full
 
 
 # ── API Tests ────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -313,38 +313,128 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, onChange, isModified }) => {
+const COMPILE_ERROR_LINE_REGEX = /document\.tex:(\d+):/g;
+
+const escapeHtml = (value = '') => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const highlightLatexLine = (line = '') => {
+  const placeholders = [];
+  const stashToken = (html) => {
+    const placeholder = `LATEXTOKEN${placeholders.length}PLACEHOLDER`;
+    placeholders.push(html);
+    return placeholder;
+  };
+
+  let html = escapeHtml(line);
+
+  html = html.replace(/%.*$/g, (match) => stashToken(`<span class="latex-token comment">${match}</span>`));
+  html = html.replace(/\\[a-zA-Z@]+|\\./g, (match) => stashToken(`<span class="latex-token command">${match}</span>`));
+  html = html.replace(/[{}[\]]/g, (match) => `<span class="latex-token brace">${match}</span>`);
+  html = html.replace(/[$&#_^]/g, (match) => `<span class="latex-token symbol">${match}</span>`);
+
+  html = html.replace(/LATEXTOKEN(\d+)PLACEHOLDER/g, (_, index) => placeholders[Number(index)] ?? '');
+
+  return html || '&nbsp;';
+};
+
+const extractCompileErrorLines = (compileError = '') => {
+  const normalizedError = compileError || '';
+  const lineNumbers = new Set();
+
+  for (const match of normalizedError.matchAll(COMPILE_ERROR_LINE_REGEX)) {
+    lineNumbers.add(Number(match[1]));
+  }
+
+  return lineNumbers;
+};
+
+const getCompileErrorSummary = (compileError = '') => {
+  const normalizedError = compileError || '';
+
+  if (!normalizedError) {
+    return '';
+  }
+
+  const lineMatch = normalizedError.match(/document\.tex:(\d+):\s*([^\n]+)/);
+  if (lineMatch) {
+    return `Line ${lineMatch[1]}: ${lineMatch[2].replace(/^error:\s*/i, '').trim()}`;
+  }
+
+  return (normalizedError.split('\n').find((line) => line.trim()) || '').replace(/^error:\s*/i, '').trim();
+};
+
+const LatexEditor = ({ content, onChange, isModified, compileError }) => {
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
+  const highlightLayerRef = useRef(null);
 
-  const lineCount = content ? content.split('\n').length : 1;
+  const errorLines = useMemo(() => extractCompileErrorLines(compileError), [compileError]);
+  const compileErrorSummary = useMemo(() => getCompileErrorSummary(compileError), [compileError]);
+  const highlightedLines = useMemo(() => {
+    const lines = content ? content.split('\n') : [''];
+
+    return lines.map((line, index) => ({
+      lineNumber: index + 1,
+      highlightedHtml: highlightLatexLine(line),
+      hasError: errorLines.has(index + 1),
+    }));
+  }, [content, errorLines]);
+
+  const lineCount = highlightedLines.length;
 
   const handleScroll = () => {
     if (lineNumbersRef.current && textareaRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+
+    if (highlightLayerRef.current && textareaRef.current) {
+      highlightLayerRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightLayerRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   };
 
   return (
     <div className="input-section">
       <label htmlFor="content">Generated LaTeX Code:</label>
-      <div className="editor-wrapper">
+      {compileErrorSummary ? (
+        <div className="editor-status error">{compileErrorSummary}</div>
+      ) : isModified ? (
+        <div className="editor-status modified">Manual edits ready to recompile</div>
+      ) : null}
+      <div className={`editor-wrapper ${compileErrorSummary ? 'has-error' : ''}`}>
         <div className="line-numbers" ref={lineNumbersRef}>
           {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i + 1} className="line-number">{i + 1}</div>
+            <div key={i + 1} className={`line-number ${errorLines.has(i + 1) ? 'error' : ''}`}>{i + 1}</div>
           ))}
         </div>
-        <textarea
-          ref={textareaRef}
-          id="content"
-          value={content}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
-          className={`textarea-field ${isModified ? 'modified' : ''}`}
-          rows={15}
-          spellCheck="false"
-        />
+        <div className="editor-surface">
+          <div className={`editor-highlight-layer ${isModified ? 'modified' : ''}`} ref={highlightLayerRef} aria-hidden="true">
+            {highlightedLines.map(({ lineNumber, highlightedHtml, hasError }) => (
+              <div
+                key={lineNumber}
+                className={`editor-highlight-line ${hasError ? 'error' : ''}`}
+                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+              />
+            ))}
+          </div>
+          <textarea
+            ref={textareaRef}
+            id="content"
+            value={content}
+            onChange={(e) => onChange(e.target.value)}
+            onScroll={handleScroll}
+            placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
+            className={`textarea-field ${isModified ? 'modified' : ''}`}
+            rows={15}
+            spellCheck="false"
+            wrap="off"
+          />
+        </div>
       </div>
     </div>
   );
@@ -368,14 +458,6 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
     return () => resizeObserver.disconnect();
   }, []);
 
-  useEffect(() => {
-    fetch('/api/compile/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: ' ' })
-    }).catch(e => console.log('Pre-warm compilation failed, ignoring:', e));
-  }, []);
-
   return (
     <div className="preview-section">
       <label>PDF Preview:</label>
@@ -395,7 +477,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
             loading={<div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>Loading PDF...</div>}
             error={<div style={{ padding: '2rem', color: '#ff4444', textAlign: 'center' }}>Failed to load PDF.</div>}
           >
-            {Array.from(new Array(numPages), (el, index) => (
+            {Array.from(new Array(numPages), (_, index) => (
               <Page 
                 key={`page_${index + 1}`} 
                 pageNumber={index + 1} 
@@ -416,9 +498,9 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   );
 };
 
-const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, content, handleClear }) => (
+const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, isSaving, content, handleClear }) => (
   <div className="actions">
-    <button type="submit" className="btn primary">Save Progress</button>
+    <button type="submit" className="btn primary" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
     <button type="button" onClick={handleDownloadTex} className="btn download">Download .tex</button>
     <button
       type="button"
@@ -499,7 +581,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
   </div>
 );
 
-const CreateCheatSheet = ({ onSave, initialData }) => {
+const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) => {
   const {
     classesData,
     selectedClasses,
@@ -515,7 +597,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     removeSingleFormula,
     selectedCount,
     hasSelectedClasses
-  } = useFormulas();
+  } = useFormulas(initialData);
 
   const {
     title,
@@ -556,16 +638,24 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     handleGenerateSheet(formulasList);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    onSave({ title, content, columns, fontSize, spacing, margins });
+    await onSave({
+      title,
+      content,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      selectedFormulas: getSelectedFormulasList(),
+    });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large', margins: '0.25in' }, false);
+      onReset?.();
     }
   };
 
@@ -622,6 +712,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
             content={content}
             onChange={handleContentChange}
             isModified={contentModified}
+            compileError={compileError}
           />
           <div className="compile-button-column">
             <div className="history-buttons">
@@ -650,7 +741,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
               type="button"
               onClick={handleCompileClick}
               className="btn compile-circle"
-              disabled={isCompiling || !content}
+              disabled={isCompiling}
               title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
               aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
             >
@@ -664,6 +755,7 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
           handleDownloadTex={handleDownloadTex}
           handleDownloadPDF={handleDownloadPDF}
           isLoading={isLoading}
+          isSaving={isSaving}
           content={content}
           handleClear={handleClear}
         />

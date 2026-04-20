@@ -22,12 +22,43 @@ function saveToStorage(data) {
   }
 }
 
-export function useFormulas() {
+function buildSelectionState(selectedFormulas = []) {
+  const groupedMap = new Map();
+  const selectedClasses = {};
+  const selectedCategories = {};
+
+  selectedFormulas.forEach((formula) => {
+    if (!formula?.class || !formula?.category || !formula?.name) return;
+
+    selectedClasses[formula.class] = true;
+    selectedCategories[`${formula.class}:${formula.category}`] = true;
+
+    const formulas = groupedMap.get(formula.class) || [];
+    formulas.push({
+      class: formula.class,
+      category: formula.category,
+      name: formula.name,
+    });
+    groupedMap.set(formula.class, formulas);
+  });
+
+  return {
+    selectedClasses,
+    selectedCategories,
+    groupedFormulas: Array.from(groupedMap.entries()).map(([className, formulas]) => ({
+      class: className,
+      formulas,
+    })),
+  };
+}
+
+export function useFormulas(initialData) {
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [selectedCategories, setSelectedCategories] = useState({});
   const [groupedFormulas, setGroupedFormulas] = useState([]);
   const initialLoadDone = useRef(false);
+  const skipNextPersist = useRef(false);
 
   useEffect(() => {
     fetch('/api/classes/')
@@ -42,14 +73,26 @@ export function useFormulas() {
             setSelectedClasses(saved.selectedClasses || {});
             setSelectedCategories(saved.selectedCategories || {});
             setGroupedFormulas(saved.groupedFormulas || []);
+          } else if (initialData?.selectedFormulas?.length) {
+            const restored = buildSelectionState(initialData.selectedFormulas);
+            setSelectedClasses(restored.selectedClasses);
+            setSelectedCategories(restored.selectedCategories);
+            setGroupedFormulas(restored.groupedFormulas);
           }
         }
       })
       .catch((err) => console.error('Failed to fetch classes', err));
-  }, []);
+  }, [initialData]);
 
   useEffect(() => {
     if (!initialLoadDone.current) return;
+
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
     saveToStorage({ selectedClasses, selectedCategories, groupedFormulas });
   }, [selectedClasses, selectedCategories, groupedFormulas]);
 
@@ -79,11 +122,36 @@ export function useFormulas() {
     );
   }, []);
 
-  const removeClassFromOrder = useCallback((className) => {
-    setGroupedFormulas(prev => prev.filter(g => g.class !== className));
+  const clearClassSelections = useCallback((className) => {
+    setSelectedClasses((prev) => {
+      const updated = { ...prev };
+      delete updated[className];
+      return updated;
+    });
+
+    setSelectedCategories((prev) => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach((key) => {
+        if (key.startsWith(`${className}:`)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
   }, []);
 
+  const removeClassFromOrder = useCallback((className) => {
+    clearClassSelections(className);
+    setGroupedFormulas(prev => prev.filter(g => g.class !== className));
+  }, [clearClassSelections]);
+
   const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
+    setSelectedCategories((prev) => {
+      const updated = { ...prev };
+      delete updated[`${className}:${categoryName}`];
+      return updated;
+    });
+
     setGroupedFormulas(prev => prev.map(g => {
         if (g.class !== className) return g;
         return { ...g, formulas: g.formulas.filter(f => !(f.category === categoryName && f.name === formulaName)) };
@@ -105,7 +173,7 @@ export function useFormulas() {
           });
           return updatedCategories;
         });
-        removeClassFromOrder(className);
+        setGroupedFormulas((prevGrouped) => prevGrouped.filter((group) => group.class !== className));
       } else {
         newSelected[className] = true;
         const cls = classesData.find(c => c.name === className);
@@ -172,6 +240,7 @@ export function useFormulas() {
   const getSelectedFormulasList = () => groupedFormulas.flatMap(g => g.formulas);
 
   const clearSelections = () => {
+    skipNextPersist.current = true;
     setSelectedClasses({});
     setSelectedCategories({});
     setGroupedFormulas([]);

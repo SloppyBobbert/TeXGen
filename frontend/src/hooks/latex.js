@@ -23,6 +23,15 @@ function saveLatexStorage(data) {
   }
 }
 
+function formatCompileError(errorData = {}) {
+  return (errorData.details || errorData.error || 'Failed to compile LaTeX')
+    .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
+    .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
+    .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+}
+
 export function useLatex(initialData) {
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
@@ -61,6 +70,8 @@ export function useLatex(initialData) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       setContent(history[newIndex]?.content || '');
+      setCompileError(null);
+      setContentModified(true);
     }
   }, [historyIndex, history]);
 
@@ -69,6 +80,8 @@ export function useLatex(initialData) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
       setContent(history[newIndex]?.content || '');
+      setCompileError(null);
+      setContentModified(true);
     }
   }, [historyIndex, history]);
 
@@ -109,6 +122,7 @@ export function useLatex(initialData) {
 
   const handleContentChange = useCallback((newContent) => {
     setContent(newContent);
+    setCompileError(null);
     setContentModified(true);
   }, []);
 
@@ -124,104 +138,43 @@ export function useLatex(initialData) {
     };
   }, [title, content, columns, fontSize, spacing, margins]);
 
+  const compileLatexContent = useCallback(async (latexContent) => {
+    const response = await fetch('/api/compile/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: latexContent }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(formatCompileError(errorData));
+    }
+
+    const blob = await response.blob();
+    if (pdfBlobUrlRef.current) {
+      URL.revokeObjectURL(pdfBlobUrlRef.current);
+    }
+    pdfBlobUrlRef.current = URL.createObjectURL(blob);
+    setPdfBlob(pdfBlobUrlRef.current);
+  }, []);
+
   const handleCompileOnly = useCallback(async () => {
     if (isCompilingRef.current) return;
-    if (!content) return;
     
     isCompilingRef.current = true;
     setIsCompiling(true);
     setCompileError(null);
-    
-    let contentToCompile = content;
-    
-    try {
-      const response = await fetch('/api/generate-sheet/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formulas: [],
-          columns: columns,
-          font_size: fontSize,
-          spacing: spacing,
-          margins: margins
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const newLatex = data.tex_code;
-        
-        const oldBodyMatch = content.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
-        
-        if (oldBodyMatch) {
-          const oldBody = oldBodyMatch[1];
-          
-          const multicolMatch = oldBody.match(/\\begin\{multicols\}\{(\d+)\}([\s\S]*?)\\end\{multicols\}/);
-          
-          let formulaContent = oldBody;
-          if (multicolMatch) {
-            formulaContent = multicolMatch[2];
-          }
-          
-          const newParts = newLatex.split('\\begin{multicols}');
-          if (newParts.length > 1) {
-            const afterMulticols = newParts[1];
-            const columnMatch = afterMulticols.match(/^\{(\d+)\}/);
-            
-            if (columnMatch) {
-              const columnCount = columnMatch[1];
-              const afterColumn = afterMulticols.slice(columnMatch[0].length);
-              
-              const beforeEnd = afterColumn.split('\\end{multicols}')[0];
-              const afterEnd = afterColumn.split('\\end{multicols}').slice(1).join('\\end{multicols}');
-              
-              contentToCompile = newParts[0] + '\\begin{multicols}{' + columnCount + '}' + beforeEnd + formulaContent + '\\end{multicols}' + afterEnd;
-            } else {
-              contentToCompile = newLatex;
-            }
-          } else {
-            contentToCompile = newLatex;
-          }
-        } else {
-          contentToCompile = newLatex;
-        }
-      }
-    } catch (e) {
-      console.log('Regenerate failed, using existing content:', e);
-    }
-    
-    try {
-      const response = await fetch('/api/compile/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: contentToCompile }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        let errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
-        
-        errorMsg = errorMsg
-          .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
-          .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
-          .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
-          .replace(/\n\s*\n/g, '\n')
-          .trim();
 
-        throw new Error(errorMsg);
-      }
-      const blob = await response.blob();
-      if (pdfBlobUrlRef.current) {
-        URL.revokeObjectURL(pdfBlobUrlRef.current);
-      }
-      pdfBlobUrlRef.current = URL.createObjectURL(blob);
-      setPdfBlob(pdfBlobUrlRef.current);
+    try {
+      await compileLatexContent(content);
+      setContentModified(false);
     } catch (error) {
-      console.error('Error generating PDF:', error);
       setCompileError(error.message);
     } finally {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content, columns, fontSize, spacing, margins]);
+  }, [compileLatexContent, content]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
@@ -252,44 +205,19 @@ export function useLatex(initialData) {
       }
     }
     
-    if (!contentToCompile) return;
-    
     isCompilingRef.current = true;
     setIsCompiling(true);
     setCompileError(null);
     try {
-      const response = await fetch('/api/compile/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: contentToCompile }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        let errorMsg = errorData.details || errorData.error || 'Failed to compile LaTeX';
-        
-        errorMsg = errorMsg
-          .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
-          .replace(/Type\s+H <return>\s+for immediate help\.?/ig, '')
-          .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
-          .replace(/\n\s*\n/g, '\n')
-          .trim();
-
-        throw new Error(errorMsg);
-      }
-      const blob = await response.blob();
-      if (pdfBlobUrlRef.current) {
-        URL.revokeObjectURL(pdfBlobUrlRef.current);
-      }
-      pdfBlobUrlRef.current = URL.createObjectURL(blob);
-      setPdfBlob(pdfBlobUrlRef.current);
+      await compileLatexContent(contentToCompile);
+      setContentModified(false);
     } catch (error) {
-      console.error('Error generating PDF:', error);
       setCompileError(error.message);
     } finally {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [content, margins, saveToHistory]);
+  }, [compileLatexContent, content, margins, saveToHistory]);
 
   const handleGenerateSheet = async (selectedList) => {
     if (isGeneratingRef.current) return;
@@ -373,10 +301,13 @@ export function useLatex(initialData) {
   const clearLatex = () => {
     setTitle('');
     setContent('');
+    setContentModified(false);
     setColumns(2);
     setFontSize('10pt');
     setSpacing('large');
     setMargins('0.25in');
+    setHistory([]);
+    setHistoryIndex(-1);
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
       pdfBlobUrlRef.current = null;
