@@ -301,10 +301,13 @@ export function useLatex(initialData) {
   const clearLatex = () => {
     setTitle('');
     setContent('');
+    setContentModified(false);
     setColumns(2);
     setFontSize('10pt');
     setSpacing('large');
     setMargins('0.25in');
+    setHistory([]);
+    setHistoryIndex(-1);
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
       pdfBlobUrlRef.current = null;

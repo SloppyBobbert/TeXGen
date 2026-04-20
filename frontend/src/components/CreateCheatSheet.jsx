@@ -581,7 +581,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
   </div>
 );
 
-const CreateCheatSheet = ({ onSave, initialData, isSaving = false }) => {
+const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) => {
   const {
     classesData,
     selectedClasses,
@@ -655,7 +655,7 @@ const CreateCheatSheet = ({ onSave, initialData, isSaving = false }) => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large', margins: '0.25in' }, false);
+      onReset?.();
     }
   };
 

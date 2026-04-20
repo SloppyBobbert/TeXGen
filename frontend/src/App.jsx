@@ -43,6 +43,11 @@ function App() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const handleReset = () => {
+    setCheatSheet(DEFAULT_SHEET);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(DEFAULT_SHEET));
+  };
+
   useEffect(() => {
     const savedSheet = localStorage.getItem('currentCheatSheet');
     if (savedSheet) {
@@ -129,6 +134,7 @@ function App() {
         <CreateCheatSheet 
           initialData={cheatSheet} 
           onSave={handleSave} 
+          onReset={handleReset}
           isSaving={isSaving}
           onCancel={() => {}} 
         />
