@@ -368,14 +368,6 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
     return () => resizeObserver.disconnect();
   }, []);
 
-  useEffect(() => {
-    fetch('/api/compile/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: ' ' })
-    }).catch(e => console.log('Pre-warm compilation failed, ignoring:', e));
-  }, []);
-
   return (
     <div className="preview-section">
       <label>PDF Preview:</label>
