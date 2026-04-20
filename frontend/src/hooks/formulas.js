@@ -114,11 +114,36 @@ export function useFormulas(initialData) {
     );
   }, []);
 
-  const removeClassFromOrder = useCallback((className) => {
-    setGroupedFormulas(prev => prev.filter(g => g.class !== className));
+  const clearClassSelections = useCallback((className) => {
+    setSelectedClasses((prev) => {
+      const updated = { ...prev };
+      delete updated[className];
+      return updated;
+    });
+
+    setSelectedCategories((prev) => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach((key) => {
+        if (key.startsWith(`${className}:`)) {
+          delete updated[key];
+        }
+      });
+      return updated;
+    });
   }, []);
 
+  const removeClassFromOrder = useCallback((className) => {
+    clearClassSelections(className);
+    setGroupedFormulas(prev => prev.filter(g => g.class !== className));
+  }, [clearClassSelections]);
+
   const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
+    setSelectedCategories((prev) => {
+      const updated = { ...prev };
+      delete updated[`${className}:${categoryName}`];
+      return updated;
+    });
+
     setGroupedFormulas(prev => prev.map(g => {
         if (g.class !== className) return g;
         return { ...g, formulas: g.formulas.filter(f => !(f.category === categoryName && f.name === formulaName)) };
@@ -140,7 +165,7 @@ export function useFormulas(initialData) {
           });
           return updatedCategories;
         });
-        removeClassFromOrder(className);
+        setGroupedFormulas((prevGrouped) => prevGrouped.filter((group) => group.class !== className));
       } else {
         newSelected[className] = true;
         const cls = classesData.find(c => c.name === className);
