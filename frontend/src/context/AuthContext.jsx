@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({ detail: 'Invalid server response' }));
 
       if (response.ok) {
         setAuthTokens(data);
@@ -54,8 +54,10 @@ export const AuthProvider = ({ children }) => {
         await loginUser(username, password);
       } else {
         const data = await response.json().catch(() => ({}));
-        const errorMessage = typeof data === 'object' ? JSON.stringify(data) : 'Registration failed';
-        alert(`Registration failed: ${errorMessage}`);
+        const errorMessage = typeof data === 'object'
+          ? Object.entries(data).map(([field, msgs]) => `${field}: ${[].concat(msgs).join(', ')}`).join('\n')
+          : 'Registration failed';
+        alert(`Registration failed:\n${errorMessage}`);
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -82,7 +84,7 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify({ refresh: authTokens?.refresh }),
         });
 
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json().catch(() => ({ detail: 'Invalid server response' }));
 
         if (response.ok) {
           setAuthTokens(data);
