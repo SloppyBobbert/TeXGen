@@ -460,14 +460,22 @@ label {
   justify-content: center;
   gap: var(--space-xs);
   padding: 0.625rem 1.25rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background-color: var(--card-bg);
+  color: var(--text);
   cursor: pointer;
   font-weight: 500;
   font-size: 0.875rem;
   letter-spacing: 0.01em;
+  text-decoration: none;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-sm);
+}
+
+.btn:hover {
+  background-color: var(--border-subtle);
+  border-color: var(--primary);
 }
 
 .btn:focus-visible {

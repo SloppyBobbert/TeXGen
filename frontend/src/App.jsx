@@ -1,4 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
+import { Routes, Route, Link } from 'react-router-dom';
+import AuthContext from './context/AuthContext';
+import Login from './components/Login';
+import SignUp from './components/SignUp';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
@@ -38,6 +42,8 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  const { user, logoutUser } = useContext(AuthContext);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -122,22 +128,43 @@ function App() {
       <header className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
           <div>
-            <h1>Cheat Sheet Generator</h1>
+            <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <h1>Cheat Sheet Generator</h1>
+            </Link>
             <p>Write cheat sheets with LaTeX support</p>
           </div>
-          <button onClick={toggleTheme} className="btn primary" style={{ margin: 0, height: 'fit-content' }}>
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {user ? (
+              <>
+                <span style={{ fontWeight: 'bold' }}>Hi, {user.username || 'User'}</span>
+                <button onClick={logoutUser} className="btn">Log Out</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="btn">Log In</Link>
+                <Link to="/signup" className="btn primary">Sign Up</Link>
+              </>
+            )}
+            <button onClick={toggleTheme} className="btn" style={{ margin: 0, height: 'fit-content' }}>
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </button>
+          </div>
         </div>
       </header>
       <main>
-        <CreateCheatSheet 
-          initialData={cheatSheet} 
-          onSave={handleSave} 
-          onReset={handleReset}
-          isSaving={isSaving}
-          onCancel={() => {}} 
-        />
+        <Routes>
+          <Route path="/" element={
+            <CreateCheatSheet 
+              initialData={cheatSheet} 
+              onSave={handleSave} 
+              onReset={handleReset}
+              isSaving={isSaving}
+              onCancel={() => {}} 
+            />
+          } />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+        </Routes>
       </main>
       <footer className="app-footer">
         <a href="https://github.com/ChicoState/cheat-sheet" target="_blank" rel="noopener noreferrer" title="View on GitHub">
