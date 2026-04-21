@@ -37,10 +37,11 @@ def sample_template(db):
 
 
 @pytest.fixture
-def sample_sheet(db, sample_template):
+def sample_sheet(db, sample_template, auth_client):
     return CheatSheet.objects.create(
         title="My Test Sheet",
         template=sample_template,
+        user=auth_client.handler._force_user,  # the user force_authenticate() set
         latex_content="Some content here",
         margins="0.75in",
         columns=2,

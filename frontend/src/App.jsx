@@ -3,6 +3,7 @@ import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import AuthContext from './context/AuthContext';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
+import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
@@ -48,7 +49,7 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const { user, logoutUser } = useContext(AuthContext);
+  const { user, authTokens, logoutUser } = useContext(AuthContext);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -57,6 +58,8 @@ function App() {
   const handleReset = () => {
     setCheatSheet(DEFAULT_SHEET);
     localStorage.setItem('currentCheatSheet', JSON.stringify(DEFAULT_SHEET));
+    localStorage.removeItem('cheatSheetData');
+    localStorage.removeItem('cheatSheetLatex');
   };
 
   useEffect(() => {
@@ -90,7 +93,10 @@ function App() {
       const sheetId = nextSheet.id;
       const response = await fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
         method: sheetId ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authTokens?.access}`
+        },
         body: JSON.stringify({
           title: nextSheet.title,
           latex_content: nextSheet.content,
@@ -128,6 +134,22 @@ function App() {
     }
   };
 
+  const handleEditSheet = (sheet) => {
+    const editSheet = {
+      id: sheet.id,
+      title: sheet.title,
+      content: sheet.latex_content,
+      columns: sheet.columns,
+      margins: sheet.margins,
+      fontSize: sheet.font_size,
+      selectedFormulas: sheet.selected_formulas || [],
+    };
+    setCheatSheet(editSheet);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(editSheet));
+    localStorage.removeItem('cheatSheetData');
+    localStorage.removeItem('cheatSheetLatex');
+  };
+
   return (
     <div className="App">
       <header className="app-header">
@@ -142,6 +164,8 @@ function App() {
             {user ? (
               <>
                 <span style={{ fontWeight: 'bold' }}>Hi, {user.username || 'User'}</span>
+                <Link to="/" className="btn primary" onClick={handleReset}>Create New Sheet</Link>
+                <Link to="/dashboard" className="btn">My Sheets</Link>
                 <button onClick={logoutUser} className="btn">Log Out</button>
               </>
             ) : (
@@ -167,6 +191,11 @@ function App() {
                 isSaving={isSaving}
                 onCancel={() => {}} 
               />
+            </PrivateRoute>
+          } />
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <Dashboard onEditSheet={handleEditSheet} onCreateNewSheet={handleReset} />
             </PrivateRoute>
           } />
           <Route path="/login" element={<Login />} />
