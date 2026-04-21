@@ -1,5 +1,5 @@
 from django.db import models
-
+from django.contrib.auth.models import User
 
 class Template(models.Model):
     name = models.CharField(max_length=200)
@@ -21,6 +21,7 @@ class CheatSheet(models.Model):
     template = models.ForeignKey(
         Template, on_delete=models.SET_NULL, null=True, blank=True
     )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name="cheat_sheets")
     columns = models.IntegerField(default=2)
     margins = models.CharField(max_length=20, default="0.5in")
     font_size = models.CharField(max_length=10, default="10pt")
