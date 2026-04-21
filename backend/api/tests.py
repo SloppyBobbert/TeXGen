@@ -578,6 +578,38 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "\\titleformat{\\subsection}{\\normalfont\\bfseries\\fontsize{11pt}{12pt}\\selectfont}{}{0pt}{}" in tex
 
+    def test_generate_sheet_adds_readable_block_comments(self, auth_client):
+        """Generated LaTeX should include readable source comments around blocks."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "% ===== BEGIN CLASS: ALGEBRA I =====" in tex
+        assert "% ===== BEGIN CATEGORY: Linear Equations =====" in tex
+        assert "% Formula Block: Slope Formula" in tex
+        assert "% ===== END CATEGORY: Linear Equations =====" in tex
+        assert "% ===== END CLASS: ALGEBRA I =====" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_three_vector_formulas(self, auth_client):
+        """Calc III vector formulas should share one combined category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS III", "category": "Vector Formulas", "name": "Dot Product"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Vector Formulas}" in tex
+        assert "% ===== BEGIN CATEGORY: Vector Formulas =====" in tex
+        assert "\\textbf{Dot Product}" in tex
+
     def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""
         resp = auth_client.post(

@@ -51,6 +51,30 @@ SPACING_MAP = {
 }
 
 
+def escape_latex_text(text):
+    """Escape plain text before inserting it into LaTeX commands."""
+    text = text or ""
+    replacements = {
+        "\\": "\\textbackslash ",
+        "&": "\\&",
+        "%": "\\%",
+        "#": "\\#",
+        "_": "\\_",
+        "^": "\\textasciicircum ",
+        "{": "\\{",
+        "}": "\\}",
+    }
+    return "".join(replacements.get(char, char) for char in text)
+
+
+def append_source_comment(lines, comment):
+    """Add a full-line LaTeX comment with spacer lines for readability."""
+    if lines:
+        lines.append("%")
+    lines.append(f"% ===== {comment} =====")
+    lines.append("%")
+
+
 def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
     """
     Build a dynamic LaTeX header based on user-selected options.
@@ -137,42 +161,55 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             if in_flushleft:
                 body_lines.append(r"\end{flushleft}")
                 in_flushleft = False
+            if current_category is not None and current_category != current_class:
+                append_source_comment(body_lines, f"END CATEGORY: {current_category}")
             if current_class is not None:
-                body_lines.append("%")  # Suppress paragraph break between sections
-            escaped_class = class_name.replace("&", "\\&")
+                append_source_comment(body_lines, f"END CLASS: {current_class}")
+            escaped_class = escape_latex_text(class_name)
+            append_source_comment(body_lines, f"BEGIN CLASS: {class_name}")
             body_lines.append("\\section*{" + escaped_class + "}")
             body_lines.append("%")  # Suppress paragraph break after section
             current_class = class_name
             current_category = None
-        
+
         if category != current_category:
             is_special = (category == class_name)
-            if in_flushleft and not is_special:
+            if in_flushleft:
                 body_lines.append(r"\end{flushleft}")
                 in_flushleft = False
+            if current_category is not None and current_category != current_class:
+                append_source_comment(body_lines, f"END CATEGORY: {current_category}")
             if not is_special:
-                escaped_category = category.replace("&", "\\&")
+                escaped_category = escape_latex_text(category)
+                append_source_comment(body_lines, f"BEGIN CATEGORY: {category}")
                 body_lines.append("\\subsection*{" + escaped_category + "}")
                 body_lines.append("%")
                 body_lines.append(r"\begin{flushleft}")
                 in_flushleft = True
             current_category = category
-        
+
         if category == class_name:
+            body_lines.append(f"% Formula Block: {name}")
             body_lines.append(latex)
+            body_lines.append("%")
         else:
-            # Escape special LaTeX characters in the formula name
-            escaped_name = name.replace("\\", "\\textbackslash ").replace("&", "\\&").replace("%", "\\%").replace("#", "\\#").replace("_", "\\_").replace("^", "\\textasciicircum ").replace("{", "\\{").replace("}", "\\}")
+            escaped_name = escape_latex_text(name)
+            body_lines.append(f"% Formula Block: {name}")
             body_lines.append(r"\textbf{" + escaped_name + "}")
             body_lines.append(r"\[" + r" \adjustbox{max width=\linewidth}{$" + latex + r"$} " + r"\]")
             if formula_gap != "0pt":
                 body_lines.append(r"\vspace{" + formula_gap + "}")
-    
+            body_lines.append("%")
+
     if in_flushleft:
         body_lines.append(r"\end{flushleft}")
-    
+    if current_category is not None and current_category != current_class:
+        append_source_comment(body_lines, f"END CATEGORY: {current_category}")
+    if current_class is not None:
+        append_source_comment(body_lines, f"END CLASS: {current_class}")
+
     body = "\n".join(body_lines)
-    return header + body + footer
+    return header + body + "\n" + footer
 
 def compile_latex_to_pdf(content):
     """
