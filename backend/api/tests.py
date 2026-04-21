@@ -559,9 +559,24 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        # The "large" preset uses 16pt/8pt; assert those values appear in titlespacing
-        assert "\\titlespacing*{\\section}{0pt}{16pt}{8pt}" in tex
-        assert "\\titlespacing*{\\subsection}{0pt}{8pt}{4pt}" in tex
+        # The "large" preset is the halved version of the previous values.
+        assert "\\titlespacing*{\\section}{0pt}{8pt}{4pt}" in tex
+        assert "\\titlespacing*{\\subsection}{0pt}{4pt}{2pt}" in tex
+        assert "\\setlength{\\baselineskip}{7pt}" in tex
+
+    def test_generate_sheet_10pt_uses_smaller_subsection_titles(self, auth_client):
+        """Subsection titles should stay only slightly larger than the body text."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\titleformat{\\subsection}{\\normalfont\\bfseries\\fontsize{11pt}{12pt}\\selectfont}{}{0pt}{}" in tex
 
     def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""
