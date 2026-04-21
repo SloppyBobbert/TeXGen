@@ -4,6 +4,7 @@ Run with: pytest  (from the backend/ directory)
 """
 
 import pytest
+from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 from api.models import Template, CheatSheet, PracticeProblem
@@ -12,6 +13,15 @@ from api.models import Template, CheatSheet, PracticeProblem
 @pytest.fixture
 def api_client():
     return APIClient()
+
+
+@pytest.fixture
+def auth_client(db):
+    """Authenticated API client (bypasses JWT for speed)."""
+    client = APIClient()
+    user = User.objects.create_user(username="testuser", password="testpass123")
+    client.force_authenticate(user=user)
+    return client
 
 
 @pytest.fixture
@@ -171,6 +181,86 @@ class TestCheatSheetModel(TestCase):
 
 
 @pytest.mark.django_db
+def test_register_success(api_client):
+    payload = {
+        "username": "newuser",
+        "password": "StrongPass123!",
+    }
+
+    response = api_client.post("/api/register/", payload, format="json")
+
+    assert response.status_code in (200, 201)
+    assert User.objects.filter(username="newuser").exists()
+
+
+@pytest.mark.django_db
+def test_token_obtain_success_returns_access_and_refresh(api_client):
+    User.objects.create_user(username="tokenuser", password="testpass123")
+
+    response = api_client.post(
+        "/api/token/",
+        {"username": "tokenuser", "password": "testpass123"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert "access" in response.data
+    assert "refresh" in response.data
+    assert response.data["access"]
+    assert response.data["refresh"]
+
+
+@pytest.mark.django_db
+def test_token_refresh_success_returns_new_access_token(api_client):
+    User.objects.create_user(username="refreshuser", password="testpass123")
+    token_response = api_client.post(
+        "/api/token/",
+        {"username": "refreshuser", "password": "testpass123"},
+        format="json",
+    )
+
+    assert token_response.status_code == 200
+    assert "refresh" in token_response.data
+
+    refresh_response = api_client.post(
+        "/api/token/refresh/",
+        {"refresh": token_response.data["refresh"]},
+        format="json",
+    )
+
+    assert refresh_response.status_code == 200
+    assert "access" in refresh_response.data
+    assert refresh_response.data["access"]
+
+
+@pytest.mark.django_db
+def test_token_obtain_invalid_credentials_fail(api_client):
+    User.objects.create_user(username="badloginuser", password="rightpass123")
+
+    response = api_client.post(
+        "/api/token/",
+        {"username": "badloginuser", "password": "wrongpass123"},
+        format="json",
+    )
+
+    assert response.status_code in (400, 401)
+    assert "access" not in response.data
+    assert "refresh" not in response.data
+
+
+@pytest.mark.django_db
+def test_token_refresh_invalid_token_fails(api_client):
+    response = api_client.post(
+        "/api/token/refresh/",
+        {"refresh": "invalid.refresh.token"},
+        format="json",
+    )
+
+    assert response.status_code in (400, 401)
+    assert "access" not in response.data
+
+
+@pytest.mark.django_db
 class TestHealthEndpoint:
     def test_health_returns_ok(self, api_client):
         resp = api_client.get("/api/health/")
@@ -180,21 +270,21 @@ class TestHealthEndpoint:
 
 @pytest.mark.django_db
 class TestTemplateAPI:
-    def test_list_templates(self, api_client, sample_template):
-        resp = api_client.get("/api/templates/")
+    def test_list_templates(self, auth_client, sample_template):
+        resp = auth_client.get("/api/templates/")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
         assert data[0]["name"] == "Test Algebra"
 
-    def test_filter_templates_by_subject(self, api_client, sample_template):
-        resp = api_client.get("/api/templates/?subject=algebra")
+    def test_filter_templates_by_subject(self, auth_client, sample_template):
+        resp = auth_client.get("/api/templates/?subject=algebra")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
 
-    def test_create_template(self, api_client):
-        resp = api_client.post(
+    def test_create_template(self, auth_client):
+        resp = auth_client.post(
             "/api/templates/",
             {
                 "name": "New Template",
@@ -208,12 +298,12 @@ class TestTemplateAPI:
 
 @pytest.mark.django_db
 class TestCheatSheetAPI:
-    def test_list_cheatsheets(self, api_client, sample_sheet):
-        resp = api_client.get("/api/cheatsheets/")
+    def test_list_cheatsheets(self, auth_client, sample_sheet):
+        resp = auth_client.get("/api/cheatsheets/")
         assert resp.status_code == 200
 
-    def test_create_cheatsheet(self, api_client):
-        resp = api_client.post(
+    def test_create_cheatsheet(self, auth_client):
+        resp = auth_client.post(
             "/api/cheatsheets/",
             {
                 "title": "Brand New Sheet",
@@ -228,14 +318,14 @@ class TestCheatSheetAPI:
         assert resp.json()["title"] == "Brand New Sheet"
         assert "full_latex" in resp.json()
 
-    def test_retrieve_cheatsheet_has_full_latex(self, api_client, sample_sheet):
-        resp = api_client.get(f"/api/cheatsheets/{sample_sheet.id}/")
+    def test_retrieve_cheatsheet_has_full_latex(self, auth_client, sample_sheet):
+        resp = auth_client.get(f"/api/cheatsheets/{sample_sheet.id}/")
         assert resp.status_code == 200
         data = resp.json()
         assert "\\begin{document}" in data["full_latex"]
 
-    def test_update_cheatsheet(self, api_client, sample_sheet):
-        resp = api_client.patch(
+    def test_update_cheatsheet(self, auth_client, sample_sheet):
+        resp = auth_client.patch(
             f"/api/cheatsheets/{sample_sheet.id}/",
             {"margins": "0.25in", "columns": 3},
             format="json",
@@ -244,15 +334,15 @@ class TestCheatSheetAPI:
         assert resp.json()["margins"] == "0.25in"
         assert resp.json()["columns"] == 3
 
-    def test_delete_cheatsheet(self, api_client, sample_sheet):
-        resp = api_client.delete(f"/api/cheatsheets/{sample_sheet.id}/")
+    def test_delete_cheatsheet(self, auth_client, sample_sheet):
+        resp = auth_client.delete(f"/api/cheatsheets/{sample_sheet.id}/")
         assert resp.status_code == 204
 
 
 @pytest.mark.django_db
 class TestCreateFromTemplate:
-    def test_create_from_template(self, api_client, sample_template):
-        resp = api_client.post(
+    def test_create_from_template(self, auth_client, sample_template):
+        resp = auth_client.post(
             "/api/cheatsheets/from-template/",
             {"template_id": sample_template.id, "title": "My Copy"},
             format="json",
@@ -263,8 +353,8 @@ class TestCreateFromTemplate:
         assert data["template"] == sample_template.id
         assert data["columns"] == sample_template.default_columns
 
-    def test_create_from_template_missing_id(self, api_client):
-        resp = api_client.post(
+    def test_create_from_template_missing_id(self, auth_client):
+        resp = auth_client.post(
             "/api/cheatsheets/from-template/",
             {"title": "Oops"},
             format="json",
@@ -274,8 +364,8 @@ class TestCreateFromTemplate:
 
 @pytest.mark.django_db
 class TestPracticeProblemAPI:
-    def test_create_problem(self, api_client, sample_sheet):
-        resp = api_client.post(
+    def test_create_problem(self, auth_client, sample_sheet):
+        resp = auth_client.post(
             "/api/problems/",
             {
                 "cheat_sheet": sample_sheet.id,
@@ -287,26 +377,26 @@ class TestPracticeProblemAPI:
         )
         assert resp.status_code == 201
 
-    def test_filter_problems_by_sheet(self, api_client, sample_problem, sample_sheet):
-        resp = api_client.get(f"/api/problems/?cheat_sheet={sample_sheet.id}")
+    def test_filter_problems_by_sheet(self, auth_client, sample_problem, sample_sheet):
+        resp = auth_client.get(f"/api/problems/?cheat_sheet={sample_sheet.id}")
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
 
 @pytest.mark.django_db
 class TestGenerateSheetEndpoint:
-    def test_generate_sheet_no_formulas(self, api_client):
-        resp = api_client.post("/api/generate-sheet/", {"formulas": []}, format="json")
+    def test_generate_sheet_no_formulas(self, auth_client):
+        resp = auth_client.post("/api/generate-sheet/", {"formulas": []}, format="json")
         assert resp.status_code == 200
         assert "tex_code" in resp.json()
 
-    def test_generate_sheet_missing_formulas_key(self, api_client):
-        resp = api_client.post("/api/generate-sheet/", {}, format="json")
+    def test_generate_sheet_missing_formulas_key(self, auth_client):
+        resp = auth_client.post("/api/generate-sheet/", {}, format="json")
         assert resp.status_code == 200
         assert "tex_code" in resp.json()
 
-    def test_generate_sheet_valid_formula(self, api_client):
-        resp = api_client.post(
+    def test_generate_sheet_valid_formula(self, auth_client):
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [
@@ -321,9 +411,9 @@ class TestGenerateSheetEndpoint:
         assert "\\section*{ALGEBRA I}" in data["tex_code"]
         assert "Slope Formula" in data["tex_code"]
 
-    def test_generate_sheet_preserves_order(self, api_client):
+    def test_generate_sheet_preserves_order(self, auth_client):
         """Selected formula order must be preserved in the LaTeX output."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [
@@ -340,9 +430,9 @@ class TestGenerateSheetEndpoint:
         assert slope_pos != -1 and intercept_pos != -1
         assert slope_pos < intercept_pos
 
-    def test_generate_sheet_special_class_unit_circle(self, api_client):
+    def test_generate_sheet_special_class_unit_circle(self, auth_client):
         """Special class (UNIT CIRCLE) with no categories should generate valid LaTeX."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [
@@ -359,9 +449,9 @@ class TestGenerateSheetEndpoint:
         assert "\\begin{document}" in tex
         assert "\\end{document}" in tex
 
-    def test_generate_sheet_invalid_formula_returns_400(self, api_client):
+    def test_generate_sheet_invalid_formula_returns_400(self, auth_client):
         """Requesting a formula that does not exist should return 400."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [
@@ -372,9 +462,9 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 400
 
-    def test_generate_sheet_with_columns(self, api_client):
+    def test_generate_sheet_with_columns(self, auth_client):
         """Test that columns parameter produces multicols environment."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -387,9 +477,9 @@ class TestGenerateSheetEndpoint:
         assert "\\begin{multicols}{3}" in tex
         assert "\\end{multicols}" in tex
 
-    def test_generate_sheet_with_font_size(self, api_client):
+    def test_generate_sheet_with_font_size(self, auth_client):
         """Test that font_size parameter affects the LaTeX output."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -401,9 +491,9 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "\\tiny" in tex
 
-    def test_generate_sheet_with_margins(self, api_client):
+    def test_generate_sheet_with_margins(self, auth_client):
         """Test that margins parameter is reflected in geometry package."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -415,9 +505,9 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "margin=0.5in" in tex
 
-    def test_generate_sheet_with_spacing(self, api_client):
+    def test_generate_sheet_with_spacing(self, auth_client):
         """Test that spacing parameter affects titlesec spacing."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -429,9 +519,9 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "titlespacing" in tex
 
-    def test_generate_sheet_invalid_font_size_defaults(self, api_client):
+    def test_generate_sheet_invalid_font_size_defaults(self, auth_client):
         """Invalid font_size should be replaced with default."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -443,9 +533,9 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "\\documentclass[10pt" in tex
 
-    def test_generate_sheet_invalid_margins_defaults(self, api_client):
+    def test_generate_sheet_invalid_margins_defaults(self, auth_client):
         """Invalid margins should be replaced with default."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -457,9 +547,9 @@ class TestGenerateSheetEndpoint:
         tex = resp.json()["tex_code"]
         assert "margin=0.25in" in tex
 
-    def test_generate_sheet_invalid_spacing_defaults(self, api_client):
+    def test_generate_sheet_invalid_spacing_defaults(self, auth_client):
         """Invalid spacing should be replaced with default (large preset)."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -473,9 +563,9 @@ class TestGenerateSheetEndpoint:
         assert "\\titlespacing*{\\section}{0pt}{16pt}{8pt}" in tex
         assert "\\titlespacing*{\\subsection}{0pt}{8pt}{4pt}" in tex
 
-    def test_generate_sheet_8pt_uses_extarticle(self, api_client):
+    def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -488,9 +578,9 @@ class TestGenerateSheetEndpoint:
         assert "\\documentclass[8pt,fleqn]{extarticle}" in tex
         assert "\\documentclass[8pt,fleqn]{article}" not in tex
 
-    def test_generate_sheet_9pt_uses_extarticle(self, api_client):
+    def test_generate_sheet_9pt_uses_extarticle(self, auth_client):
         """9pt font size should use extarticle, not article."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -503,9 +593,9 @@ class TestGenerateSheetEndpoint:
         assert "\\documentclass[9pt,fleqn]{extarticle}" in tex
         assert "\\documentclass[9pt,fleqn]{article}" not in tex
 
-    def test_generate_sheet_10pt_uses_article(self, api_client):
+    def test_generate_sheet_10pt_uses_article(self, auth_client):
         """10pt font size should use standard article class."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -518,9 +608,9 @@ class TestGenerateSheetEndpoint:
         assert "\\documentclass[10pt,fleqn]{article}" in tex
         assert "extarticle" not in tex
 
-    def test_generate_sheet_latex_injection_blocked(self, api_client):
+    def test_generate_sheet_latex_injection_blocked(self, auth_client):
         """LaTeX injection attempts in parameters should be sanitized."""
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/generate-sheet/",
             {
                 "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
@@ -537,14 +627,105 @@ class TestGenerateSheetEndpoint:
 
 @pytest.mark.django_db
 class TestCompileEndpoint:
-    def test_compile_requires_content_or_id(self, api_client):
-        resp = api_client.post("/api/compile/", {}, format="json")
+    def test_compile_requires_content_or_id(self, auth_client):
+        resp = auth_client.post("/api/compile/", {}, format="json")
         assert resp.status_code == 400
 
-    def test_compile_with_nonexistent_sheet(self, api_client):
-        resp = api_client.post(
+    def test_compile_with_nonexistent_sheet(self, auth_client):
+        resp = auth_client.post(
             "/api/compile/",
             {"cheat_sheet_id": 99999},
             format="json",
         )
         assert resp.status_code == 404
+
+
+# ── Auth Endpoint Tests ──────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestRegisterEndpoint:
+    def test_register_success(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "newuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["username"] == "newuser"
+        assert "password" not in data
+
+    def test_register_duplicate_username(self, api_client, db):
+        User.objects.create_user(username="existing", password="pass1234!")
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "existing", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_register_weak_password(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "weakuser", "password": "123"},
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "password" in resp.json()
+
+    def test_register_common_password(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "commonuser", "password": "password"},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+class TestTokenEndpoints:
+    def test_token_obtain_success(self, api_client, db):
+        User.objects.create_user(username="jwtuser", password="Str0ng!Pass99")
+        resp = api_client.post(
+            "/api/token/",
+            {"username": "jwtuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "access" in data
+        assert "refresh" in data
+
+    def test_token_obtain_invalid_credentials(self, api_client, db):
+        User.objects.create_user(username="jwtuser2", password="Str0ng!Pass99")
+        resp = api_client.post(
+            "/api/token/",
+            {"username": "jwtuser2", "password": "wrongpassword"},
+            format="json",
+        )
+        assert resp.status_code == 401
+
+    def test_token_refresh_success(self, api_client, db):
+        User.objects.create_user(username="refreshuser", password="Str0ng!Pass99")
+        token_resp = api_client.post(
+            "/api/token/",
+            {"username": "refreshuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        refresh_token = token_resp.json()["refresh"]
+        resp = api_client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh_token},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert "access" in resp.json()
+
+    def test_token_refresh_invalid_token(self, api_client):
+        resp = api_client.post(
+            "/api/token/refresh/",
+            {"refresh": "not-a-valid-token"},
+            format="json",
+        )
+        assert resp.status_code == 401

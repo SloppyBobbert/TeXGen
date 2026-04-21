@@ -2,13 +2,17 @@ from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from django.http import FileResponse
+from django.contrib.auth.models import User
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 import subprocess
 import tempfile
 import os
 
 from .models import Template, CheatSheet, PracticeProblem
-from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer
+from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
 from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
 
@@ -40,6 +44,15 @@ def validate_layout_params(columns, font_size, margins, spacing):
 # ------------------------------------------------------------------
 # API endpoints
 # ------------------------------------------------------------------
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+class RegisterView(CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = (AllowAny,)
+    serializer_class = UserSerializer
+
 
 @api_view(["GET"])
 def health_check(request):
