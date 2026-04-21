@@ -558,3 +558,94 @@ class TestCompileEndpoint:
             format="json",
         )
         assert resp.status_code == 404
+
+
+# ── Auth Endpoint Tests ──────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestRegisterEndpoint:
+    def test_register_success(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "newuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["username"] == "newuser"
+        assert "password" not in data
+
+    def test_register_duplicate_username(self, api_client, db):
+        User.objects.create_user(username="existing", password="pass1234!")
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "existing", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_register_weak_password(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "weakuser", "password": "123"},
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "password" in resp.json()
+
+    def test_register_common_password(self, api_client):
+        resp = api_client.post(
+            "/api/register/",
+            {"username": "commonuser", "password": "password"},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+
+@pytest.mark.django_db
+class TestTokenEndpoints:
+    def test_token_obtain_success(self, api_client, db):
+        User.objects.create_user(username="jwtuser", password="Str0ng!Pass99")
+        resp = api_client.post(
+            "/api/token/",
+            {"username": "jwtuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "access" in data
+        assert "refresh" in data
+
+    def test_token_obtain_invalid_credentials(self, api_client, db):
+        User.objects.create_user(username="jwtuser2", password="Str0ng!Pass99")
+        resp = api_client.post(
+            "/api/token/",
+            {"username": "jwtuser2", "password": "wrongpassword"},
+            format="json",
+        )
+        assert resp.status_code == 401
+
+    def test_token_refresh_success(self, api_client, db):
+        User.objects.create_user(username="refreshuser", password="Str0ng!Pass99")
+        token_resp = api_client.post(
+            "/api/token/",
+            {"username": "refreshuser", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        refresh_token = token_resp.json()["refresh"]
+        resp = api_client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh_token},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert "access" in resp.json()
+
+    def test_token_refresh_invalid_token(self, api_client):
+        resp = api_client.post(
+            "/api/token/refresh/",
+            {"refresh": "not-a-valid-token"},
+            format="json",
+        )
+        assert resp.status_code == 401

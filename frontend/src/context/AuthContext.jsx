@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
         const data = await response.json().catch(() => ({ detail: 'Invalid server response' }));
 
         if (response.ok) {
-          setAuthTokens(data);
+          setAuthTokens(prev => ({ ...prev, ...data }));
           setUser(jwtDecode(data.access));
         } else {
           setAuthTokens(null);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import AuthContext from './context/AuthContext';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
@@ -14,6 +14,11 @@ const DEFAULT_SHEET = {
   spacing: 'large',
   margins: '0.25in',
   selectedFormulas: [],
+};
+
+const PrivateRoute = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  return user ? children : <Navigate to="/login" replace />;
 };
 
 function App() {
@@ -154,13 +159,15 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={
-            <CreateCheatSheet 
-              initialData={cheatSheet} 
-              onSave={handleSave} 
-              onReset={handleReset}
-              isSaving={isSaving}
-              onCancel={() => {}} 
-            />
+            <PrivateRoute>
+              <CreateCheatSheet 
+                initialData={cheatSheet} 
+                onSave={handleSave} 
+                onReset={handleReset}
+                isSaving={isSaving}
+                onCancel={() => {}} 
+              />
+            </PrivateRoute>
           } />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />

@@ -13,12 +13,10 @@ urlpatterns = [
     path('token/', views.CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('register/', views.RegisterView.as_view(), name='register'),
-    
     path("health/", views.health_check, name="health-check"),
     path("classes/", views.get_classes, name="get-classes"),
     path("generate-sheet/", views.generate_sheet, name="generate-sheet"),
     path("compile/", views.compile_latex, name="compile-latex"),
-    
     # Include the router URLs for CRUD operations
     path('', include(router.urls)),
 ]
