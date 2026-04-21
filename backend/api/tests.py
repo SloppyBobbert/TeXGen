@@ -181,6 +181,86 @@ class TestCheatSheetModel(TestCase):
 
 
 @pytest.mark.django_db
+def test_register_success(api_client):
+    payload = {
+        "username": "newuser",
+        "password": "StrongPass123!",
+    }
+
+    response = api_client.post("/api/register/", payload, format="json")
+
+    assert response.status_code in (200, 201)
+    assert User.objects.filter(username="newuser").exists()
+
+
+@pytest.mark.django_db
+def test_token_obtain_success_returns_access_and_refresh(api_client):
+    User.objects.create_user(username="tokenuser", password="testpass123")
+
+    response = api_client.post(
+        "/api/token/",
+        {"username": "tokenuser", "password": "testpass123"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert "access" in response.data
+    assert "refresh" in response.data
+    assert response.data["access"]
+    assert response.data["refresh"]
+
+
+@pytest.mark.django_db
+def test_token_refresh_success_returns_new_access_token(api_client):
+    User.objects.create_user(username="refreshuser", password="testpass123")
+    token_response = api_client.post(
+        "/api/token/",
+        {"username": "refreshuser", "password": "testpass123"},
+        format="json",
+    )
+
+    assert token_response.status_code == 200
+    assert "refresh" in token_response.data
+
+    refresh_response = api_client.post(
+        "/api/token/refresh/",
+        {"refresh": token_response.data["refresh"]},
+        format="json",
+    )
+
+    assert refresh_response.status_code == 200
+    assert "access" in refresh_response.data
+    assert refresh_response.data["access"]
+
+
+@pytest.mark.django_db
+def test_token_obtain_invalid_credentials_fail(api_client):
+    User.objects.create_user(username="badloginuser", password="rightpass123")
+
+    response = api_client.post(
+        "/api/token/",
+        {"username": "badloginuser", "password": "wrongpass123"},
+        format="json",
+    )
+
+    assert response.status_code in (400, 401)
+    assert "access" not in response.data
+    assert "refresh" not in response.data
+
+
+@pytest.mark.django_db
+def test_token_refresh_invalid_token_fails(api_client):
+    response = api_client.post(
+        "/api/token/refresh/",
+        {"refresh": "invalid.refresh.token"},
+        format="json",
+    )
+
+    assert response.status_code in (400, 401)
+    assert "access" not in response.data
+
+
+@pytest.mark.django_db
 class TestHealthEndpoint:
     def test_health_returns_ok(self, api_client):
         resp = api_client.get("/api/health/")
