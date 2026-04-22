@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         setAuthTokens(data);
         setUser(jwtDecode(data.access));
-        navigate('/dashboard');
+        navigate('/');
       } else {
         alert(data.detail || 'Invalid credentials');
       }
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
   const logoutUser = () => {
     setAuthTokens(null);
     setUser(null);
-    navigate('/login');
+    navigate('/');
   };
 
   useEffect(() => {
@@ -92,13 +92,13 @@ export const AuthProvider = ({ children }) => {
         } else {
           setAuthTokens(null);
           setUser(null);
-          navigate('/login');
+          navigate('/');
         }
       } catch (err) {
         console.error('Token refresh failed', err);
         setAuthTokens(null);
         setUser(null);
-        navigate('/login');
+        navigate('/');
       }
     };
 

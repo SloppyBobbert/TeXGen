@@ -183,15 +183,13 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={
-            <PrivateRoute>
-              <CreateCheatSheet 
-                initialData={cheatSheet} 
-                onSave={handleSave} 
-                onReset={handleReset}
-                isSaving={isSaving}
-                onCancel={() => {}} 
-              />
-            </PrivateRoute>
+            <CreateCheatSheet 
+              initialData={cheatSheet} 
+              onSave={handleSave} 
+              onReset={handleReset}
+              isSaving={isSaving}
+              onCancel={() => {}} 
+            />
           } />
           <Route path="/dashboard" element={
             <PrivateRoute>
