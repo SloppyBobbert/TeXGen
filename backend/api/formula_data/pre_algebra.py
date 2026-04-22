@@ -5,25 +5,21 @@ PRE-ALGEBRA formulas
 CLASS_NAME = "PRE-ALGEBRA"
 
 FORMULAS = {
-    "Order of Operations (PEMDAS)": [
+    "Operations and Properties": [
         {"name": "PEMDAS Definition", "latex": r"\text{Parentheses} \to \text{Exponents} \to \text{Multiply/Divide} \to \text{Add/Subtract}"},
-    ],
-    "Fractions": [
-        {"name": "Addition", "latex": r"\frac{a}{b}+\frac{c}{d}=\frac{ad+bc}{bd}"},
-        {"name": "Subtraction", "latex": r"\frac{a}{b}-\frac{c}{d}=\frac{ad-bc}{bd}"},
-        {"name": "Multiplication", "latex": r"\frac{a}{b}\cdot\frac{c}{d}=\frac{ac}{bd}"},
-        {"name": "Division", "latex": r"\frac{a}{b}\div\frac{c}{d}=\frac{a}{b}\cdot\frac{d}{c}=\frac{ad}{bc}"},
-    ],
-    "Ratios and Proportions": [
-        {"name": "Proportion", "latex": r"\frac{a}{b}=\frac{c}{d}\implies ad=bc"},
-        {"name": "Unit Rate", "latex": r"\text{Unit Rate}=\frac{\text{Total}}{\text{Number of Units}}"},
-    ],
-    "Properties of Numbers": [
         {"name": "Commutative", "latex": r"a+b=b+a"},
         {"name": "Associative", "latex": r"(a+b)+c=a+(b+c)"},
         {"name": "Distributive", "latex": r"a(b+c)=ab+ac"},
         {"name": "Identity", "latex": r"a+0=a"},
         {"name": "Inverse", "latex": r"a+(-a)=0"},
+    ],
+    "Fractions, Ratios, and Proportions": [
+        {"name": "Addition", "latex": r"\frac{a}{b}+\frac{c}{d}=\frac{ad+bc}{bd}"},
+        {"name": "Subtraction", "latex": r"\frac{a}{b}-\frac{c}{d}=\frac{ad-bc}{bd}"},
+        {"name": "Multiplication", "latex": r"\frac{a}{b}\cdot\frac{c}{d}=\frac{ac}{bd}"},
+        {"name": "Division", "latex": r"\frac{a}{b}\div\frac{c}{d}=\frac{a}{b}\cdot\frac{d}{c}=\frac{ad}{bc}"},
+        {"name": "Proportion", "latex": r"\frac{a}{b}=\frac{c}{d}\implies ad=bc"},
+        {"name": "Unit Rate", "latex": r"\text{Unit Rate}=\frac{\text{Total}}{\text{Number of Units}}"},
     ],
     "Area and Perimeter": [
         {"name": "Rectangle Area/Perimeter", "latex": r"A_{\text{rect}}=lw \quad\quad P_{\text{rect}}=2l+2w"},

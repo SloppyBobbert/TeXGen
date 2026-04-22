@@ -681,6 +681,104 @@ class TestGenerateSheetEndpoint:
         assert "% ===== BEGIN CATEGORY: Vector Formulas =====" in tex
         assert "\\textbf{Dot Product}" in tex
 
+    def test_generate_sheet_uses_regrouped_pre_algebra_fraction_category(self, auth_client):
+        """Pre-algebra ratios/proportions should live under the merged fractions category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "PRE-ALGEBRA", "category": "Fractions, Ratios, and Proportions", "name": "Unit Rate"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Fractions, Ratios, and Proportions}" in tex
+        assert "\\textbf{Unit Rate}" in tex
+
+    def test_generate_sheet_uses_regrouped_trig_identity_category(self, auth_client):
+        """Trig identities taught together should be available under broader grouped headings."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "TRIGONOMETRY", "category": "Angle Sum and Multiple-Angle Identities", "name": "Sine Double Angle"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Angle Sum and Multiple-Angle Identities}" in tex
+        assert "\\textbf{Sine Double Angle}" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_one_theorem_category(self, auth_client):
+        """Calc I theorem lookups should use the merged theorem category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS I", "category": "Core Theorems of Calculus", "name": "Part 1 (Leibniz)"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Core Theorems of Calculus}" in tex
+        assert "Part 1 (Leibniz)" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_two_integration_category(self, auth_client):
+        """Calc II improper integral formulas should live under the broader integration category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS II", "category": "Integration Techniques and Improper Integrals", "name": "Infinite Upper Bound"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Integration Techniques and Improper Integrals}" in tex
+        assert "\\textbf{Infinite Upper Bound}" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_three_partial_derivative_category(self, auth_client):
+        """Calc III optimization formulas should share the partial-derivatives grouping."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS III", "category": "Partial Derivatives and Optimization", "name": "Lagrange Multipliers"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Partial Derivatives and Optimization}" in tex
+        assert "\\textbf{Lagrange Multipliers}" in tex
+
+    def test_generate_sheet_uses_regrouped_algebra_two_polynomial_category(self, auth_client):
+        """Algebra II binomial formulas should live under the broader polynomial category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA II", "category": "Polynomial Theorems and Binomial Expansion", "name": "Expansion"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Polynomial Theorems and Binomial Expansion}" in tex
+        assert "\\textbf{Expansion}" in tex
+
+    def test_generate_sheet_uses_regrouped_precalculus_sequence_category(self, auth_client):
+        """Precalculus binomial formulas should share the sequences-and-series grouping."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "PRECALCULUS", "category": "Sequences, Series, and Binomial Theorem", "name": "Binomial Expansion"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Sequences, Series, and Binomial Theorem}" in tex
+        assert "\\textbf{Binomial Expansion}" in tex
+
     def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""
         resp = auth_client.post(

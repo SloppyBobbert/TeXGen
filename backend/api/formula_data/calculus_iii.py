@@ -20,14 +20,12 @@ FORMULAS = {
         {"name": "Divergence Theorem", "latex": r"\iint_S\mathbf{F}\cdot d\mathbf{S}=\iiint_E(\nabla\cdot\mathbf{F})\,dV"},
         {"name": "Stokes' Theorem", "latex": r"\oint_C\mathbf{F}\cdot d\mathbf{r}=\iint_S(\nabla\times\mathbf{F})\cdot d\mathbf{S}"},
     ],
-    "Partial Derivatives": [
+    "Partial Derivatives and Optimization": [
         {"name": "Definition", "latex": r"\frac{\partial f}{\partial x}=f_x=\lim_{h\to0}\frac{f(x+h,y)-f(x,y)}{h}"},
         {"name": "Total Differential", "latex": r"dz=f_x\,dx+f_y\,dy"},
         {"name": "Chain Rule", "latex": r"\frac{dz}{dt}=\frac{\partial z}{\partial x}\frac{dx}{dt}+\frac{\partial z}{\partial y}\frac{dy}{dt}"},
         {"name": "Directional Derivative", "latex": r"D_{\mathbf{u}}f=\nabla f\cdot\hat{\mathbf{u}}=f_xu_1+f_yu_2+f_zu_3"},
         {"name": "Gradient", "latex": r"\nabla f=\langle f_x,f_y,f_z\rangle,\ |\nabla f|\text{ gives max rate of change}"},
-    ],
-    "Optimization": [
         {"name": "Second Derivative Test", "latex": r"D=f_{xx}f_{yy}-(f_{xy})^2"},
         {"name": "Local Extremes", "latex": r"D>0,f_{xx}>0\Rightarrow\text{local min};\ D>0,f_{xx}<0\Rightarrow\text{local max};\ D<0\Rightarrow\text{saddle}"},
         {"name": "Lagrange Multipliers", "latex": r"\nabla f=\lambda\nabla g"},

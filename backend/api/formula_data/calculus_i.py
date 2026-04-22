@@ -15,11 +15,9 @@ FORMULAS = {
         {"name": "Infinity Limit", "latex": r"\lim_{x\to\pm\infty}\frac{1}{x^n}=0,\ n>0"},
         {"name": "e Definition", "latex": r"\lim_{x\to\infty}\!\left(1+\frac{1}{x}\right)^x=e"},
     ],
-    "Derivative Definition": [
+    "Derivative Definitions and Rules": [
         {"name": "Limit Definition", "latex": r"f'(x)=\lim_{h\to0}\frac{f(x+h)-f(x)}{h}"},
         {"name": "Alternate Definition", "latex": r"f'(a)=\lim_{x\to a}\frac{f(x)-f(a)}{x-a}"},
-    ],
-    "Differentiation Rules": [
         {"name": "Constant Multiple", "latex": r"\frac{d}{dx}[cf]=cf'"},
         {"name": "Sum/Diff Rule", "latex": r"\frac{d}{dx}[f\pm g]=f'\pm g'"},
         {"name": "Product Rule", "latex": r"\frac{d}{dx}[fg]=f'g+fg'"},
@@ -36,12 +34,10 @@ FORMULAS = {
         {"name": "Arcsin/Arccos", "latex": r"\frac{d}{dx}[\arcsin x]=\frac{1}{\sqrt{1-x^2}},\ \frac{d}{dx}[\arccos x]=\frac{-1}{\sqrt{1-x^2}}"},
         {"name": "Arctan", "latex": r"\frac{d}{dx}[\arctan x]=\frac{1}{1+x^2}"},
     ],
-    "Theorems": [
+    "Core Theorems of Calculus": [
         {"name": "Mean Value Theorem", "latex": r"\text{MVT: }f'(c)=\frac{f(b)-f(a)}{b-a}\text{ for some }c\in(a,b)"},
         {"name": "Rolle's Theorem", "latex": r"\text{Rolle's: if }f(a)=f(b),\ \exists\,c\in(a,b)\text{ s.t. }f'(c)=0"},
         {"name": "Intermediate Value Theorem", "latex": r"\text{IVT: if }f\text{ is cts on }[a,b],\ f\text{ takes all values between }f(a)\text{ and }f(b)"},
-    ],
-    "Fundamental Theorem of Calculus": [
         {"name": "Part 1 (Leibniz)", "latex": r"\frac{d}{dx}\int_a^x f(t)\,dt=f(x)"},
         {"name": "Part 2 (Evaluation)", "latex": r"\int_a^b f(x)\,dx=F(b)-F(a),\quad F'=f"},
     ],
