@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useContext } from 'react';
+import AuthContext from '../context/AuthContext';
 
 const STORAGE_KEY = 'cheatSheetLatex';
 const SAVE_DEBOUNCE_MS = 500;
@@ -33,6 +34,7 @@ function formatCompileError(errorData = {}) {
 }
 
 export function useLatex(initialData) {
+  const { authTokens } = useContext(AuthContext);
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
   const [contentModified, setContentModified] = useState(false);
@@ -141,7 +143,10 @@ export function useLatex(initialData) {
   const compileLatexContent = useCallback(async (latexContent) => {
     const response = await fetch('/api/compile/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
+      },
       body: JSON.stringify({ content: latexContent }),
     });
 
@@ -156,7 +161,7 @@ export function useLatex(initialData) {
     }
     pdfBlobUrlRef.current = URL.createObjectURL(blob);
     setPdfBlob(pdfBlobUrlRef.current);
-  }, []);
+  }, [authTokens]);
 
   const handleCompileOnly = useCallback(async () => {
     if (isCompilingRef.current) return;
@@ -261,7 +266,10 @@ export function useLatex(initialData) {
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
+        },
         body: JSON.stringify({ content }),
       });
       if (!response.ok) throw new Error('Failed to compile LaTeX');

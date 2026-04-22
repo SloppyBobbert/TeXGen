@@ -84,10 +84,11 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "selected_formulas",
             "problems",
             "full_latex",
+            "user",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "full_latex"]
+        read_only_fields = ["id", "user", "created_at", "updated_at", "full_latex"]
 
     def get_full_latex(self, obj):
         """Return the fully-assembled LaTeX document string."""

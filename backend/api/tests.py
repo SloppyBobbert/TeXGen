@@ -37,10 +37,11 @@ def sample_template(db):
 
 
 @pytest.fixture
-def sample_sheet(db, sample_template):
+def sample_sheet(db, sample_template, auth_client):
     return CheatSheet.objects.create(
         title="My Test Sheet",
         template=sample_template,
+        user=auth_client.handler._force_user,  # the user force_authenticate() set
         latex_content="Some content here",
         margins="0.75in",
         columns=2,
@@ -73,6 +74,9 @@ class TestTemplateModel(TestCase):
 
 
 class TestCheatSheetModel(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="modeluser", password="pass123")
+
     def test_build_full_latex_wraps_content(self):
         sheet = CheatSheet.objects.create(
             title="Test",
@@ -80,6 +84,7 @@ class TestCheatSheetModel(TestCase):
             margins="1in",
             columns=1,
             font_size="10pt",
+            user=self.user,
         )
         full = sheet.build_full_latex()
         assert "\\begin{document}" in full
@@ -92,6 +97,7 @@ class TestCheatSheetModel(TestCase):
             title="Multi-col",
             latex_content="Col content",
             columns=3,
+            user=self.user,
         )
         full = sheet.build_full_latex()
         assert "\\usepackage{multicol}" in full
@@ -102,6 +108,7 @@ class TestCheatSheetModel(TestCase):
         sheet = CheatSheet.objects.create(
             title="Raw",
             latex_content=raw,
+            user=self.user,
         )
         assert sheet.build_full_latex() == raw
 
@@ -110,6 +117,7 @@ class TestCheatSheetModel(TestCase):
         sheet = CheatSheet.objects.create(
             title="Raw With Problems",
             latex_content=raw,
+            user=self.user,
         )
         PracticeProblem.objects.create(
             cheat_sheet=sheet,
@@ -137,6 +145,7 @@ class TestCheatSheetModel(TestCase):
         sheet = CheatSheet.objects.create(
             title="Raw Multi",
             latex_content=raw,
+            user=self.user,
         )
         PracticeProblem.objects.create(
             cheat_sheet=sheet,
@@ -153,6 +162,7 @@ class TestCheatSheetModel(TestCase):
         sheet = CheatSheet.objects.create(
             title="With Problems",
             latex_content="Content",
+            user=self.user,
         )
         PracticeProblem.objects.create(
             cheat_sheet=sheet,
@@ -170,6 +180,7 @@ class TestCheatSheetModel(TestCase):
             title="Small Font",
             latex_content="Content",
             font_size="8pt",
+            user=self.user,
         )
 
         full = sheet.build_full_latex()
@@ -337,6 +348,66 @@ class TestCheatSheetAPI:
     def test_delete_cheatsheet(self, auth_client, sample_sheet):
         resp = auth_client.delete(f"/api/cheatsheets/{sample_sheet.id}/")
         assert resp.status_code == 204
+
+
+@pytest.mark.django_db
+class TestCheatSheetAccessControl:
+    """Ensure users cannot access or modify another user's cheat sheets."""
+
+    @pytest.fixture
+    def other_user(self, db):
+        return User.objects.create_user(username="otheruser", password="otherpass123")
+
+    @pytest.fixture
+    def other_client(self, other_user):
+        client = APIClient()
+        client.force_authenticate(user=other_user)
+        return client
+
+    def test_list_does_not_return_other_users_sheets(
+        self, auth_client, other_client, sample_sheet
+    ):
+        """User B should not see User A's sheets in list response."""
+        resp = other_client.get("/api/cheatsheets/")
+        assert resp.status_code == 200
+        ids = [s["id"] for s in resp.json()]
+        assert sample_sheet.id not in ids
+
+    def test_retrieve_other_users_sheet_returns_404(
+        self, other_client, sample_sheet
+    ):
+        """User B should get 404 when retrieving User A's sheet by ID."""
+        resp = other_client.get(f"/api/cheatsheets/{sample_sheet.id}/")
+        assert resp.status_code == 404
+
+    def test_update_other_users_sheet_returns_404(
+        self, other_client, sample_sheet
+    ):
+        """User B should get 404 when updating User A's sheet."""
+        resp = other_client.patch(
+            f"/api/cheatsheets/{sample_sheet.id}/",
+            {"title": "Hacked"},
+            format="json",
+        )
+        assert resp.status_code == 404
+
+    def test_delete_other_users_sheet_returns_404(
+        self, other_client, sample_sheet
+    ):
+        """User B should get 404 when deleting User A's sheet."""
+        resp = other_client.delete(f"/api/cheatsheets/{sample_sheet.id}/")
+        assert resp.status_code == 404
+
+    def test_compile_other_users_sheet_returns_404(
+        self, other_client, sample_sheet
+    ):
+        """User B should get 404 when compiling User A's sheet via cheat_sheet_id."""
+        resp = other_client.post(
+            "/api/compile/",
+            {"cheat_sheet_id": sample_sheet.id},
+            format="json",
+        )
+        assert resp.status_code == 404
 
 
 @pytest.mark.django_db

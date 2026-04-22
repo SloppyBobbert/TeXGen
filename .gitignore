@@ -33,6 +33,7 @@ frontend/dist/
 
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Agent/Session files
@@ -65,4 +66,11 @@ backend/coverage/
 
 # OpenCode/Sisyphus
 .sisyphus/
+.opencode/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
 
