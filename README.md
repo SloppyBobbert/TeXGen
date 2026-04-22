@@ -93,15 +93,15 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 
 ### Available Formula Classes
 
-- **PRE-ALGEBRA** - Order of Operations, Fractions, Ratios, Properties, Area/Perimeter, Solving Equations
+- **PRE-ALGEBRA** - Operations and Properties, Fractions/Ratios/Proportions, Area and Perimeter, Solving Equations
 - **ALGEBRA I** - Linear Equations, Inequalities, Integer Rules, Decimals/Percents, Mean/Median/Mode, Quadratics, Polynomials, Exponents, Radicals, Functions, Absolute Value, Rational Expressions
-- **ALGEBRA II** - Complex Numbers, Logarithms, Exponential Functions, Polynomial Theorems, Conic Sections, Sequences/Series, Matrices, Binomial Theorem
+- **ALGEBRA II** - Complex Numbers, Logarithms, Exponential Functions, Polynomial Theorems and Binomial Expansion, Conic Sections, Sequences and Series, Matrices
 - **GEOMETRY** - Angle Relationships, Parallel Lines, Triangles, Pythagorean Theorem, Similar/Congruent Triangles, Quadrilaterals, Polygons, Circles, Circle Theorems, Coordinate Geometry, Surface Area/Volume, Transformations
-- **TRIGONOMETRY** - Right Triangle Trigonometry, Special Angles, Trigonometric Identities, Laws of Sines and Cosines
-- **PRECALCULUS** - Functions and Graphs, Polynomial and Rational Functions, Exponential and Logarithmic Functions, Conic Sections, Parametric Equations and Polar Coordinates, Sequences and Series
-- **CALCULUS I** - Limits and Continuity, Derivatives, Applications of Derivatives, Integrals
-- **CALCULUS II** - Techniques of Integration, Applications of Integration, Sequences and Series
-- **CALCULUS III** - Vectors and Geometry of Space, Vector Functions, Partial Derivatives, Multiple Integrals, Vector Calculus
+- **TRIGONOMETRY** - Right Triangle Trigonometry, Fundamental Identities, Angle Sum and Multiple-Angle Identities, Product and Power Identities, Inverse Trig Identities, Applications
+- **PRECALCULUS** - Functions, Conic Sections, Sequences/Series/Binomial Theorem, Polar and Complex Polar
+- **CALCULUS I** - Limits, Derivative Definitions and Rules, Common Derivatives, Core Theorems of Calculus, Basic Antiderivatives
+- **CALCULUS II** - Integration Techniques and Improper Integrals, Applications of Integration, Sequences and Series, Power and Taylor Series, Parametric and Polar
+- **CALCULUS III** - Vector Formulas, Partial Derivatives and Optimization, Multiple Integrals
 - **UNIT CIRCLE** - Complete visual representation of the unit circle with radians, degrees, and coordinates
 
 ## Getting Started
