@@ -7,6 +7,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
+from api.latex_utils import LATEX_HEADER
 from api.models import Template, CheatSheet, PracticeProblem
 
 
@@ -91,6 +92,7 @@ class TestCheatSheetModel(TestCase):
         assert "\\end{document}" in full
         assert "Hello World" in full
         assert "margin=1in" in full
+        assert "\\usepackage{adjustbox}" in full
 
     def test_build_full_latex_multicolumn(self):
         sheet = CheatSheet.objects.create(
@@ -186,6 +188,9 @@ class TestCheatSheetModel(TestCase):
         full = sheet.build_full_latex()
 
         assert "\\documentclass[8pt]{extarticle}" in full
+
+    def test_static_latex_header_includes_adjustbox(self):
+        assert "\\usepackage{adjustbox}" in LATEX_HEADER
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -695,19 +700,19 @@ class TestGenerateSheetEndpoint:
         assert "\\subsection*{Fractions, Ratios, and Proportions}" in tex
         assert "\\textbf{Unit Rate}" in tex
 
-    def test_generate_sheet_uses_regrouped_trig_identity_category(self, auth_client):
-        """Trig identities taught together should be available under broader grouped headings."""
+    def test_generate_sheet_uses_regrouped_trig_foundation_category(self, auth_client):
+        """Trig foundations taught together should be available under the broader grouped heading."""
         resp = auth_client.post(
             "/api/generate-sheet/",
             {
-                "formulas": [{"class": "TRIGONOMETRY", "category": "Angle Sum and Multiple-Angle Identities", "name": "Sine Double Angle"}],
+                "formulas": [{"class": "TRIGONOMETRY", "category": "Special Triangles and Basic Trig Relationships", "name": "Primary Identity"}],
             },
             format="json",
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\subsection*{Angle Sum and Multiple-Angle Identities}" in tex
-        assert "\\textbf{Sine Double Angle}" in tex
+        assert "\\subsection*{Special Triangles and Basic Trig Relationships}" in tex
+        assert "\\textbf{Primary Identity}" in tex
 
     def test_generate_sheet_uses_regrouped_calc_one_theorem_category(self, auth_client):
         """Calc I theorem lookups should use the merged theorem category."""

@@ -5,7 +5,7 @@ TRIGONOMETRY formulas
 CLASS_NAME = "TRIGONOMETRY"
 
 FORMULAS = {
-    "Right Triangle Trigonometry": [
+    "Special Triangles and Basic Trig Relationships": [
         {"name": "30-60-90 Triangle", "latex": r"30-60-90: 1:\sqrt{3}:2 \quad \text{short leg}=x,\ \text{long leg}=x\sqrt{3},\ \text{hyp}=2x"},
         {"name": "45-45-90 Triangle", "latex": r"45-45-90: 1:1:\sqrt{2} \quad \text{leg}=x,\ \text{hyp}=x\sqrt{2}"},
         {"name": "60-60-60 Triangle", "latex": r"60-60-60: 1:1:1 \quad \text{side}=x,\ \text{height}=\tfrac{x\sqrt{3}}{2},\ \text{area}=\tfrac{x^2\sqrt{3}}{4}"},

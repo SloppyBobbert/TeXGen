@@ -8,6 +8,7 @@ LATEX_HEADER = r"""\documentclass[fleqn]{article}
 \usepackage{enumitem} 
 \usepackage{multicol}
 \usepackage{titlesec}
+\usepackage{adjustbox}
 
 \setlength{\mathindent}{0pt}
 \setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}

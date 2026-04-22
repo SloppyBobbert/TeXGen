@@ -89,6 +89,7 @@ class CheatSheet(models.Model):
             f"\\documentclass{{{document_class}}}",
             "\\usepackage[utf8]{inputenc}",
             "\\usepackage{amsmath, amssymb}",
+            "\\usepackage{adjustbox}",
             f"\\usepackage[a4paper, margin={self.margins}]{{geometry}}",
         ]
         
