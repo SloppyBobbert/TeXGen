@@ -229,6 +229,25 @@ class TestLatexUtils:
         assert normalized.count("\\begin{document}") == 1
         assert normalized.count("\\end{document}") == 1
 
+    def test_normalize_latex_layout_replaces_existing_custom_font_multicols_wrapper(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10.5pt}{11.3pt}\\selectfont\n"
+            "\\begin{multicols}{5}\n"
+            "\\raggedcolumns\n"
+            "Body line\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
+
+        assert normalized.count("\\fontsize{10.5pt}{11.3pt}\\selectfont") == 1
+        assert normalized.count("\\begin{multicols}{5}") == 1
+        assert normalized.count("\\end{multicols}") == 1
+        assert "Body line" in normalized
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\titleformat{\\section}{\\normalfont\\bfseries\\fontsize{10.8pt}{11.6pt}\\selectfont}{}{0pt}{}" in header
