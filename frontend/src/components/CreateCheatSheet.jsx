@@ -4,6 +4,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
+import { SUBJECT_VIDEOS } from '../data/subjectVideos';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -547,6 +548,20 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     clearLatex
   } = useLatex(initialData);
 
+const [showLatex, setShowLatex] = useState(false);
+const [modalVideo, setModalVideo] = useState(null);
+const [activeVideoClass, setActiveVideoClass] = useState(null);
+
+const getThumbnail = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
+const getEmbedUrl  = (id) => `https://www.youtube.com/embed/${id}?autoplay=1`;
+
+const videos = activeVideoClass ? (SUBJECT_VIDEOS[activeVideoClass] || []) : [];
+
+const handleToggleClass = (className) => {
+    toggleClass(className);
+    setActiveVideoClass(className);
+};
+
   const handleCompileClick = () => {
     handleCompileOnly();
   };
@@ -570,106 +585,215 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
   };
 
   return (
-    <form onSubmit={handleSave}>
-      {/* Box 1: Selection controls */}
-      <div className="create-cheat-sheet panel-box selection-panel">
-        <div className="form-group">
-          <label htmlFor="title">Title:</label>
+    <>
+      <div className="app-shell">
+
+        {/* ── HEADER ── */}
+        <header className="app-header">
+          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>📄 Cheat Sheet Generator</span>
           <input
             type="text"
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="My Math Cheat Sheet"
-            required
-            className="input-field"
+            placeholder="Enter cheat sheet title..."
           />
-        </div>
+        </header>
 
-        <FormulaSelection
-          classesData={classesData}
-          selectedClasses={selectedClasses}
-          selectedCategories={selectedCategories}
-          groupedFormulas={groupedFormulas}
-          toggleClass={toggleClass}
-          toggleCategory={toggleCategory}
-          onGenerate={handleGenerate}
-          isGenerating={isGenerating}
-          selectedCount={selectedCount}
-          hasSelectedClasses={hasSelectedClasses}
-          onReorderClass={reorderClass}
-          onReorderFormula={reorderFormula}
-          onRemoveClass={removeClassFromOrder}
-          onRemoveFormula={removeSingleFormula}
-        />
-      </div>
+        <div className="app-body">
 
-      {/* Box 2: Editor and preview */}
-      <div className="create-cheat-sheet panel-box">
-        <LayoutOptions 
-          columns={columns}
-          setColumns={setColumns}
-          fontSize={fontSize}
-          setFontSize={setFontSize}
-          spacing={spacing}
-          setSpacing={setSpacing}
-          margins={margins}
-          setMargins={setMargins}
-        />
-        
-        <div className="editor-container">
-          <LatexEditor
-            content={content}
-            onChange={handleContentChange}
-            isModified={contentModified}
-          />
-          <div className="compile-button-column">
-            <div className="history-buttons">
-              <button
-                type="button"
-                onClick={goBack}
-                disabled={!canGoBack}
-                className="btn history-btn"
-                title="Go back to previous version"
-                aria-label="Go back"
-              >
-                ←
-              </button>
-              <button
-                type="button"
-                onClick={goForward}
-                disabled={!canGoForward}
-                className="btn history-btn"
-                title="Go forward to next version"
-                aria-label="Go forward"
-              >
-                →
-              </button>
+          {/* ══ LEFT PANEL ══ */}
+          <aside className="left-panel">
+            <div className="left-panel-scroll">
+
+              <FormulaSelection
+                classesData={classesData}
+                selectedClasses={selectedClasses}
+                selectedCategories={selectedCategories}
+                groupedFormulas={groupedFormulas}
+                toggleClass={handleToggleClass}
+                toggleCategory={toggleCategory}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+                selectedCount={selectedCount}
+                hasSelectedClasses={hasSelectedClasses}
+                onReorderClass={reorderClass}
+                onReorderFormula={reorderFormula}
+                onRemoveClass={removeClassFromOrder}
+                onRemoveFormula={removeSingleFormula}
+              />
+
+              <LayoutOptions
+                columns={columns}
+                setColumns={setColumns}
+                fontSize={fontSize}
+                setFontSize={setFontSize}
+                spacing={spacing}
+                setSpacing={setSpacing}
+                margins={margins}
+                setMargins={setMargins}
+              />
+
             </div>
-            <button
-              type="button"
-              onClick={handleCompileClick}
-              className="btn compile-circle"
-              disabled={isCompiling || !content}
-              title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
-              aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
-            >
-              {isCompiling ? '...' : '↻'}
-            </button>
-          </div>
-          <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
-        </div>
 
-        <ActionToolbar
-          handleDownloadTex={handleDownloadTex}
-          handleDownloadPDF={handleDownloadPDF}
-          isLoading={isLoading}
-          content={content}
-          handleClear={handleClear}
-        />
+            {/* Footer buttons */}
+            <div className="left-panel-footer">
+              <button
+                type="button"
+                onClick={handleCompileClick}
+                className="btn-compile"
+                disabled={isCompiling || !content}
+              >
+                {isCompiling ? '⏳ Compiling...' : '⚡ Compile PDF'}
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={goBack}
+                  disabled={!canGoBack}
+                  className="btn history-btn"
+                  style={{ flex: 1 }}
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={goForward}
+                  disabled={!canGoForward}
+                  className="btn history-btn"
+                  style={{ flex: 1 }}
+                >
+                  Forward →
+                </button>
+              </div>
+
+              {pdfBlob && (
+                <div className="btn-download-row">
+                  <button type="button" onClick={handleDownloadPDF} className="btn-dl">↓ PDF</button>
+                  <button type="button" onClick={handleDownloadTex} className="btn-dl">↓ .tex</button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => onSave({ title, content, columns, fontSize, spacing, margins })}
+                  className="btn history-btn"
+                  style={{ flex: 1 }}
+                >
+                  💾 Save
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="btn clear"
+                  style={{ flex: 1, fontSize: '0.78rem' }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* ══ CENTER PANEL — PDF main focus ══ */}
+          <main className="center-panel">
+
+            <div className="pdf-container">
+              {pdfBlob || compileError ? (
+                <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
+              ) : (
+                <div className="pdf-placeholder">
+                  <span>📄</span>
+                  <p>Select a subject, pick categories, then compile</p>
+                  <p>Your PDF will appear here</p>
+                </div>
+              )}
+            </div>
+
+            {/* LaTeX toggle — only appears after content exists */}
+            {content && (
+              <div className="latex-toggle-bar">
+                <button
+                  type="button"
+                  className="btn-toggle-latex"
+                  onClick={() => setShowLatex(v => !v)}
+                >
+                  {showLatex ? '▲ Hide LaTeX' : '▼ Reveal LaTeX Code'}
+                </button>
+                <span className="latex-line-count">
+                  {content.split('\n').length} lines
+                </span>
+              </div>
+            )}
+
+            {/* Collapsible LaTeX drawer */}
+            {content && (
+              <div className={`latex-drawer ${showLatex ? 'open' : 'closed'}`}>
+                <LatexEditor
+                  content={content}
+                  onChange={handleContentChange}
+                  isModified={contentModified}
+                />
+              </div>
+            )}
+          </main>
+
+          {/* ══ RIGHT PANEL — YouTube resources ══ */}
+          <aside className="right-panel">
+            <div className="right-panel-header">
+              📺 {activeVideoClass ? `Resources — ${activeVideoClass}` : 'Resources'}
+            </div>
+            <div className="right-panel-scroll">
+              {!activeVideoClass && (
+                <p className="right-panel-empty">Select a subject to see related videos.</p>
+              )}
+              {activeVideoClass && videos.length === 0 && (
+                <p className="right-panel-empty">No videos added yet for {activeVideoClass}.</p>
+              )}
+              {videos.map((v) => (
+                <div
+                  key={v.videoId}
+                  className="video-card-sm"
+                  onClick={() => setModalVideo(v)}
+                >
+                  <div className="video-thumb-sm">
+                    <img src={getThumbnail(v.videoId)} alt={v.title} loading="lazy" />
+                    <div className="play-icon">▶</div>
+                  </div>
+                  <div className="video-info-sm">
+                    <div className="v-title">{v.title}</div>
+                    <div className="v-channel">{v.channel}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+
+        </div>
       </div>
-    </form>
-  );
-};
+
+      {/* ══ VIDEO MODAL ══ */}
+      {modalVideo && (
+        <div className="modal-overlay" onClick={() => setModalVideo(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setModalVideo(null)}>✕</button>
+            <h4>{modalVideo.title}</h4>
+            <iframe
+              width="100%"
+              height="400"
+              src={getEmbedUrl(modalVideo.videoId)}
+              title={modalVideo.title}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+            <div className="modal-meta">{modalVideo.channel} · {modalVideo.topic}</div>
+          </div>
+        </div>
+      )}
+    </>
+    );
+  };
 
 export default CreateCheatSheet;
