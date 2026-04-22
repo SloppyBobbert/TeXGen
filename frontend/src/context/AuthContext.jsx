@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         setAuthTokens(data);
         setUser(jwtDecode(data.access));
-        navigate('/');
+        navigate('/dashboard');
       } else {
         alert(data.detail || 'Invalid credentials');
       }
