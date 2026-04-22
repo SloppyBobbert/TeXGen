@@ -538,6 +538,26 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 400
 
+    def test_generate_sheet_accepts_legacy_category_name_when_formula_name_matches(self, auth_client):
+        """Saved sheets with renamed categories should still generate by formula name."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {
+                        "class": "CALCULUS III",
+                        "category": "Vector Calculus",
+                        "name": "Divergence",
+                    }
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\subsection*{Vector Formulas}" in tex
+        assert "\\textbf{Divergence}" in tex
+
     def test_generate_sheet_with_columns(self, auth_client):
         """Test that columns parameter produces multicols environment."""
         resp = auth_client.post(

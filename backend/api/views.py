@@ -120,6 +120,17 @@ def generate_sheet(request):
                             "name": f["name"],
                             "latex": f["latex"]
                         })
+            else:
+                for current_category, formulas in categories.items():
+                    match = next((f for f in formulas if f.get("name") == name), None)
+                    if match:
+                        selected_formulas.append({
+                            "class_name": class_name,
+                            "category": current_category,
+                            "name": match["name"],
+                            "latex": match["latex"]
+                        })
+                        break
     
     if not selected_formulas:
         return Response({"error": "No valid formulas found"}, status=400)
