@@ -55,7 +55,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
         throw new Error('Failed to delete cheat sheet');
       }
 
-      setSheets(sheets.filter((sheet) => sheet.id !== id));
+      setSheets((prevSheets) => prevSheets.filter((sheet) => sheet.id !== id));
     } catch (err) {
       alert(err.message);
     }
