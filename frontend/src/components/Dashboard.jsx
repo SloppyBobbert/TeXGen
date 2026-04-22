@@ -12,10 +12,14 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
 
   useEffect(() => {
     const fetchSheets = async () => {
+      if (!authTokens?.access) {
+        setLoading(false);
+        return;
+      }
       try {
         const response = await fetch('/api/cheatsheets/', {
           headers: {
-            'Authorization': `Bearer ${authTokens?.access}`,
+            'Authorization': `Bearer ${authTokens.access}`,
           },
         });
 
@@ -42,12 +46,13 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this cheat sheet?')) return;
+    if (!authTokens?.access) return;
 
     try {
       const response = await fetch(`/api/cheatsheets/${id}/`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${authTokens?.access}`,
+          'Authorization': `Bearer ${authTokens.access}`,
         },
       });
 
@@ -62,12 +67,13 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
   };
 
   const handleDownload = async (sheet) => {
+    if (!authTokens?.access) return;
     try {
       const response = await fetch('/api/compile/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens?.access}`,
+          'Authorization': `Bearer ${authTokens.access}`,
         },
         body: JSON.stringify({ cheat_sheet_id: sheet.id }),
       });

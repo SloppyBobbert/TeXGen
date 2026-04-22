@@ -95,7 +95,7 @@ function App() {
         method: sheetId ? 'PATCH' : 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens?.access}`
+          ...(authTokens?.access ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
         },
         body: JSON.stringify({
           title: nextSheet.title,

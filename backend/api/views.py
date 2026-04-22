@@ -143,7 +143,7 @@ def compile_latex(request):
     
     # If cheat_sheet_id is provided, get content from the cheat sheet
     if cheat_sheet_id:
-        cheatsheet = get_object_or_404(CheatSheet, pk=cheat_sheet_id)
+        cheatsheet = get_object_or_404(CheatSheet, pk=cheat_sheet_id, user=request.user)
         content = cheatsheet.build_full_latex()
     
     if not content:
