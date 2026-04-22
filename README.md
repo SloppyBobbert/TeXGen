@@ -123,6 +123,15 @@ python manage.py migrate
 python manage.py runserver
 ```
 
+Set these backend environment variables in `backend/.env` before running the server:
+
+```env
+DJANGO_SECRET_KEY=your-django-secret-key
+JWT_SIGNING_KEY=your-separate-jwt-signing-key
+```
+
+Use long random values for both keys. `JWT_SIGNING_KEY` should be separate from `DJANGO_SECRET_KEY` so JWT signing does not depend on the Django app secret.
+
 The API will be available at `http://localhost:8000/api/`.
 
 ### Frontend Setup
