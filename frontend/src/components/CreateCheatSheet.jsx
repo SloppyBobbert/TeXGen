@@ -514,7 +514,14 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, isSavi
   </div>
 );
 
-const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => (
+const FONT_SIZE_PRESETS = ['8pt', '9pt', '10pt', '11pt', '12pt'];
+const SPACING_PRESETS = ['tiny', 'small', 'medium', 'large'];
+
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => {
+  const fontSizeMode = FONT_SIZE_PRESETS.includes(fontSize) ? fontSize : 'custom';
+  const spacingMode = SPACING_PRESETS.includes(spacing) ? spacing : 'custom';
+
+  return (
   <div className="layout-options">
     <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
       Layout Options
@@ -532,14 +539,15 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value={2}>2 Columns</option>
           <option value={3}>3 Columns</option>
           <option value={4}>4 Columns</option>
+          <option value={5}>5 Columns</option>
         </select>
       </div>
       <div className="layout-control">
         <label htmlFor="fontSize">Text Size:</label>
         <select 
           id="fontSize" 
-          value={fontSize} 
-          onChange={(e) => setFontSize(e.target.value)}
+          value={fontSizeMode} 
+          onChange={(e) => setFontSize(e.target.value === 'custom' ? '10.5pt' : e.target.value)}
           className="layout-select"
         >
           <option value="8pt">Compact (8pt)</option>
@@ -547,21 +555,41 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value="10pt">Normal (10pt)</option>
           <option value="11pt">Medium (11pt)</option>
           <option value="12pt">Large (12pt)</option>
+          <option value="custom">Custom</option>
         </select>
+        {fontSizeMode === 'custom' && (
+          <input
+            type="text"
+            value={fontSize}
+            onChange={(e) => setFontSize(e.target.value)}
+            className="layout-select"
+            placeholder="e.g. 10.5pt"
+          />
+        )}
       </div>
       <div className="layout-control">
         <label htmlFor="spacing">Spacing:</label>
         <select 
           id="spacing" 
-          value={spacing} 
-          onChange={(e) => setSpacing(e.target.value)}
+          value={spacingMode} 
+          onChange={(e) => setSpacing(e.target.value === 'custom' ? '0.8pt' : e.target.value)}
           className="layout-select"
         >
           <option value="tiny">Tiny</option>
           <option value="small">Small</option>
           <option value="medium">Medium</option>
           <option value="large">Large</option>
+          <option value="custom">Custom</option>
         </select>
+        {spacingMode === 'custom' && (
+          <input
+            type="text"
+            value={spacing}
+            onChange={(e) => setSpacing(e.target.value)}
+            className="layout-select"
+            placeholder="e.g. 0.8pt"
+          />
+        )}
       </div>
       <div className="layout-control">
         <label htmlFor="margins">Margins:</label>
@@ -579,7 +607,8 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) => {
   const {
