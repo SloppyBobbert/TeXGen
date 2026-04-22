@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import tempfile
 
@@ -133,6 +134,28 @@ def build_dynamic_footer(columns=2):
     
     footer_lines.append("\\end{document}")
     return "\n".join(footer_lines)
+
+
+def normalize_latex_layout(content, columns=2, font_size="10pt", margins="0.25in", spacing="large"):
+    """Rebuild document wrappers so current layout controls apply to existing LaTeX content."""
+    if not content:
+        return content
+
+    header = build_dynamic_header(columns, font_size, margins, spacing)
+    footer = build_dynamic_footer(columns)
+
+    if r"\begin{document}" not in content or r"\end{document}" not in content:
+        body = content.strip("\n")
+        return header + body + ("\n" if body else "") + footer
+
+    body = content.split(r"\begin{document}", 1)[1].split(r"\end{document}", 1)[0].strip()
+    body = re.sub(r"^\\(?:tiny|scriptsize|footnotesize|small|normalsize)\b\s*", "", body, count=1)
+    body = re.sub(r"^\\begin\{multicols\}\{\d+\}\s*", "", body, count=1)
+    body = re.sub(r"^\\raggedcolumns\s*", "", body, count=1)
+    body = re.sub(r"\s*\\end\{multicols\}\s*$", "", body, count=1)
+    body = body.strip("\n")
+
+    return header + body + ("\n" if body else "") + footer
 
 
 def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", margins="0.25in", spacing="large"):

@@ -7,7 +7,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
-from api.latex_utils import LATEX_HEADER
+from api.latex_utils import LATEX_HEADER, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 
 
@@ -191,6 +191,30 @@ class TestCheatSheetModel(TestCase):
 
     def test_static_latex_header_includes_adjustbox(self):
         assert "\\usepackage{adjustbox}" in LATEX_HEADER
+
+
+class TestLatexUtils:
+    def test_normalize_latex_layout_rewraps_existing_document_with_current_settings(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\footnotesize\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "Body line\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=4, font_size="8pt", margins="0.5in", spacing="tiny")
+
+        assert "\\documentclass[8pt,fleqn]{extarticle}" in normalized
+        assert "margin=0.5in" in normalized
+        assert "\\begin{multicols}{4}" in normalized
+        assert "\\begin{multicols}{2}" not in normalized
+        assert "Body line" in normalized
+        assert normalized.count("\\begin{document}") == 1
+        assert normalized.count("\\end{document}") == 1
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -870,6 +894,10 @@ class TestGenerateSheetEndpoint:
 class TestCompileEndpoint:
     def test_compile_requires_content_or_id(self, auth_client):
         resp = auth_client.post("/api/compile/", {}, format="json")
+        assert resp.status_code == 400
+
+    def test_compile_requires_content_or_id_for_anonymous_users(self, api_client):
+        resp = api_client.post("/api/compile/", {}, format="json")
         assert resp.status_code == 400
 
     def test_compile_with_nonexistent_sheet(self, auth_client):

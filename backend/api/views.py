@@ -14,7 +14,7 @@ from .models import Template, CheatSheet, PracticeProblem
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
-from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
+from .latex_utils import build_latex_for_formulas, normalize_latex_layout
 
 # ------------------------------------------------------------------
 # Whitelist validation for layout parameters
@@ -140,7 +140,7 @@ def generate_sheet(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def compile_latex(request):
     """
     POST /api/compile/
@@ -151,6 +151,11 @@ def compile_latex(request):
     """
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
+    columns = request.data.get("columns", 2)
+    font_size = request.data.get("font_size", "10pt")
+    margins = request.data.get("margins", "0.25in")
+    spacing = request.data.get("spacing", "large")
+    columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
     
     # If cheat_sheet_id is provided, get content from the cheat sheet
     if cheat_sheet_id:
@@ -159,10 +164,8 @@ def compile_latex(request):
     
     if not content:
         return Response({"error": "No LaTeX content provided"}, status=400)
-    
-    # Ensure document has proper structure
-    if r"\begin{document}" not in content:
-        content = LATEX_HEADER + content + LATEX_FOOTER
+
+    content = normalize_latex_layout(content, columns, font_size, margins, spacing)
     
     with tempfile.TemporaryDirectory() as tempdir:
         tex_file_path = os.path.join(tempdir, "document.tex")
