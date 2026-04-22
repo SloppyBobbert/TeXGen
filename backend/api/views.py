@@ -24,19 +24,30 @@ VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
 VALID_SPACING = {"tiny", "small", "medium", "large"}
 VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
 
+
+def is_valid_custom_pt(value, min_value, max_value):
+    normalized = str(value or "").strip()
+    if not normalized.endswith("pt"):
+        return False
+    try:
+        amount = float(normalized[:-2])
+    except ValueError:
+        return False
+    return min_value <= amount <= max_value
+
 def validate_layout_params(columns, font_size, margins, spacing):
     try:
-        columns = max(1, min(4, int(columns)))
+        columns = max(1, min(5, int(columns)))
     except (TypeError, ValueError):
         columns = 2
     
-    if font_size not in VALID_FONT_SIZES:
+    if font_size not in VALID_FONT_SIZES and not is_valid_custom_pt(font_size, 6, 18):
         font_size = "10pt"
     
     if margins not in VALID_MARGINS:
         margins = "0.25in"
     
-    if spacing not in VALID_SPACING:
+    if spacing not in VALID_SPACING and not is_valid_custom_pt(spacing, 0, 6):
         spacing = "large"
     
     return columns, font_size, margins, spacing

@@ -7,7 +7,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
-from api.latex_utils import LATEX_HEADER, normalize_latex_layout
+from api.latex_utils import LATEX_HEADER, build_dynamic_header, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 
 
@@ -189,6 +189,19 @@ class TestCheatSheetModel(TestCase):
 
         assert "\\documentclass[8pt]{extarticle}" in full
 
+    def test_build_full_latex_custom_font_size_uses_supported_wrapper(self):
+        sheet = CheatSheet.objects.create(
+            title="Custom Font",
+            latex_content="Content",
+            font_size="10.5pt",
+            user=self.user,
+        )
+
+        full = sheet.build_full_latex()
+
+        assert "\\documentclass[10pt]{article}" in full
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in full
+
     def test_static_latex_header_includes_adjustbox(self):
         assert "\\usepackage{adjustbox}" in LATEX_HEADER
 
@@ -215,6 +228,20 @@ class TestLatexUtils:
         assert "Body line" in normalized
         assert normalized.count("\\begin{document}") == 1
         assert normalized.count("\\end{document}") == 1
+
+    def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
+        header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
+        assert "\\titleformat{\\section}{\\normalfont\\bfseries\\fontsize{10.8pt}{11.6pt}\\selectfont}{}{0pt}{}" in header
+        assert "\\titleformat{\\subsection}{\\normalfont\\bfseries\\fontsize{10.4pt}{11pt}\\selectfont}{}{0pt}{}" in header
+        assert "\\titlespacing*{\\section}{0pt}{0pt}{0pt}" in header
+        assert "\\titlespacing*{\\subsection}{0pt}{0pt}{0pt}" in header
+
+    def test_build_dynamic_header_accepts_custom_font_and_spacing(self):
+        header = build_dynamic_header(columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
+        assert "\\documentclass[10pt,fleqn]{article}" in header
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in header
+        assert "\\setlength{\\baselineskip}{11.1pt}" in header
+        assert "\\begin{multicols}{5}" in header
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -597,6 +624,19 @@ class TestGenerateSheetEndpoint:
         assert "\\begin{multicols}{3}" in tex
         assert "\\end{multicols}" in tex
 
+    def test_generate_sheet_with_five_columns(self, auth_client):
+        """Five-column layouts should be allowed."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "columns": 5,
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert "\\begin{multicols}{5}" in resp.json()["tex_code"]
+
     def test_generate_sheet_with_font_size(self, auth_client):
         """Test that font_size parameter affects the LaTeX output."""
         resp = auth_client.post(
@@ -609,7 +649,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\tiny" in tex
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
 
     def test_generate_sheet_with_margins(self, auth_client):
         """Test that margins parameter is reflected in geometry package."""
@@ -637,7 +677,36 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "titlespacing" in tex
+        assert "\\setlength{\\baselineskip}{10.2pt}" in tex
+
+    def test_generate_sheet_with_custom_font_size(self, auth_client):
+        """Custom pt body sizes should be accepted."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10.5pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in tex
+
+    def test_generate_sheet_with_custom_spacing(self, auth_client):
+        """Custom pt spacing values should be accepted."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "spacing": "0.6pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\setlength{\\baselineskip}{10.6pt}" in tex
+        assert "\\vspace{0.6pt}" in tex
 
     def test_generate_sheet_invalid_font_size_defaults(self, auth_client):
         """Invalid font_size should be replaced with default."""
@@ -679,10 +748,9 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        # The "large" preset is the halved version of the previous values.
-        assert "\\titlespacing*{\\section}{0pt}{8pt}{4pt}" in tex
-        assert "\\titlespacing*{\\subsection}{0pt}{4pt}{2pt}" in tex
-        assert "\\setlength{\\baselineskip}{7pt}" in tex
+        assert "\\titlespacing*{\\section}{0pt}{0pt}{0pt}" in tex
+        assert "\\titlespacing*{\\subsection}{0pt}{0pt}{0pt}" in tex
+        assert "\\setlength{\\baselineskip}{11.2pt}" in tex
 
     def test_generate_sheet_10pt_uses_smaller_subsection_titles(self, auth_client):
         """Subsection titles should stay only slightly larger than the body text."""
@@ -696,7 +764,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\titleformat{\\subsection}{\\normalfont\\bfseries\\fontsize{11pt}{12pt}\\selectfont}{}{0pt}{}" in tex
+        assert "\\titleformat{\\subsection}{\\normalfont\\bfseries\\fontsize{10.4pt}{11pt}\\selectfont}{}{0pt}{}" in tex
 
     def test_generate_sheet_adds_readable_block_comments(self, auth_client):
         """Generated LaTeX should include readable source comments around blocks."""

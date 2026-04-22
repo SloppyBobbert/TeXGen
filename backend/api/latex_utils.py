@@ -15,8 +15,8 @@ LATEX_HEADER = r"""\documentclass[fleqn]{article}
 \setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}
 \pagestyle{empty}
 
-\titlespacing*{\subsection}{0pt}{2pt}{1pt}
-\titlespacing*{\section}{0pt}{4pt}{2pt}
+\titlespacing*{\subsection}{0pt}{0pt}{0pt}
+\titlespacing*{\section}{0pt}{0pt}{0pt}
 
 \begin{document}
 \scriptsize
@@ -26,31 +26,81 @@ LATEX_FOOTER = r"""
 \end{document}
 """
 
-# Font size to LaTeX size command mapping for cheat sheet density
-FONT_SIZE_MAP = {
-    "8pt": "\\tiny",
-    "9pt": "\\scriptsize",
-    "10pt": "\\footnotesize",
-    "11pt": "\\small",
-    "12pt": "\\normalsize",
-}
-
-# Section/subsection title sizing: ((section_font, section_leading), (subsection_font, subsection_leading))
-TITLE_FONT_MAP = {
-    "8pt": (("10pt", "11pt"), ("9pt", "10pt")),
-    "9pt": (("11pt", "12pt"), ("10pt", "11pt")),
-    "10pt": (("12pt", "13pt"), ("11pt", "12pt")),
-    "11pt": (("13pt", "14pt"), ("12pt", "13pt")),
-    "12pt": (("14pt", "15pt"), ("13pt", "14pt")),
-}
-
-# Spacing presets: (section_before, section_after, subsection_before, subsection_after, formula_gap, baselineskip)
+# Spacing presets: (formula_gap, baselineskip)
 SPACING_MAP = {
-    "tiny": ("0pt", "0pt", "0pt", "0pt", "0pt", "4pt"),
-    "small": ("1pt", "0.5pt", "0.5pt", "0.25pt", "1pt", "3pt"),
-    "medium": ("4pt", "2pt", "2pt", "1pt", "4pt", "5pt"),
-    "large": ("8pt", "4pt", "4pt", "2pt", "8pt", "7pt"),
+    "tiny": ("0pt", "0.2pt"),
+    "small": ("0.4pt", "0.4pt"),
+    "medium": ("0.8pt", "0.8pt"),
+    "large": ("1.2pt", "1.2pt"),
 }
+
+
+FONT_SIZE_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)pt$")
+SPACING_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)pt$")
+
+
+def parse_pt_value(value, default):
+    match = FONT_SIZE_PATTERN.match(str(value or "").strip())
+    if not match:
+        match = SPACING_PATTERN.match(str(value or "").strip())
+    if not match:
+        return default
+    return float(match.group(1))
+
+
+def format_pt_value(value):
+    if float(value).is_integer():
+        return f"{int(value)}pt"
+    return f"{value:.2f}".rstrip("0").rstrip(".") + "pt"
+
+
+def get_body_font_command(font_size):
+    size_pt = parse_pt_value(font_size, 10.0)
+    line_height = max(size_pt + 0.8, size_pt)
+    return f"\\fontsize{{{format_pt_value(size_pt)}}}{{{format_pt_value(line_height)}}}\\selectfont"
+
+
+def get_document_class(font_size):
+    size_pt = parse_pt_value(font_size, 10.0)
+    if size_pt <= 8.5:
+        return "extarticle", "8pt"
+    if size_pt <= 9.5:
+        return "extarticle", "9pt"
+    if size_pt <= 10.5:
+        return "article", "10pt"
+    if size_pt <= 11.5:
+        return "article", "11pt"
+    return "article", "12pt"
+
+
+def get_title_sizes(font_size):
+    body_size = parse_pt_value(font_size, 10.0)
+    section_size = body_size + 0.8
+    subsection_size = body_size + 0.4
+    return (
+        (format_pt_value(section_size), format_pt_value(section_size + 0.8)),
+        (format_pt_value(subsection_size), format_pt_value(subsection_size + 0.6)),
+    )
+
+
+def get_spacing_values(spacing, font_size):
+    if spacing in SPACING_MAP:
+        formula_gap, baseline_adjustment = SPACING_MAP[spacing]
+    else:
+        custom_spacing = format_pt_value(max(parse_pt_value(spacing, 0.8), 0.0))
+        formula_gap = custom_spacing
+        baseline_adjustment = custom_spacing
+
+    body_size = parse_pt_value(font_size, 10.0)
+    baseline_pt = max(body_size + parse_pt_value(baseline_adjustment, 0.8), body_size)
+    return {
+        "formula_gap": formula_gap,
+        "baseline_skip": format_pt_value(baseline_pt),
+        "section_before": "0pt",
+        "section_after": "0pt",
+        "subsection_before": "0pt",
+        "subsection_after": "0pt",
+    }
 
 
 def escape_latex_text(text):
@@ -81,19 +131,13 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
     """
     Build a dynamic LaTeX header based on user-selected options.
     """
-    size_command = FONT_SIZE_MAP.get(font_size, "\\footnotesize")
-    sec_before, sec_after, subsec_before, subsec_after, _, baseline_skip = SPACING_MAP.get(spacing, SPACING_MAP["large"])
-    (section_font, section_leading), (subsection_font, subsection_leading) = TITLE_FONT_MAP.get(
-        font_size,
-        TITLE_FONT_MAP["10pt"],
-    )
-
-    # The standard `article` class only supports 10pt/11pt/12pt.
-    # Use `extarticle` (from the extsizes package) for 8pt and 9pt.
-    doc_class = "extarticle" if font_size in ("8pt", "9pt") else "article"
+    size_command = get_body_font_command(font_size)
+    spacing_values = get_spacing_values(spacing, font_size)
+    (section_font, section_leading), (subsection_font, subsection_leading) = get_title_sizes(font_size)
+    doc_class, doc_class_size = get_document_class(font_size)
 
     header_lines = [
-        f"\\documentclass[{font_size},fleqn]{{{doc_class}}}",
+        f"\\documentclass[{doc_class_size},fleqn]{{{doc_class}}}",
         f"\\usepackage[margin={margins}]{{geometry}}",
         "\\usepackage{amsmath, amssymb}",
         "\\usepackage{enumitem}",
@@ -107,9 +151,9 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "",
         f"\\titleformat{{\\section}}{{\\normalfont\\bfseries\\fontsize{{{section_font}}}{{{section_leading}}}\\selectfont}}{{}}{{0pt}}{{}}",
         f"\\titleformat{{\\subsection}}{{\\normalfont\\bfseries\\fontsize{{{subsection_font}}}{{{subsection_leading}}}\\selectfont}}{{}}{{0pt}}{{}}",
-        f"\\titlespacing*{{\\section}}{{0pt}}{{{sec_before}}}{{{sec_after}}}",
-        f"\\titlespacing*{{\\subsection}}{{0pt}}{{{subsec_before}}}{{{subsec_after}}}",
-        f"\\setlength{{\\baselineskip}}{{{baseline_skip}}}",
+        f"\\titlespacing*{{\\section}}{{0pt}}{{{spacing_values['section_before']}}}{{{spacing_values['section_after']}}}",
+        f"\\titlespacing*{{\\subsection}}{{0pt}}{{{spacing_values['subsection_before']}}}{{{spacing_values['subsection_after']}}}",
+        f"\\setlength{{\\baselineskip}}{{{spacing_values['baseline_skip']}}}",
         "",
         "\\begin{document}",
         size_command,
@@ -165,7 +209,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
     """
     header = build_dynamic_header(columns, font_size, margins, spacing)
     footer = build_dynamic_footer(columns)
-    _, _, _, _, formula_gap, _ = SPACING_MAP.get(spacing, SPACING_MAP["large"])
+    formula_gap = get_spacing_values(spacing, font_size)["formula_gap"]
     
     if not selected_formulas:
         return header + footer

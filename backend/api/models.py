@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from .latex_utils import get_body_font_command, get_document_class
+
 class Template(models.Model):
     name = models.CharField(max_length=200)
     subject = models.CharField(max_length=100)
@@ -84,25 +86,21 @@ class CheatSheet(models.Model):
             return self._inject_practice_problems_into_document(content)
             
         # Build document header
-        document_class = "extarticle" if self.font_size in {"8pt", "9pt"} else "article"
+        document_class, document_class_size = get_document_class(self.font_size)
         header = [
-            f"\\documentclass{{{document_class}}}",
+            f"\\documentclass[{document_class_size}]{{{document_class}}}",
             "\\usepackage[utf8]{inputenc}",
             "\\usepackage{amsmath, amssymb}",
             "\\usepackage{adjustbox}",
             f"\\usepackage[a4paper, margin={self.margins}]{{geometry}}",
         ]
-        
-        # Add font size if specified
-        if self.font_size and self.font_size != "10pt":
-            header[0] = f"\\documentclass[{self.font_size}]{{{document_class}}}"
             
         # Add multicolumn support if needed
         if self.columns > 1:
             header.append("\\usepackage{multicol}")
             
         # Start document
-        document_parts = header + ["\\begin{document}"]
+        document_parts = header + ["\\begin{document}", get_body_font_command(self.font_size)]
         
         # Add title if exists
         if self.title:
