@@ -215,6 +215,7 @@ class TestLatexUtils:
             "\\begin{multicols}{2}\n"
             "\\raggedcolumns\n"
             "Body line\n"
+            "\\vspace{1.2pt}\n"
             "\\end{multicols}\n"
             "\\end{document}"
         )
@@ -226,6 +227,7 @@ class TestLatexUtils:
         assert "\\begin{multicols}{4}" in normalized
         assert "\\begin{multicols}{2}" not in normalized
         assert "Body line" in normalized
+        assert "\\vspace{1.2pt}" not in normalized
         assert normalized.count("\\begin{document}") == 1
         assert normalized.count("\\end{document}") == 1
 
@@ -248,18 +250,41 @@ class TestLatexUtils:
         assert normalized.count("\\end{multicols}") == 1
         assert "Body line" in normalized
 
+    def test_normalize_latex_layout_updates_existing_formula_spacing(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\noindent Example\\par\n"
+            "\\[ x+y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+
+        assert "\\vspace{0.6pt}" in normalized
+        assert "\\vspace{1.2pt}" not in normalized
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\usepackage{titlesec}" not in header
         assert "\\titleformat{" not in header
         assert "\\titlespacing*{" not in header
         assert "\\setlength{\\baselineskip}{11.2pt}" in header
+        assert "\\setlength{\\parskip}{1.2pt}" in header
 
     def test_build_dynamic_header_accepts_custom_font_and_spacing(self):
         header = build_dynamic_header(columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
         assert "\\documentclass[10pt,fleqn]{article}" in header
         assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in header
         assert "\\setlength{\\baselineskip}{11.1pt}" in header
+        assert "\\setlength{\\parskip}{0.6pt}" in header
         assert "\\begin{multicols}{5}" in header
 
 
@@ -554,7 +579,7 @@ class TestGenerateSheetEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert "tex_code" in data
-        assert "\\noindent\\textbf{ALGEBRA I}\\par" in data["tex_code"]
+        assert "\\noindent ALGEBRA I\\par" in data["tex_code"]
         assert "Slope Formula" in data["tex_code"]
 
     def test_generate_sheet_preserves_order(self, auth_client):
@@ -591,7 +616,7 @@ class TestGenerateSheetEndpoint:
         data = resp.json()
         assert "tex_code" in data
         tex = data["tex_code"]
-        assert "\\noindent\\textbf{UNIT CIRCLE}\\par" in tex
+        assert "\\noindent UNIT CIRCLE\\par" in tex
         assert "\\begin{document}" in tex
         assert "\\end{document}" in tex
 
@@ -625,8 +650,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Vector Formulas}\\par" in tex
-        assert "\\textbf{Divergence}" in tex
+        assert "\\noindent Vector Formulas\\par" in tex
+        assert "\\noindent Divergence\\par" in tex
 
     def test_generate_sheet_with_columns(self, auth_client):
         """Test that columns parameter produces multicols environment."""
@@ -783,10 +808,11 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{ALGEBRA I}\\par" in tex
-        assert "\\noindent\\textbf{Linear Equations}\\par" in tex
+        assert "\\noindent ALGEBRA I\\par" in tex
+        assert "\\noindent Linear Equations\\par" in tex
         assert "\\section*{" not in tex
         assert "\\subsection*{" not in tex
+        assert "\\textbf{" not in tex
 
     def test_generate_sheet_adds_readable_block_comments(self, auth_client):
         """Generated LaTeX should include readable source comments around blocks."""
@@ -816,9 +842,9 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Vector Formulas}\\par" in tex
+        assert "\\noindent Vector Formulas\\par" in tex
         assert "% ===== BEGIN CATEGORY: Vector Formulas =====" in tex
-        assert "\\textbf{Dot Product}" in tex
+        assert "\\noindent Dot Product\\par" in tex
 
     def test_generate_sheet_uses_regrouped_pre_algebra_fraction_category(self, auth_client):
         """Pre-algebra ratios/proportions should live under the merged fractions category."""
@@ -831,8 +857,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Fractions, Ratios, and Proportions}\\par" in tex
-        assert "\\textbf{Unit Rate}" in tex
+        assert "\\noindent Fractions, Ratios, and Proportions\\par" in tex
+        assert "\\noindent Unit Rate\\par" in tex
 
     def test_generate_sheet_uses_regrouped_trig_foundation_category(self, auth_client):
         """Trig foundations taught together should be available under the broader grouped heading."""
@@ -845,8 +871,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Special Triangles and Basic Trig Relationships}\\par" in tex
-        assert "\\textbf{Primary Identity}" in tex
+        assert "\\noindent Special Triangles and Basic Trig Relationships\\par" in tex
+        assert "\\noindent Primary Identity\\par" in tex
 
     def test_generate_sheet_uses_regrouped_calc_one_theorem_category(self, auth_client):
         """Calc I theorem lookups should use the merged theorem category."""
@@ -859,7 +885,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Core Theorems of Calculus}\\par" in tex
+        assert "\\noindent Core Theorems of Calculus\\par" in tex
         assert "Part 1 (Leibniz)" in tex
 
     def test_generate_sheet_uses_regrouped_calc_two_integration_category(self, auth_client):
@@ -873,8 +899,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Integration Techniques and Improper Integrals}\\par" in tex
-        assert "\\textbf{Infinite Upper Bound}" in tex
+        assert "\\noindent Integration Techniques and Improper Integrals\\par" in tex
+        assert "\\noindent Infinite Upper Bound\\par" in tex
 
     def test_generate_sheet_uses_regrouped_calc_three_partial_derivative_category(self, auth_client):
         """Calc III optimization formulas should share the partial-derivatives grouping."""
@@ -887,8 +913,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Partial Derivatives and Optimization}\\par" in tex
-        assert "\\textbf{Lagrange Multipliers}" in tex
+        assert "\\noindent Partial Derivatives and Optimization\\par" in tex
+        assert "\\noindent Lagrange Multipliers\\par" in tex
 
     def test_generate_sheet_uses_regrouped_algebra_two_polynomial_category(self, auth_client):
         """Algebra II binomial formulas should live under the broader polynomial category."""
@@ -901,8 +927,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Polynomial Theorems and Binomial Expansion}\\par" in tex
-        assert "\\textbf{Expansion}" in tex
+        assert "\\noindent Polynomial Theorems and Binomial Expansion\\par" in tex
+        assert "\\noindent Expansion\\par" in tex
 
     def test_generate_sheet_uses_regrouped_precalculus_sequence_category(self, auth_client):
         """Precalculus binomial formulas should share the sequences-and-series grouping."""
@@ -915,8 +941,8 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\noindent\\textbf{Sequences, Series, and Binomial Theorem}\\par" in tex
-        assert "\\textbf{Binomial Expansion}" in tex
+        assert "\\noindent Sequences, Series, and Binomial Theorem\\par" in tex
+        assert "\\noindent Binomial Expansion\\par" in tex
 
     def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""

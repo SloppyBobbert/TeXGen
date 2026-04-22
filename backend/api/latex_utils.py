@@ -86,6 +86,7 @@ def get_spacing_values(spacing, font_size):
     return {
         "formula_gap": formula_gap,
         "baseline_skip": format_pt_value(baseline_pt),
+        "paragraph_skip": formula_gap,
     }
 
 
@@ -114,7 +115,7 @@ def append_source_comment(lines, comment):
 
 
 def append_text_heading(lines, text):
-    lines.append(r"\noindent\textbf{" + text + r"}\par")
+    lines.append(r"\noindent " + text + r"\par")
 
 
 def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
@@ -138,6 +139,7 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "\\pagestyle{empty}",
         "",
         f"\\setlength{{\\baselineskip}}{{{spacing_values['baseline_skip']}}}",
+        f"\\setlength{{\\parskip}}{{{spacing_values['paragraph_skip']}}}",
         "",
         "\\begin{document}",
         size_command,
@@ -182,6 +184,11 @@ def normalize_latex_layout(content, columns=2, font_size="10pt", margins="0.25in
     body = re.sub(r"^\\begin\{multicols\}\{\d+\}\s*", "", body, count=1)
     body = re.sub(r"^\\raggedcolumns\s*", "", body, count=1)
     body = re.sub(r"\s*\\end\{multicols\}\s*$", "", body, count=1)
+    formula_gap = get_spacing_values(spacing, font_size)["formula_gap"]
+    if formula_gap == "0pt":
+        body = re.sub(r"(?m)^\\vspace\{[^}]+\}\s*$\n?", "", body)
+    else:
+        body = re.sub(r"(?m)^\\vspace\{[^}]+\}\s*$", rf"\\vspace{{{formula_gap}}}", body)
     body = body.strip("\n")
 
     return header + body + ("\n" if body else "") + footer
@@ -246,7 +253,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
         else:
             escaped_name = escape_latex_text(name)
             body_lines.append(f"% Formula Block: {name}")
-            body_lines.append(r"\textbf{" + escaped_name + "}")
+            body_lines.append(r"\noindent " + escaped_name + r"\par")
             body_lines.append(r"\[" + r" \adjustbox{max width=\linewidth}{$" + latex + r"$} " + r"\]")
             if formula_gap != "0pt":
                 body_lines.append(r"\vspace{" + formula_gap + "}")

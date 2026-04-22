@@ -40,13 +40,13 @@ class CheatSheet(models.Model):
         if not problems:
             return ""
 
-        section_lines = [r"\noindent\textbf{Practice Problems}\par"]
+        section_lines = [r"\noindent Practice Problems\par"]
         for problem in problems:
             section_lines.append(
-                f"\\textbf{{Problem {problem.order}:}} {problem.question_latex}"
+                f"Problem {problem.order}: {problem.question_latex}"
             )
             if problem.answer_latex:
-                section_lines.append(f"\\textbf{{Answer:}} {problem.answer_latex}")
+                section_lines.append(f"Answer: {problem.answer_latex}")
             section_lines.append("")
 
         return "\n".join(section_lines).rstrip()
