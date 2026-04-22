@@ -54,6 +54,12 @@ export function useLatex(initialData) {
   const isGeneratingRef = useRef(false);
   const initialLoaded = useRef(false);
   const pdfBlobUrlRef = useRef(null);
+  const lastCompiledLayoutRef = useRef({
+    columns: initialData?.columns ?? 2,
+    fontSize: initialData?.fontSize ?? '10pt',
+    spacing: initialData?.spacing ?? 'large',
+    margins: initialData?.margins ?? '0.25in',
+  });
 
   // Revoke the object URL when the component unmounts to prevent memory leaks
   useEffect(() => {
@@ -140,14 +146,14 @@ export function useLatex(initialData) {
     };
   }, [title, content, columns, fontSize, spacing, margins]);
 
-  const compileLatexContent = useCallback(async (latexContent) => {
+  const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
     const response = await fetch('/api/compile/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
       },
-      body: JSON.stringify({ content: latexContent }),
+      body: JSON.stringify({ content: latexContent, ...layoutOptions }),
     });
 
     if (!response.ok) {
@@ -163,6 +169,12 @@ export function useLatex(initialData) {
     setPdfBlob(pdfBlobUrlRef.current);
   }, [authTokens]);
 
+  const hasLayoutChanges =
+    lastCompiledLayoutRef.current.columns !== columns ||
+    lastCompiledLayoutRef.current.fontSize !== fontSize ||
+    lastCompiledLayoutRef.current.spacing !== spacing ||
+    lastCompiledLayoutRef.current.margins !== margins;
+
   const handleCompileOnly = useCallback(async () => {
     if (isCompilingRef.current) return;
     
@@ -171,7 +183,13 @@ export function useLatex(initialData) {
     setCompileError(null);
 
     try {
-      await compileLatexContent(content);
+      await compileLatexContent(content, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -179,7 +197,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [compileLatexContent, content]);
+  }, [columns, compileLatexContent, content, fontSize, margins, spacing]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
@@ -214,7 +232,13 @@ export function useLatex(initialData) {
     setIsCompiling(true);
     setCompileError(null);
     try {
-      await compileLatexContent(contentToCompile);
+      await compileLatexContent(contentToCompile, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -222,7 +246,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [compileLatexContent, content, margins, saveToHistory]);
+  }, [columns, compileLatexContent, content, fontSize, margins, saveToHistory, spacing]);
 
   const handleGenerateSheet = async (selectedList) => {
     if (isGeneratingRef.current) return;
@@ -270,7 +294,13 @@ export function useLatex(initialData) {
           'Content-Type': 'application/json',
           ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          columns,
+          font_size: fontSize,
+          spacing,
+          margins,
+        }),
       });
       if (!response.ok) throw new Error('Failed to compile LaTeX');
       const blob = await response.blob();
@@ -331,6 +361,7 @@ export function useLatex(initialData) {
     content,
     setContent,
     contentModified,
+    hasLayoutChanges,
     handleContentChange,
     columns,
     setColumns,

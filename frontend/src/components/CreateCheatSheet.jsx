@@ -604,6 +604,7 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
     setTitle,
     content,
     contentModified,
+    hasLayoutChanges,
     handleContentChange,
     columns,
     setColumns,
@@ -711,7 +712,7 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
           <LatexEditor
             content={content}
             onChange={handleContentChange}
-            isModified={contentModified}
+            isModified={contentModified || hasLayoutChanges}
             compileError={compileError}
           />
           <div className="compile-button-column">
