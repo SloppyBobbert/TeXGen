@@ -8,15 +8,11 @@ LATEX_HEADER = r"""\documentclass[fleqn]{article}
 \usepackage{amsmath, amssymb}
 \usepackage{enumitem} 
 \usepackage{multicol}
-\usepackage{titlesec}
 \usepackage{adjustbox}
 
 \setlength{\mathindent}{0pt}
 \setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}
 \pagestyle{empty}
-
-\titlespacing*{\subsection}{0pt}{0pt}{0pt}
-\titlespacing*{\section}{0pt}{0pt}{0pt}
 
 \begin{document}
 \scriptsize
@@ -77,16 +73,6 @@ def get_document_class(font_size):
     return "article", "12pt"
 
 
-def get_title_sizes(font_size):
-    body_size = parse_pt_value(font_size, 10.0)
-    section_size = body_size + 0.8
-    subsection_size = body_size + 0.4
-    return (
-        (format_pt_value(section_size), format_pt_value(section_size + 0.8)),
-        (format_pt_value(subsection_size), format_pt_value(subsection_size + 0.6)),
-    )
-
-
 def get_spacing_values(spacing, font_size):
     if spacing in SPACING_MAP:
         formula_gap, baseline_adjustment = SPACING_MAP[spacing]
@@ -100,10 +86,6 @@ def get_spacing_values(spacing, font_size):
     return {
         "formula_gap": formula_gap,
         "baseline_skip": format_pt_value(baseline_pt),
-        "section_before": "0pt",
-        "section_after": "0pt",
-        "subsection_before": "0pt",
-        "subsection_after": "0pt",
     }
 
 
@@ -131,13 +113,16 @@ def append_source_comment(lines, comment):
     lines.append("%")
 
 
+def append_text_heading(lines, text):
+    lines.append(r"\noindent\textbf{" + text + r"}\par")
+
+
 def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
     """
     Build a dynamic LaTeX header based on user-selected options.
     """
     size_command = get_body_font_command(font_size)
     spacing_values = get_spacing_values(spacing, font_size)
-    (section_font, section_leading), (subsection_font, subsection_leading) = get_title_sizes(font_size)
     doc_class, doc_class_size = get_document_class(font_size)
 
     header_lines = [
@@ -146,17 +131,12 @@ def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing=
         "\\usepackage{amsmath, amssymb}",
         "\\usepackage{enumitem}",
         "\\usepackage{multicol}",
-        "\\usepackage{titlesec}",
         "\\usepackage{adjustbox}",  # For auto-scaling equations to fit column width
         "",
         "\\setlength{\\mathindent}{0pt}",
         "\\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}",
         "\\pagestyle{empty}",
         "",
-        f"\\titleformat{{\\section}}{{\\normalfont\\bfseries\\fontsize{{{section_font}}}{{{section_leading}}}\\selectfont}}{{}}{{0pt}}{{}}",
-        f"\\titleformat{{\\subsection}}{{\\normalfont\\bfseries\\fontsize{{{subsection_font}}}{{{subsection_leading}}}\\selectfont}}{{}}{{0pt}}{{}}",
-        f"\\titlespacing*{{\\section}}{{0pt}}{{{spacing_values['section_before']}}}{{{spacing_values['section_after']}}}",
-        f"\\titlespacing*{{\\subsection}}{{0pt}}{{{spacing_values['subsection_before']}}}{{{spacing_values['subsection_after']}}}",
         f"\\setlength{{\\baselineskip}}{{{spacing_values['baseline_skip']}}}",
         "",
         "\\begin{document}",
@@ -240,8 +220,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
                 append_source_comment(body_lines, f"END CLASS: {current_class}")
             escaped_class = escape_latex_text(class_name)
             append_source_comment(body_lines, f"BEGIN CLASS: {class_name}")
-            body_lines.append("\\section*{" + escaped_class + "}")
-            body_lines.append("%")  # Suppress paragraph break after section
+            append_text_heading(body_lines, escaped_class)
             current_class = class_name
             current_category = None
 
@@ -255,8 +234,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
             if not is_special:
                 escaped_category = escape_latex_text(category)
                 append_source_comment(body_lines, f"BEGIN CATEGORY: {category}")
-                body_lines.append("\\subsection*{" + escaped_category + "}")
-                body_lines.append("%")
+                append_text_heading(body_lines, escaped_category)
                 body_lines.append(r"\begin{flushleft}")
                 in_flushleft = True
             current_category = category
