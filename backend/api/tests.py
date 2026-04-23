@@ -271,6 +271,42 @@ class TestLatexUtils:
         assert "\\vspace{0.6pt}" in normalized
         assert "\\vspace{1.2pt}" not in normalized
 
+    def test_normalize_latex_layout_rewrites_legacy_generated_bold_labels(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\scriptsize\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% ===== BEGIN CLASS: ALGEBRA I =====\n"
+            "\\noindent\\textbf{ALGEBRA I}\\par\n"
+            "% ===== BEGIN CATEGORY: Linear Equations =====\n"
+            "\\noindent\\textbf{Linear Equations}\\par\n"
+            "\\begin{flushleft}\n"
+            "% Formula Block: Slope Formula\n"
+            "\\textbf{Slope Formula}\n"
+            "\\[ x=y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{flushleft}\n"
+            "\\end{multicols}\n"
+            "\\textbf{Problem 1:} x+y\n"
+            "\\textbf{Answer:} z\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+
+        assert "\\noindent ALGEBRA I\\par" in normalized
+        assert "\\noindent Linear Equations\\par" in normalized
+        assert "\\noindent Slope Formula\\par" in normalized
+        assert "Problem 1: x+y" in normalized
+        assert "Answer: z" in normalized
+        assert "\\noindent\\textbf{" not in normalized
+        assert "\\textbf{Slope Formula}" not in normalized
+        assert "\\textbf{Problem 1:}" not in normalized
+        assert "\\textbf{Answer:}" not in normalized
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\usepackage{titlesec}" not in header
