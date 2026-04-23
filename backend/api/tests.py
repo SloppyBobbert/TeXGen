@@ -7,7 +7,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
-from api.latex_utils import LATEX_HEADER, build_dynamic_header, normalize_latex_layout
+from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 
 
@@ -348,6 +348,20 @@ class TestLatexUtils:
         assert "\\setlength{\\baselineskip}{11.1pt}" in header
         assert "\\setlength{\\parskip}{0.6pt}" in header
         assert "\\begin{multicols}{5}" in header
+
+    def test_build_latex_for_formulas_includes_editable_layout_comments(self):
+        tex = build_latex_for_formulas(
+            [{"class_name": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula", "latex": "m=\\frac{y_2-y_1}{x_2-x_1}"}],
+            columns=3,
+            font_size="10.5pt",
+            margins="0.5in",
+            spacing="0.6pt",
+        )
+
+        assert "% @cheatsheet-layout columns: 3 | change layout options up top to update columns" in tex
+        assert "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size" in tex
+        assert "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing" in tex
+        assert "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins" in tex
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -1123,6 +1137,50 @@ class TestCompileEndpoint:
         assert "\\textbf{Example}" not in tex
         assert "\\vspace{0.6pt}" in tex
         assert "\\vspace{1.2pt}" not in tex
+
+    def test_compile_normalize_only_refreshes_layout_comments_from_request_values(self, api_client):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "% @cheatsheet-layout columns: 5 | change layout options up top to update columns\n"
+            "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size\n"
+            "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing\n"
+            "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins\n"
+            "%\n"
+            "Body line\n"
+            "\\end{document}"
+        )
+
+        resp = api_client.post(
+            "/api/compile/",
+            {
+                "content": raw,
+                "normalize_only": True,
+                "columns": 2,
+                "font_size": "8pt",
+                "spacing": "tiny",
+                "margins": "0.25in",
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        tex = data["tex_code"]
+        assert data["layout"] == {
+            "columns": 2,
+            "font_size": "8pt",
+            "spacing": "tiny",
+            "margins": "0.25in",
+        }
+        assert "\\begin{multicols}{2}" in tex
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
+        assert "\\setlength{\\parskip}{0pt}" in tex
+        assert "% @cheatsheet-layout columns: 2 | change layout options up top to update columns" in tex
+        assert "% @cheatsheet-layout font_size: 8pt | change layout options up top to update text size" in tex
+        assert "% @cheatsheet-layout spacing: tiny | change layout options up top to update spacing" in tex
+        assert "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins" in tex
 
 
 # ── Auth Endpoint Tests ──────────────────────────────────────────────

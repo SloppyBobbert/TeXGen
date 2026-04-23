@@ -35,6 +35,14 @@ def is_valid_custom_pt(value, min_value, max_value):
         return False
     return min_value <= amount <= max_value
 
+
+def is_truthy(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
 def validate_layout_params(columns, font_size, margins, spacing):
     try:
         columns = max(1, min(5, int(columns)))
@@ -162,7 +170,7 @@ def compile_latex(request):
     """
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
-    normalize_only = bool(request.data.get("normalize_only"))
+    normalize_only = is_truthy(request.data.get("normalize_only"))
     columns = request.data.get("columns", 2)
     font_size = request.data.get("font_size", "10pt")
     margins = request.data.get("margins", "0.25in")
@@ -180,7 +188,15 @@ def compile_latex(request):
     content = normalize_latex_layout(content, columns, font_size, margins, spacing)
 
     if normalize_only:
-        return Response({"tex_code": content})
+        return Response({
+            "tex_code": content,
+            "layout": {
+                "columns": columns,
+                "font_size": font_size,
+                "margins": margins,
+                "spacing": spacing,
+            },
+        })
     
     with tempfile.TemporaryDirectory() as tempdir:
         tex_file_path = os.path.join(tempdir, "document.tex")

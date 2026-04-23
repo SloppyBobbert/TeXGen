@@ -45,6 +45,7 @@ LEGACY_HEADING_PATTERN = re.compile(r"(?m)^\\noindent\\textbf\{([^{}]+)\}\\par\s
 LEGACY_FORMULA_LABEL_PATTERN = re.compile(r"(?m)^\\textbf\{([^{}]+)\}\s*$")
 LEGACY_PROBLEM_LABEL_PATTERN = re.compile(r"\\textbf\{Problem ([^}]*)\}\s*")
 LEGACY_ANSWER_LABEL_PATTERN = re.compile(r"\\textbf\{Answer:\}\s*")
+APP_LAYOUT_COMMENT_LINE_PATTERN = re.compile(r"(?m)^% @cheatsheet-layout .*\n?")
 
 
 def parse_pt_value(value, default):
@@ -126,6 +127,16 @@ def append_text_heading(lines, text):
     lines.append(r"\noindent " + text + r"\par")
 
 
+def build_layout_comment_block(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
+    return [
+        f"% @cheatsheet-layout columns: {columns} | change layout options up top to update columns",
+        f"% @cheatsheet-layout font_size: {font_size} | change layout options up top to update text size",
+        f"% @cheatsheet-layout spacing: {spacing} | change layout options up top to update spacing",
+        f"% @cheatsheet-layout margins: {margins} | change layout options up top to update margins",
+        "%",
+    ]
+
+
 def build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large"):
     """
     Build a dynamic LaTeX header based on user-selected options.
@@ -196,12 +207,16 @@ def normalize_latex_layout(content, columns=2, font_size="10pt", margins="0.25in
     body = re.sub(LEGACY_FORMULA_LABEL_PATTERN, r"\\noindent \1\\par", body)
     body = re.sub(LEGACY_PROBLEM_LABEL_PATTERN, r"Problem \1 ", body)
     body = re.sub(LEGACY_ANSWER_LABEL_PATTERN, "Answer: ", body)
+    body = re.sub(APP_LAYOUT_COMMENT_LINE_PATTERN, "", body)
     formula_gap = get_spacing_values(spacing, font_size)["formula_gap"]
     if formula_gap == "0pt":
         body = re.sub(r"(?m)^\\vspace\{[^}]+\}\s*$\n?", "", body)
     else:
         body = re.sub(r"(?m)^\\vspace\{[^}]+\}\s*$", rf"\\vspace{{{formula_gap}}}", body)
     body = body.strip("\n")
+
+    layout_comment_block = "\n".join(build_layout_comment_block(columns, font_size, margins, spacing))
+    body = layout_comment_block + ("\n" + body if body else "")
 
     return header + body + ("\n" if body else "") + footer
 
@@ -219,6 +234,7 @@ def build_latex_for_formulas(selected_formulas, columns=2, font_size="10pt", mar
         return header + footer
     
     body_lines = []
+    body_lines.extend(build_layout_comment_block(columns, font_size, margins, spacing))
     current_class = None
     current_category = None
     in_flushleft = False
