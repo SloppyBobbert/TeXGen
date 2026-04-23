@@ -1060,6 +1060,44 @@ class TestCompileEndpoint:
         )
         assert resp.status_code == 404
 
+    def test_compile_normalize_only_returns_updated_tex_code(self, api_client):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\textbf{Example}\n"
+            "\\[ x+y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        resp = api_client.post(
+            "/api/compile/",
+            {
+                "content": raw,
+                "normalize_only": True,
+                "font_size": "8pt",
+                "spacing": "0.6pt",
+                "columns": 2,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
+        assert "\\setlength{\\parskip}{0.6pt}" in tex
+        assert "\\setlength{\\baselineskip}{8.6pt}" in tex
+        assert "\\noindent Example\\par" in tex
+        assert "\\textbf{Example}" not in tex
+        assert "\\vspace{0.6pt}" in tex
+        assert "\\vspace{1.2pt}" not in tex
+
 
 # ── Auth Endpoint Tests ──────────────────────────────────────────────
 

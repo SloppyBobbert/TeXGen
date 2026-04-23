@@ -162,6 +162,7 @@ def compile_latex(request):
     """
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
+    normalize_only = bool(request.data.get("normalize_only"))
     columns = request.data.get("columns", 2)
     font_size = request.data.get("font_size", "10pt")
     margins = request.data.get("margins", "0.25in")
@@ -177,6 +178,9 @@ def compile_latex(request):
         return Response({"error": "No LaTeX content provided"}, status=400)
 
     content = normalize_latex_layout(content, columns, font_size, margins, spacing)
+
+    if normalize_only:
+        return Response({"tex_code": content})
     
     with tempfile.TemporaryDirectory() as tempdir:
         tex_file_path = os.path.join(tempdir, "document.tex")

@@ -169,6 +169,25 @@ export function useLatex(initialData) {
     setPdfBlob(pdfBlobUrlRef.current);
   }, [authTokens]);
 
+  const normalizeLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
+    const response = await fetch('/api/compile/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
+      },
+      body: JSON.stringify({ content: latexContent, normalize_only: true, ...layoutOptions }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(formatCompileError(errorData));
+    }
+
+    const data = await response.json();
+    return data.tex_code || latexContent;
+  }, [authTokens]);
+
   const hasLayoutChanges =
     lastCompiledLayoutRef.current.columns !== columns ||
     lastCompiledLayoutRef.current.fontSize !== fontSize ||
@@ -183,7 +202,14 @@ export function useLatex(initialData) {
     setCompileError(null);
 
     try {
-      await compileLatexContent(content, {
+      const normalizedContent = await normalizeLatexContent(content, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      setContent(normalizedContent);
+      await compileLatexContent(normalizedContent, {
         columns,
         font_size: fontSize,
         spacing,
@@ -197,7 +223,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [columns, compileLatexContent, content, fontSize, margins, spacing]);
+  }, [columns, compileLatexContent, content, fontSize, margins, normalizeLatexContent, spacing]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     if (isCompilingRef.current) return;
