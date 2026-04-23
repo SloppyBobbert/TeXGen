@@ -314,6 +314,7 @@ const FormulaSelection = ({
 );
 
 const COMPILE_ERROR_LINE_REGEX = /document\.tex:(\d+):/g;
+const APP_LAYOUT_COMMENT_PREFIX = '% @cheatsheet-layout';
 
 const escapeHtml = (value = '') => value
   .replace(/&/g, '&amp;')
@@ -323,6 +324,10 @@ const escapeHtml = (value = '') => value
   .replace(/'/g, '&#39;');
 
 const highlightLatexLine = (line = '') => {
+  if (line.trimStart().startsWith(APP_LAYOUT_COMMENT_PREFIX)) {
+    return `<span class="latex-token app-comment">${escapeHtml(line)}</span>`;
+  }
+
   const placeholders = [];
   const stashToken = (html) => {
     const placeholder = `LATEXTOKEN${placeholders.length}PLACEHOLDER`;
