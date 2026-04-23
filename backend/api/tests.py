@@ -307,6 +307,32 @@ class TestLatexUtils:
         assert "\\textbf{Problem 1:}" not in normalized
         assert "\\textbf{Answer:}" not in normalized
 
+    def test_normalize_latex_layout_strips_mid_body_font_overrides(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\noindent Example\\par\n"
+            "\\[ x+y \\]\n"
+            "\\small\n"
+            "Manual note\n"
+            "\\fontsize{14pt}{16pt}\\selectfont\n"
+            "Another line\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="8pt", margins="0.25in", spacing="0.6pt")
+
+        assert normalized.count("\\fontsize{8pt}{8.8pt}\\selectfont") == 1
+        assert "\\small" not in normalized
+        assert "\\fontsize{14pt}{16pt}\\selectfont" not in normalized
+        assert "Manual note" in normalized
+        assert "Another line" in normalized
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\usepackage{titlesec}" not in header

@@ -34,7 +34,11 @@ SPACING_MAP = {
 FONT_SIZE_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)pt$")
 SPACING_PATTERN = re.compile(r"^(\d+(?:\.\d+)?)pt$")
 BODY_FONT_COMMAND_PATTERN = re.compile(
-    r"^\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*",
+    r"\\fontsize\{[^}]+\}\{[^}]+\}\\selectfont\s*",
+    re.MULTILINE,
+)
+NAMED_BODY_FONT_COMMAND_PATTERN = re.compile(
+    r"\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)\b\s*",
     re.MULTILINE,
 )
 LEGACY_HEADING_PATTERN = re.compile(r"(?m)^\\noindent\\textbf\{([^{}]+)\}\\par\s*$")
@@ -183,8 +187,8 @@ def normalize_latex_layout(content, columns=2, font_size="10pt", margins="0.25in
         return header + body + ("\n" if body else "") + footer
 
     body = content.split(r"\begin{document}", 1)[1].split(r"\end{document}", 1)[0].strip()
-    body = re.sub(r"^\\(?:tiny|scriptsize|footnotesize|small|normalsize)\b\s*", "", body, count=1)
-    body = re.sub(BODY_FONT_COMMAND_PATTERN, "", body, count=1)
+    body = re.sub(NAMED_BODY_FONT_COMMAND_PATTERN, "", body)
+    body = re.sub(BODY_FONT_COMMAND_PATTERN, "", body)
     body = re.sub(r"^\\begin\{multicols\}\{\d+\}\s*", "", body, count=1)
     body = re.sub(r"^\\raggedcolumns\s*", "", body, count=1)
     body = re.sub(r"\s*\\end\{multicols\}\s*$", "", body, count=1)
