@@ -84,6 +84,8 @@ This repository includes a lightweight static project page in `docs/` for GitHub
 
 The hosted static page does not run the full app by itself. The full experience still requires the React frontend and Django backend running locally or in Docker.
 
+![Cheat Sheet Generator editor preview](docs/app-preview.png)
+
 ## API Endpoints
 
 ### Formula Generation
