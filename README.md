@@ -69,6 +69,7 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 │   └── package.json
 ├── docker-compose.yml
 ├── docs/                          # Static GitHub Pages project page
+│   ├── app-preview.png
 │   ├── index.html
 │   └── styles.css
 └── README.md
