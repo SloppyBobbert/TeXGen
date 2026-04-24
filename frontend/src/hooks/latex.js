@@ -167,23 +167,6 @@ export function useLatex(initialData) {
     };
   }, [title, content, columns, fontSize, spacing, margins]);
 
-  useEffect(() => {
-    if (!initialLoaded.current) return;
-    if (!content?.trim()) return;
-    if (!hasLayoutChanges) return;
-    if (isCompilingRef.current || isGeneratingRef.current) return;
-
-    clearAutoCompileTimer();
-
-    autoCompileTimerRef.current = setTimeout(() => {
-      handleCompileOnly();
-    }, AUTO_COMPILE_DEBOUNCE_MS);
-
-    return () => {
-      clearAutoCompileTimer();
-    };
-  }, [clearAutoCompileTimer, content, hasLayoutChanges, handleCompileOnly]);
-
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
     const response = await fetch('/api/compile/', {
       method: 'POST',
@@ -263,6 +246,23 @@ export function useLatex(initialData) {
       isCompilingRef.current = false;
     }
   }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, margins, normalizeLatexContent, spacing]);
+
+  useEffect(() => {
+    if (!initialLoaded.current) return;
+    if (!content?.trim()) return;
+    if (!hasLayoutChanges) return;
+    if (isCompilingRef.current || isGeneratingRef.current) return;
+
+    clearAutoCompileTimer();
+
+    autoCompileTimerRef.current = setTimeout(() => {
+      handleCompileOnly();
+    }, AUTO_COMPILE_DEBOUNCE_MS);
+
+    return () => {
+      clearAutoCompileTimer();
+    };
+  }, [clearAutoCompileTimer, content, hasLayoutChanges, handleCompileOnly]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     clearAutoCompileTimer();
