@@ -38,6 +38,7 @@ function App() {
     }
     return DEFAULT_SHEET;
   });
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
@@ -57,6 +58,7 @@ function App() {
 
   const handleReset = () => {
     setCheatSheet(DEFAULT_SHEET);
+    setEditorSessionKey((prev) => prev + 1);
     localStorage.setItem('currentCheatSheet', JSON.stringify(DEFAULT_SHEET));
     localStorage.removeItem('cheatSheetData');
     localStorage.removeItem('cheatSheetLatex');
@@ -145,6 +147,7 @@ function App() {
       selectedFormulas: sheet.selected_formulas || [],
     };
     setCheatSheet(editSheet);
+    setEditorSessionKey((prev) => prev + 1);
     localStorage.setItem('currentCheatSheet', JSON.stringify(editSheet));
     localStorage.removeItem('cheatSheetData');
     localStorage.removeItem('cheatSheetLatex');
@@ -184,6 +187,7 @@ function App() {
         <Routes>
           <Route path="/" element={
             <CreateCheatSheet 
+              key={`${cheatSheet.id ?? 'new'}-${editorSessionKey}`}
               initialData={cheatSheet} 
               onSave={handleSave} 
               onReset={handleReset}
