@@ -15,7 +15,8 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **PDF Compilation**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as `.tex` source or `.pdf`
 - **Auto-Save**: Progress automatically saved to browser localStorage - survives page refresh
-- **Version History**: Navigate through last 3 compiled versions with back/forward buttons
+- **Version History**: Navigate through the last 7 saved versions with back/forward buttons
+- **Layout Auto-Recompile**: Recompile the current sheet automatically after layout changes such as columns, spacing, margins, or font size
 
 ### Formatting Options
 - **Column Layout**: Single, two, or three column layouts with auto-scaling formulas that fit within column boundaries
@@ -67,8 +68,21 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 │   │   └── App.css
 │   └── package.json
 ├── docker-compose.yml
+├── docs/                          # Static GitHub Pages project page
+│   ├── index.html
+│   └── styles.css
 └── README.md
 ```
+
+## Project Page
+
+This repository includes a lightweight static project page in `docs/` for GitHub Pages.
+
+- Source: `docs/index.html` and `docs/styles.css`
+- Deployment: `.github/workflows/pages.yml`
+- Purpose: project overview only
+
+The hosted static page does not run the full app by itself. The full experience still requires the React frontend and Django backend running locally or in Docker.
 
 ## API Endpoints
 
@@ -143,6 +157,12 @@ npm run dev
 ```
 
 The frontend will be available at `http://localhost:5173/`.
+
+### Static Project Page
+
+If GitHub Pages is enabled for this repository, the static overview page is deployed from the `docs/` directory through the Pages workflow.
+
+For local preview, open `docs/index.html` directly in a browser.
 
 ### Docker
 
