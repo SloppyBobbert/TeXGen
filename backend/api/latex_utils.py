@@ -46,6 +46,9 @@ LEGACY_FORMULA_LABEL_PATTERN = re.compile(r"(?m)^\\textbf\{([^{}]+)\}\s*$")
 LEGACY_PROBLEM_LABEL_PATTERN = re.compile(r"\\textbf\{Problem ([^}]*)\}\s*")
 LEGACY_ANSWER_LABEL_PATTERN = re.compile(r"\\textbf\{Answer:\}\s*")
 APP_LAYOUT_COMMENT_LINE_PATTERN = re.compile(r"(?m)^% @cheatsheet-layout .*\n?")
+APP_LAYOUT_COMMENT_BLOCK_PATTERN = re.compile(
+    r"(?m)(?:^% @cheatsheet-layout .*\n){4}^%\n?"
+)
 
 
 def parse_pt_value(value, default):
@@ -207,6 +210,7 @@ def normalize_latex_layout(content, columns=2, font_size="10pt", margins="0.25in
     body = re.sub(LEGACY_FORMULA_LABEL_PATTERN, r"\\noindent \1\\par", body)
     body = re.sub(LEGACY_PROBLEM_LABEL_PATTERN, r"Problem \1 ", body)
     body = re.sub(LEGACY_ANSWER_LABEL_PATTERN, "Answer: ", body)
+    body = re.sub(APP_LAYOUT_COMMENT_BLOCK_PATTERN, "", body)
     body = re.sub(APP_LAYOUT_COMMENT_LINE_PATTERN, "", body)
     formula_gap = get_spacing_values(spacing, font_size)["formula_gap"]
     if formula_gap == "0pt":

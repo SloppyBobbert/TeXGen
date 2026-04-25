@@ -333,6 +333,29 @@ class TestLatexUtils:
         assert "Manual note" in normalized
         assert "Another line" in normalized
 
+    def test_normalize_latex_layout_does_not_accumulate_layout_spacer_comments(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "% @cheatsheet-layout columns: 2 | change layout options up top to update columns\n"
+            "% @cheatsheet-layout font_size: 10pt | change layout options up top to update text size\n"
+            "% @cheatsheet-layout spacing: large | change layout options up top to update spacing\n"
+            "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins\n"
+            "%\n"
+            "Body line\n"
+            "\\end{document}"
+        )
+
+        normalized_once = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="large")
+        normalized_twice = normalize_latex_layout(normalized_once, columns=2, font_size="10pt", margins="0.25in", spacing="large")
+
+        assert normalized_twice.count("% @cheatsheet-layout columns:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout font_size:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout spacing:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout margins:") == 1
+        assert normalized_twice.count("%\nBody line") == 1
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\usepackage{titlesec}" not in header
