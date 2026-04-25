@@ -5,15 +5,13 @@ CALCULUS II formulas
 CLASS_NAME = "CALCULUS II"
 
 FORMULAS = {
-    "Integration Techniques": [
+    "Integration Techniques and Improper Integrals": [
         {"name": "U-Substitution", "latex": r"\int f(g(x))g'(x)\,dx=\int f(u)\,du\ (u=g(x))"},
         {"name": "Integration by Parts", "latex": r"\int u\,dv=uv-\int v\,du"},
         {"name": "Trig Substitution 1", "latex": r"\sqrt{a^2-x^2}\to x=a\sin\theta"},
         {"name": "Trig Substitution 2", "latex": r"\sqrt{a^2+x^2}\to x=a\tan\theta"},
         {"name": "Trig Substitution 3", "latex": r"\sqrt{x^2-a^2}\to x=a\sec\theta"},
         {"name": "Partial Fractions", "latex": r"\frac{p(x)}{(x-a)(x-b)}=\frac{A}{x-a}+\frac{B}{x-b}"},
-    ],
-    "Improper Integrals": [
         {"name": "Infinite Upper Bound", "latex": r"\int_a^{\infty}f\,dx=\lim_{t\to\infty}\int_a^t f\,dx"},
         {"name": "Infinite Both Bounds", "latex": r"\int_{-\infty}^{\infty}f\,dx=\int_{-\infty}^c f\,dx+\int_c^{\infty}f\,dx"},
         {"name": "Unbounded Integrand", "latex": r"\int_a^b f\,dx=\lim_{t\to c}\int_a^t f\,dx\text{ if }f\text{ unbounded at }c"},

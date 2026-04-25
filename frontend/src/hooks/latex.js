@@ -3,6 +3,7 @@ import AuthContext from '../context/AuthContext';
 
 const STORAGE_KEY = 'cheatSheetLatex';
 const SAVE_DEBOUNCE_MS = 500;
+const AUTO_COMPILE_DEBOUNCE_MS = 450;
 
 function loadLatexStorage() {
   try {
@@ -54,6 +55,13 @@ export function useLatex(initialData) {
   const isGeneratingRef = useRef(false);
   const initialLoaded = useRef(false);
   const pdfBlobUrlRef = useRef(null);
+  const autoCompileTimerRef = useRef(null);
+  const lastCompiledLayoutRef = useRef({
+    columns: initialData?.columns ?? 2,
+    fontSize: initialData?.fontSize ?? '10pt',
+    spacing: initialData?.spacing ?? 'large',
+    margins: initialData?.margins ?? '0.25in',
+  });
 
   // Revoke the object URL when the component unmounts to prevent memory leaks
   useEffect(() => {
@@ -66,6 +74,13 @@ export function useLatex(initialData) {
 
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < history.length - 1;
+
+  const clearAutoCompileTimer = useCallback(() => {
+    if (autoCompileTimerRef.current) {
+      clearTimeout(autoCompileTimerRef.current);
+      autoCompileTimerRef.current = null;
+    }
+  }, []);
 
   const goBack = useCallback(() => {
     if (historyIndex > 0) {
@@ -101,7 +116,7 @@ export function useLatex(initialData) {
 
   useEffect(() => {
     if (initialLoaded.current) return;
-    
+
     const saved = loadLatexStorage();
     if (saved && initialData?.content == null) {
       initialLoaded.current = true;
@@ -111,6 +126,12 @@ export function useLatex(initialData) {
       setFontSize(saved.fontSize ?? '10pt');
       setSpacing(saved.spacing ?? 'large');
       setMargins(saved.margins ?? '0.25in');
+      lastCompiledLayoutRef.current = {
+        columns: saved.columns ?? 2,
+        fontSize: saved.fontSize ?? '10pt',
+        spacing: saved.spacing ?? 'large',
+        margins: saved.margins ?? '0.25in',
+      };
     } else if (initialData) {
       initialLoaded.current = true;
       setTitle(initialData.title ?? '');
@@ -119,6 +140,12 @@ export function useLatex(initialData) {
       setFontSize(initialData.fontSize ?? '10pt');
       setSpacing(initialData.spacing ?? 'large');
       setMargins(initialData.margins ?? '0.25in');
+      lastCompiledLayoutRef.current = {
+        columns: initialData.columns ?? 2,
+        fontSize: initialData.fontSize ?? '10pt',
+        spacing: initialData.spacing ?? 'large',
+        margins: initialData.margins ?? '0.25in',
+      };
     }
   }, [initialData]);
 
@@ -140,14 +167,14 @@ export function useLatex(initialData) {
     };
   }, [title, content, columns, fontSize, spacing, margins]);
 
-  const compileLatexContent = useCallback(async (latexContent) => {
+  const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
     const response = await fetch('/api/compile/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
       },
-      body: JSON.stringify({ content: latexContent }),
+      body: JSON.stringify({ content: latexContent, ...layoutOptions }),
     });
 
     if (!response.ok) {
@@ -163,7 +190,33 @@ export function useLatex(initialData) {
     setPdfBlob(pdfBlobUrlRef.current);
   }, [authTokens]);
 
+  const normalizeLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
+    const response = await fetch('/api/compile/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
+      },
+      body: JSON.stringify({ content: latexContent, normalize_only: true, ...layoutOptions }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(formatCompileError(errorData));
+    }
+
+    const data = await response.json();
+    return data.tex_code || latexContent;
+  }, [authTokens]);
+
+  const hasLayoutChanges =
+    lastCompiledLayoutRef.current.columns !== columns ||
+    lastCompiledLayoutRef.current.fontSize !== fontSize ||
+    lastCompiledLayoutRef.current.spacing !== spacing ||
+    lastCompiledLayoutRef.current.margins !== margins;
+
   const handleCompileOnly = useCallback(async () => {
+    clearAutoCompileTimer();
     if (isCompilingRef.current) return;
     
     isCompilingRef.current = true;
@@ -171,7 +224,20 @@ export function useLatex(initialData) {
     setCompileError(null);
 
     try {
-      await compileLatexContent(content);
+      const normalizedContent = await normalizeLatexContent(content, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      setContent(normalizedContent);
+      await compileLatexContent(normalizedContent, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -179,9 +245,27 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [compileLatexContent, content]);
+  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, margins, normalizeLatexContent, spacing]);
+
+  useEffect(() => {
+    if (!initialLoaded.current) return;
+    if (!content?.trim()) return;
+    if (!hasLayoutChanges) return;
+    if (isCompilingRef.current || isGeneratingRef.current) return;
+
+    clearAutoCompileTimer();
+
+    autoCompileTimerRef.current = setTimeout(() => {
+      handleCompileOnly();
+    }, AUTO_COMPILE_DEBOUNCE_MS);
+
+    return () => {
+      clearAutoCompileTimer();
+    };
+  }, [clearAutoCompileTimer, content, hasLayoutChanges, handleCompileOnly]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
+    clearAutoCompileTimer();
     if (isCompilingRef.current) return;
     
     let contentToCompile = latexContent || content;
@@ -214,7 +298,13 @@ export function useLatex(initialData) {
     setIsCompiling(true);
     setCompileError(null);
     try {
-      await compileLatexContent(contentToCompile);
+      await compileLatexContent(contentToCompile, {
+        columns,
+        font_size: fontSize,
+        spacing,
+        margins,
+      });
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -222,9 +312,10 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [compileLatexContent, content, margins, saveToHistory]);
+  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, margins, saveToHistory, spacing]);
 
   const handleGenerateSheet = async (selectedList) => {
+    clearAutoCompileTimer();
     if (isGeneratingRef.current) return;
     if (selectedList.length === 0) {
       alert('Please select at least one category first.');
@@ -262,6 +353,7 @@ export function useLatex(initialData) {
   };
 
   const handleDownloadPDF = async () => {
+    clearAutoCompileTimer();
     setIsLoading(true);
     try {
       const response = await fetch('/api/compile/', {
@@ -270,7 +362,13 @@ export function useLatex(initialData) {
           'Content-Type': 'application/json',
           ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
         },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          columns,
+          font_size: fontSize,
+          spacing,
+          margins,
+        }),
       });
       if (!response.ok) throw new Error('Failed to compile LaTeX');
       const blob = await response.blob();
@@ -307,6 +405,7 @@ export function useLatex(initialData) {
   };
 
   const clearLatex = () => {
+    clearAutoCompileTimer();
     setTitle('');
     setContent('');
     setContentModified(false);
@@ -316,6 +415,12 @@ export function useLatex(initialData) {
     setMargins('0.25in');
     setHistory([]);
     setHistoryIndex(-1);
+    lastCompiledLayoutRef.current = {
+      columns: 2,
+      fontSize: '10pt',
+      spacing: 'large',
+      margins: '0.25in',
+    };
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
       pdfBlobUrlRef.current = null;
@@ -331,6 +436,7 @@ export function useLatex(initialData) {
     content,
     setContent,
     contentModified,
+    hasLayoutChanges,
     handleContentChange,
     columns,
     setColumns,

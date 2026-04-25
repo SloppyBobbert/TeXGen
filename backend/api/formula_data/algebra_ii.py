@@ -25,12 +25,15 @@ FORMULAS = {
         {"name": "Continuous Growth", "latex": r"A=Pe^{rt}"},
         {"name": "Growth/Decay", "latex": r"y=ae^{kx} \quad (k>0 \text{ growth}, \; k<0 \text{ decay})"},
     ],
-    "Polynomial Theorems": [
+    "Polynomial Theorems and Binomial Expansion": [
         {"name": "Remainder Theorem", "latex": r"\text{Remainder Thm: } f(a)=\text{remainder of } f(x)\div(x-a)"},
         {"name": "Factor Theorem", "latex": r"\text{Factor Thm: } f(a)=0 \implies (x-a) \text{ is a factor}"},
         {"name": "Rational Root Theorem", "latex": r"\text{Rational Root Thm: } \frac{p}{q}, \; p\mid a_0, \; q\mid a_n"},
         {"name": "Descartes' Rule", "latex": r"\text{Descartes' Rule: sign changes} \to \text{positive roots}"},
         {"name": "Fundamental Theorem", "latex": r"\text{Degree } n \text{ polynomial has at most } n \text{ roots}"},
+        {"name": "Expansion", "latex": r"(a+b)^n=\sum_{k=0}^{n}\binom{n}{k}a^{n-k}b^k"},
+        {"name": "Binomial Coefficient", "latex": r"\binom{n}{k}=\frac{n!}{k!(n-k)!}"},
+        {"name": "Factorial", "latex": r"n!=n(n-1)(n-2)\cdots(2)(1) \quad\quad 0!=1"},
     ],
     "Conic Sections": [
         {"name": "Circle", "latex": r"(x-h)^2+(y-k)^2=r^2"},
@@ -50,10 +53,5 @@ FORMULAS = {
         {"name": "2x2 Inverse", "latex": r"\begin{bmatrix}a&b\\c&d\end{bmatrix}^{-1}=\frac{1}{ad-bc}\begin{bmatrix}d&-b\\-c&a\end{bmatrix}"},
         {"name": "Determinant", "latex": r"\det\begin{bmatrix}a&b\\c&d\end{bmatrix}=ad-bc"},
         {"name": "Identity Property", "latex": r"A\cdot A^{-1}=I"},
-    ],
-    "Binomial Theorem": [
-        {"name": "Expansion", "latex": r"(a+b)^n=\sum_{k=0}^{n}\binom{n}{k}a^{n-k}b^k"},
-        {"name": "Binomial Coefficient", "latex": r"\binom{n}{k}=\frac{n!}{k!(n-k)!}"},
-        {"name": "Factorial", "latex": r"n!=n(n-1)(n-2)\cdots(2)(1) \quad\quad 0!=1"},
     ],
 }

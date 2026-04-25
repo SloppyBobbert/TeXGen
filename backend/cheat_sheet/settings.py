@@ -24,6 +24,8 @@ if not SECRET_KEY:
             "Set it to a securely generated value before running in production."
         )
 
+JWT_SIGNING_KEY = os.getenv("JWT_SIGNING_KEY", SECRET_KEY)
+
 ALLOWED_HOSTS = [
     host
     for host in (
@@ -122,4 +124,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+}
+
+SIMPLE_JWT = {
+    "SIGNING_KEY": JWT_SIGNING_KEY,
 }

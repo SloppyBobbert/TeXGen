@@ -14,7 +14,7 @@ from .models import Template, CheatSheet, PracticeProblem
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
-from .latex_utils import build_latex_for_formulas, LATEX_HEADER, LATEX_FOOTER
+from .latex_utils import build_latex_for_formulas, normalize_latex_layout
 
 # ------------------------------------------------------------------
 # Whitelist validation for layout parameters
@@ -24,19 +24,38 @@ VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
 VALID_SPACING = {"tiny", "small", "medium", "large"}
 VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
 
+
+def is_valid_custom_pt(value, min_value, max_value):
+    normalized = str(value or "").strip()
+    if not normalized.endswith("pt"):
+        return False
+    try:
+        amount = float(normalized[:-2])
+    except ValueError:
+        return False
+    return min_value <= amount <= max_value
+
+
+def is_truthy(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+    return bool(value)
+
 def validate_layout_params(columns, font_size, margins, spacing):
     try:
-        columns = max(1, min(4, int(columns)))
+        columns = max(1, min(5, int(columns)))
     except (TypeError, ValueError):
         columns = 2
     
-    if font_size not in VALID_FONT_SIZES:
+    if font_size not in VALID_FONT_SIZES and not is_valid_custom_pt(font_size, 6, 18):
         font_size = "10pt"
     
     if margins not in VALID_MARGINS:
         margins = "0.25in"
     
-    if spacing not in VALID_SPACING:
+    if spacing not in VALID_SPACING and not is_valid_custom_pt(spacing, 0, 6):
         spacing = "large"
     
     return columns, font_size, margins, spacing
@@ -120,6 +139,17 @@ def generate_sheet(request):
                             "name": f["name"],
                             "latex": f["latex"]
                         })
+            else:
+                for current_category, formulas in categories.items():
+                    match = next((f for f in formulas if f.get("name") == name), None)
+                    if match:
+                        selected_formulas.append({
+                            "class_name": class_name,
+                            "category": current_category,
+                            "name": match["name"],
+                            "latex": match["latex"]
+                        })
+                        break
     
     if not selected_formulas:
         return Response({"error": "No valid formulas found"}, status=400)
@@ -129,7 +159,7 @@ def generate_sheet(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def compile_latex(request):
     """
     POST /api/compile/
@@ -140,6 +170,12 @@ def compile_latex(request):
     """
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
+    normalize_only = is_truthy(request.data.get("normalize_only"))
+    columns = request.data.get("columns", 2)
+    font_size = request.data.get("font_size", "10pt")
+    margins = request.data.get("margins", "0.25in")
+    spacing = request.data.get("spacing", "large")
+    columns, font_size, margins, spacing = validate_layout_params(columns, font_size, margins, spacing)
     
     # If cheat_sheet_id is provided, get content from the cheat sheet
     if cheat_sheet_id:
@@ -148,10 +184,19 @@ def compile_latex(request):
     
     if not content:
         return Response({"error": "No LaTeX content provided"}, status=400)
-    
-    # Ensure document has proper structure
-    if r"\begin{document}" not in content:
-        content = LATEX_HEADER + content + LATEX_FOOTER
+
+    content = normalize_latex_layout(content, columns, font_size, margins, spacing)
+
+    if normalize_only:
+        return Response({
+            "tex_code": content,
+            "layout": {
+                "columns": columns,
+                "font_size": font_size,
+                "margins": margins,
+                "spacing": spacing,
+            },
+        })
     
     with tempfile.TemporaryDirectory() as tempdir:
         tex_file_path = os.path.join(tempdir, "document.tex")

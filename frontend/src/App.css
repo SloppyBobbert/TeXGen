@@ -18,6 +18,7 @@
   --input-text: #fafafa;
   --code-command: #7dd3fc;
   --code-comment: #94a3b8;
+  --code-app-comment: #f59e0b;
   --code-brace: #fbbf24;
   --code-symbol: #c084fc;
   --code-error: #fca5a5;
@@ -74,6 +75,7 @@
   --input-text: #18181b;
   --code-command: #0369a1;
   --code-comment: #64748b;
+  --code-app-comment: #b45309;
   --code-brace: #b45309;
   --code-symbol: #7c3aed;
   --code-error: #b91c1c;
@@ -373,6 +375,10 @@ label {
 
 .latex-token.comment {
   color: var(--code-comment);
+}
+
+.latex-token.app-comment {
+  color: var(--code-app-comment);
 }
 
 .latex-token.brace {

@@ -22,6 +22,37 @@ function saveToStorage(data) {
   }
 }
 
+function flattenGroupedFormulas(groupedFormulas = []) {
+  return groupedFormulas.flatMap((group) => group?.formulas || []);
+}
+
+function normalizeSelectedFormulas(selectedFormulas = [], classesData = []) {
+  const classMap = new Map(classesData.map((cls) => [cls.name, cls]));
+
+  return selectedFormulas.map((formula) => {
+    if (!formula?.class || !formula?.category || !formula?.name) return formula;
+
+    const cls = classMap.get(formula.class);
+    if (!cls?.categories?.length) return formula;
+
+    const exactCategory = cls.categories.find((category) => category.name === formula.category);
+    if (exactCategory?.formulas?.some((item) => item.name === formula.name)) {
+      return formula;
+    }
+
+    for (const currentCategory of cls.categories) {
+      if (currentCategory.formulas?.some((item) => item.name === formula.name)) {
+        return {
+          ...formula,
+          category: currentCategory.name,
+        };
+      }
+    }
+
+    return formula;
+  });
+}
+
 function buildSelectionState(selectedFormulas = []) {
   const groupedMap = new Map();
   const selectedClasses = {};
@@ -64,17 +95,23 @@ export function useFormulas(initialData) {
     fetch('/api/classes/')
       .then((res) => res.json())
       .then((data) => {
-        setClassesData(data.classes || []);
+        const classes = data.classes || [];
+        setClassesData(classes);
         
         if (!initialLoadDone.current) {
           initialLoadDone.current = true;
           const saved = loadFromStorage();
           if (saved) {
-            setSelectedClasses(saved.selectedClasses || {});
-            setSelectedCategories(saved.selectedCategories || {});
-            setGroupedFormulas(saved.groupedFormulas || []);
+            const normalizedFormulas = normalizeSelectedFormulas(
+              flattenGroupedFormulas(saved.groupedFormulas || []),
+              classes,
+            );
+            const restored = buildSelectionState(normalizedFormulas);
+            setSelectedClasses(restored.selectedClasses);
+            setSelectedCategories(restored.selectedCategories);
+            setGroupedFormulas(restored.groupedFormulas);
           } else if (initialData?.selectedFormulas?.length) {
-            const restored = buildSelectionState(initialData.selectedFormulas);
+            const restored = buildSelectionState(normalizeSelectedFormulas(initialData.selectedFormulas, classes));
             setSelectedClasses(restored.selectedClasses);
             setSelectedCategories(restored.selectedCategories);
             setGroupedFormulas(restored.groupedFormulas);

@@ -7,6 +7,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
+from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 
 
@@ -91,6 +92,7 @@ class TestCheatSheetModel(TestCase):
         assert "\\end{document}" in full
         assert "Hello World" in full
         assert "margin=1in" in full
+        assert "\\usepackage{adjustbox}" in full
 
     def test_build_full_latex_multicolumn(self):
         sheet = CheatSheet.objects.create(
@@ -186,6 +188,203 @@ class TestCheatSheetModel(TestCase):
         full = sheet.build_full_latex()
 
         assert "\\documentclass[8pt]{extarticle}" in full
+
+    def test_build_full_latex_custom_font_size_uses_supported_wrapper(self):
+        sheet = CheatSheet.objects.create(
+            title="Custom Font",
+            latex_content="Content",
+            font_size="10.5pt",
+            user=self.user,
+        )
+
+        full = sheet.build_full_latex()
+
+        assert "\\documentclass[10pt]{article}" in full
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in full
+
+    def test_static_latex_header_includes_adjustbox(self):
+        assert "\\usepackage{adjustbox}" in LATEX_HEADER
+
+
+class TestLatexUtils:
+    def test_normalize_latex_layout_rewraps_existing_document_with_current_settings(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\footnotesize\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "Body line\n"
+            "\\vspace{1.2pt}\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=4, font_size="8pt", margins="0.5in", spacing="tiny")
+
+        assert "\\documentclass[8pt,fleqn]{extarticle}" in normalized
+        assert "margin=0.5in" in normalized
+        assert "\\begin{multicols}{4}" in normalized
+        assert "\\begin{multicols}{2}" not in normalized
+        assert "Body line" in normalized
+        assert "\\vspace{1.2pt}" not in normalized
+        assert normalized.count("\\begin{document}") == 1
+        assert normalized.count("\\end{document}") == 1
+
+    def test_normalize_latex_layout_replaces_existing_custom_font_multicols_wrapper(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10.5pt}{11.3pt}\\selectfont\n"
+            "\\begin{multicols}{5}\n"
+            "\\raggedcolumns\n"
+            "Body line\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
+
+        assert normalized.count("\\fontsize{10.5pt}{11.3pt}\\selectfont") == 1
+        assert normalized.count("\\begin{multicols}{5}") == 1
+        assert normalized.count("\\end{multicols}") == 1
+        assert "Body line" in normalized
+
+    def test_normalize_latex_layout_updates_existing_formula_spacing(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\noindent Example\\par\n"
+            "\\[ x+y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+
+        assert "\\vspace{0.6pt}" in normalized
+        assert "\\vspace{1.2pt}" not in normalized
+
+    def test_normalize_latex_layout_rewrites_legacy_generated_bold_labels(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\scriptsize\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% ===== BEGIN CLASS: ALGEBRA I =====\n"
+            "\\noindent\\textbf{ALGEBRA I}\\par\n"
+            "% ===== BEGIN CATEGORY: Linear Equations =====\n"
+            "\\noindent\\textbf{Linear Equations}\\par\n"
+            "\\begin{flushleft}\n"
+            "% Formula Block: Slope Formula\n"
+            "\\textbf{Slope Formula}\n"
+            "\\[ x=y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{flushleft}\n"
+            "\\end{multicols}\n"
+            "\\textbf{Problem 1:} x+y\n"
+            "\\textbf{Answer:} z\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+
+        assert "\\noindent ALGEBRA I\\par" in normalized
+        assert "\\noindent Linear Equations\\par" in normalized
+        assert "\\noindent Slope Formula\\par" in normalized
+        assert "Problem 1: x+y" in normalized
+        assert "Answer: z" in normalized
+        assert "\\noindent\\textbf{" not in normalized
+        assert "\\textbf{Slope Formula}" not in normalized
+        assert "\\textbf{Problem 1:}" not in normalized
+        assert "\\textbf{Answer:}" not in normalized
+
+    def test_normalize_latex_layout_strips_mid_body_font_overrides(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\noindent Example\\par\n"
+            "\\[ x+y \\]\n"
+            "\\small\n"
+            "Manual note\n"
+            "\\fontsize{14pt}{16pt}\\selectfont\n"
+            "Another line\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=2, font_size="8pt", margins="0.25in", spacing="0.6pt")
+
+        assert normalized.count("\\fontsize{8pt}{8.8pt}\\selectfont") == 1
+        assert "\\small" not in normalized
+        assert "\\fontsize{14pt}{16pt}\\selectfont" not in normalized
+        assert "Manual note" in normalized
+        assert "Another line" in normalized
+
+    def test_normalize_latex_layout_does_not_accumulate_layout_spacer_comments(self):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "% @cheatsheet-layout columns: 2 | change layout options up top to update columns\n"
+            "% @cheatsheet-layout font_size: 10pt | change layout options up top to update text size\n"
+            "% @cheatsheet-layout spacing: large | change layout options up top to update spacing\n"
+            "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins\n"
+            "%\n"
+            "Body line\n"
+            "\\end{document}"
+        )
+
+        normalized_once = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="large")
+        normalized_twice = normalize_latex_layout(normalized_once, columns=2, font_size="10pt", margins="0.25in", spacing="large")
+
+        assert normalized_twice.count("% @cheatsheet-layout columns:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout font_size:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout spacing:") == 1
+        assert normalized_twice.count("% @cheatsheet-layout margins:") == 1
+        assert normalized_twice.count("%\nBody line") == 1
+
+    def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
+        header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
+        assert "\\usepackage{titlesec}" not in header
+        assert "\\titleformat{" not in header
+        assert "\\titlespacing*{" not in header
+        assert "\\setlength{\\baselineskip}{11.2pt}" in header
+        assert "\\setlength{\\parskip}{1.2pt}" in header
+
+    def test_build_dynamic_header_accepts_custom_font_and_spacing(self):
+        header = build_dynamic_header(columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
+        assert "\\documentclass[10pt,fleqn]{article}" in header
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in header
+        assert "\\setlength{\\baselineskip}{11.1pt}" in header
+        assert "\\setlength{\\parskip}{0.6pt}" in header
+        assert "\\begin{multicols}{5}" in header
+
+    def test_build_latex_for_formulas_includes_editable_layout_comments(self):
+        tex = build_latex_for_formulas(
+            [{"class_name": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula", "latex": "m=\\frac{y_2-y_1}{x_2-x_1}"}],
+            columns=3,
+            font_size="10.5pt",
+            margins="0.5in",
+            spacing="0.6pt",
+        )
+
+        assert "% @cheatsheet-layout columns: 3 | change layout options up top to update columns" in tex
+        assert "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size" in tex
+        assert "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing" in tex
+        assert "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins" in tex
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -479,7 +678,7 @@ class TestGenerateSheetEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert "tex_code" in data
-        assert "\\section*{ALGEBRA I}" in data["tex_code"]
+        assert "\\noindent ALGEBRA I\\par" in data["tex_code"]
         assert "Slope Formula" in data["tex_code"]
 
     def test_generate_sheet_preserves_order(self, auth_client):
@@ -516,7 +715,7 @@ class TestGenerateSheetEndpoint:
         data = resp.json()
         assert "tex_code" in data
         tex = data["tex_code"]
-        assert "\\section*{UNIT CIRCLE}" in tex
+        assert "\\noindent UNIT CIRCLE\\par" in tex
         assert "\\begin{document}" in tex
         assert "\\end{document}" in tex
 
@@ -533,6 +732,26 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 400
 
+    def test_generate_sheet_accepts_legacy_category_name_when_formula_name_matches(self, auth_client):
+        """Saved sheets with renamed categories should still generate by formula name."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [
+                    {
+                        "class": "CALCULUS III",
+                        "category": "Vector Calculus",
+                        "name": "Divergence",
+                    }
+                ]
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Vector Formulas\\par" in tex
+        assert "\\noindent Divergence\\par" in tex
+
     def test_generate_sheet_with_columns(self, auth_client):
         """Test that columns parameter produces multicols environment."""
         resp = auth_client.post(
@@ -548,6 +767,19 @@ class TestGenerateSheetEndpoint:
         assert "\\begin{multicols}{3}" in tex
         assert "\\end{multicols}" in tex
 
+    def test_generate_sheet_with_five_columns(self, auth_client):
+        """Five-column layouts should be allowed."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "columns": 5,
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert "\\begin{multicols}{5}" in resp.json()["tex_code"]
+
     def test_generate_sheet_with_font_size(self, auth_client):
         """Test that font_size parameter affects the LaTeX output."""
         resp = auth_client.post(
@@ -560,7 +792,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\tiny" in tex
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
 
     def test_generate_sheet_with_margins(self, auth_client):
         """Test that margins parameter is reflected in geometry package."""
@@ -588,7 +820,36 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "titlespacing" in tex
+        assert "\\setlength{\\baselineskip}{10.2pt}" in tex
+
+    def test_generate_sheet_with_custom_font_size(self, auth_client):
+        """Custom pt body sizes should be accepted."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10.5pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in tex
+
+    def test_generate_sheet_with_custom_spacing(self, auth_client):
+        """Custom pt spacing values should be accepted."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "spacing": "0.6pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\setlength{\\baselineskip}{10.6pt}" in tex
+        assert "\\vspace{0.6pt}" in tex
 
     def test_generate_sheet_invalid_font_size_defaults(self, auth_client):
         """Invalid font_size should be replaced with default."""
@@ -630,9 +891,157 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        # The "large" preset uses 16pt/8pt; assert those values appear in titlespacing
-        assert "\\titlespacing*{\\section}{0pt}{16pt}{8pt}" in tex
-        assert "\\titlespacing*{\\subsection}{0pt}{8pt}{4pt}" in tex
+        assert "\\usepackage{titlesec}" not in tex
+        assert "\\titleformat{" not in tex
+        assert "\\setlength{\\baselineskip}{11.2pt}" in tex
+
+    def test_generate_sheet_10pt_uses_plain_text_headings(self, auth_client):
+        """Generated sheets should use plain bold text headings instead of LaTeX section commands."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+                "font_size": "10pt",
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent ALGEBRA I\\par" in tex
+        assert "\\noindent Linear Equations\\par" in tex
+        assert "\\section*{" not in tex
+        assert "\\subsection*{" not in tex
+        assert "\\textbf{" not in tex
+
+    def test_generate_sheet_adds_readable_block_comments(self, auth_client):
+        """Generated LaTeX should include readable source comments around blocks."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "% ===== BEGIN CLASS: ALGEBRA I =====" in tex
+        assert "% ===== BEGIN CATEGORY: Linear Equations =====" in tex
+        assert "% Formula Block: Slope Formula" in tex
+        assert "% ===== END CATEGORY: Linear Equations =====" in tex
+        assert "% ===== END CLASS: ALGEBRA I =====" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_three_vector_formulas(self, auth_client):
+        """Calc III vector formulas should share one combined category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS III", "category": "Vector Formulas", "name": "Dot Product"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Vector Formulas\\par" in tex
+        assert "% ===== BEGIN CATEGORY: Vector Formulas =====" in tex
+        assert "\\noindent Dot Product\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_pre_algebra_fraction_category(self, auth_client):
+        """Pre-algebra ratios/proportions should live under the merged fractions category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "PRE-ALGEBRA", "category": "Fractions, Ratios, and Proportions", "name": "Unit Rate"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Fractions, Ratios, and Proportions\\par" in tex
+        assert "\\noindent Unit Rate\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_trig_foundation_category(self, auth_client):
+        """Trig foundations taught together should be available under the broader grouped heading."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "TRIGONOMETRY", "category": "Special Triangles and Basic Trig Relationships", "name": "Primary Identity"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Special Triangles and Basic Trig Relationships\\par" in tex
+        assert "\\noindent Primary Identity\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_one_theorem_category(self, auth_client):
+        """Calc I theorem lookups should use the merged theorem category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS I", "category": "Core Theorems of Calculus", "name": "Part 1 (Leibniz)"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Core Theorems of Calculus\\par" in tex
+        assert "Part 1 (Leibniz)" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_two_integration_category(self, auth_client):
+        """Calc II improper integral formulas should live under the broader integration category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS II", "category": "Integration Techniques and Improper Integrals", "name": "Infinite Upper Bound"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Integration Techniques and Improper Integrals\\par" in tex
+        assert "\\noindent Infinite Upper Bound\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_calc_three_partial_derivative_category(self, auth_client):
+        """Calc III optimization formulas should share the partial-derivatives grouping."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "CALCULUS III", "category": "Partial Derivatives and Optimization", "name": "Lagrange Multipliers"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Partial Derivatives and Optimization\\par" in tex
+        assert "\\noindent Lagrange Multipliers\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_algebra_two_polynomial_category(self, auth_client):
+        """Algebra II binomial formulas should live under the broader polynomial category."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "ALGEBRA II", "category": "Polynomial Theorems and Binomial Expansion", "name": "Expansion"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Polynomial Theorems and Binomial Expansion\\par" in tex
+        assert "\\noindent Expansion\\par" in tex
+
+    def test_generate_sheet_uses_regrouped_precalculus_sequence_category(self, auth_client):
+        """Precalculus binomial formulas should share the sequences-and-series grouping."""
+        resp = auth_client.post(
+            "/api/generate-sheet/",
+            {
+                "formulas": [{"class": "PRECALCULUS", "category": "Sequences, Series, and Binomial Theorem", "name": "Binomial Expansion"}],
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\noindent Sequences, Series, and Binomial Theorem\\par" in tex
+        assert "\\noindent Binomial Expansion\\par" in tex
 
     def test_generate_sheet_8pt_uses_extarticle(self, auth_client):
         """8pt font size should use extarticle, not article."""
@@ -702,6 +1111,10 @@ class TestCompileEndpoint:
         resp = auth_client.post("/api/compile/", {}, format="json")
         assert resp.status_code == 400
 
+    def test_compile_requires_content_or_id_for_anonymous_users(self, api_client):
+        resp = api_client.post("/api/compile/", {}, format="json")
+        assert resp.status_code == 400
+
     def test_compile_with_nonexistent_sheet(self, auth_client):
         resp = auth_client.post(
             "/api/compile/",
@@ -709,6 +1122,88 @@ class TestCompileEndpoint:
             format="json",
         )
         assert resp.status_code == 404
+
+    def test_compile_normalize_only_returns_updated_tex_code(self, api_client):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "\\begin{multicols}{2}\n"
+            "\\raggedcolumns\n"
+            "% Formula Block: Example\n"
+            "\\textbf{Example}\n"
+            "\\[ x+y \\]\n"
+            "\\vspace{1.2pt}\n"
+            "%\n"
+            "\\end{multicols}\n"
+            "\\end{document}"
+        )
+
+        resp = api_client.post(
+            "/api/compile/",
+            {
+                "content": raw,
+                "normalize_only": True,
+                "font_size": "8pt",
+                "spacing": "0.6pt",
+                "columns": 2,
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        tex = resp.json()["tex_code"]
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
+        assert "\\setlength{\\parskip}{0.6pt}" in tex
+        assert "\\setlength{\\baselineskip}{8.6pt}" in tex
+        assert "\\noindent Example\\par" in tex
+        assert "\\textbf{Example}" not in tex
+        assert "\\vspace{0.6pt}" in tex
+        assert "\\vspace{1.2pt}" not in tex
+
+    def test_compile_normalize_only_refreshes_layout_comments_from_request_values(self, api_client):
+        raw = (
+            "\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "% @cheatsheet-layout columns: 5 | change layout options up top to update columns\n"
+            "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size\n"
+            "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing\n"
+            "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins\n"
+            "%\n"
+            "Body line\n"
+            "\\end{document}"
+        )
+
+        resp = api_client.post(
+            "/api/compile/",
+            {
+                "content": raw,
+                "normalize_only": True,
+                "columns": 2,
+                "font_size": "8pt",
+                "spacing": "tiny",
+                "margins": "0.25in",
+            },
+            format="json",
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        tex = data["tex_code"]
+        assert data["layout"] == {
+            "columns": 2,
+            "font_size": "8pt",
+            "spacing": "tiny",
+            "margins": "0.25in",
+        }
+        assert "\\begin{multicols}{2}" in tex
+        assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
+        assert "\\setlength{\\parskip}{0pt}" in tex
+        assert "% @cheatsheet-layout columns: 2 | change layout options up top to update columns" in tex
+        assert "% @cheatsheet-layout font_size: 8pt | change layout options up top to update text size" in tex
+        assert "% @cheatsheet-layout spacing: tiny | change layout options up top to update spacing" in tex
+        assert "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins" in tex
 
 
 # ── Auth Endpoint Tests ──────────────────────────────────────────────
