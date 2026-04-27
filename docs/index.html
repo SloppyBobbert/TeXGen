@@ -6,98 +6,41 @@
     <title>Cheat Sheet Generator</title>
     <meta
       name="description"
-      content="Cheat Sheet Generator is a React and Django app for building LaTeX-based cheat sheets with PDF export and saved projects."
+      content="Static GitHub Pages facade of the Cheat Sheet Generator app UI."
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="page-shell">
-      <section class="hero">
-        <p class="eyebrow">React + Django + LaTeX</p>
-        <h1>Cheat Sheet Generator</h1>
-        <p class="hero-copy">
-          Build math cheat sheets from grouped formulas, edit the generated LaTeX,
-          and export a compiled PDF from a single workspace.
-        </p>
-        <div class="hero-actions">
-          <a class="button button-primary" href="https://github.com/ChicoState/cheat-sheet">View repository</a>
-          <a class="button button-secondary" href="https://github.com/ChicoState/cheat-sheet/blob/main/README.md">Read setup guide</a>
+      <header class="app-topbar">
+        <div>
+          <p class="eyebrow">Static app preview</p>
+          <h1>Cheat Sheet Generator</h1>
+          <p class="hero-copy">GitHub Pages serves a barebones snapshot of the app UI so the site still looks like the product without needing the backend.</p>
         </div>
+        <div class="topbar-actions">
+          <span class="status-pill">Backend-free Pages mode</span>
+          <a class="button button-secondary" href="https://github.com/ChicoState/cheat-sheet">View repository</a>
+        </div>
+      </header>
+
+      <section class="callout">
+        <strong>Note:</strong> the real app runs locally or in Docker with the Django API. This page is a static facade of the current interface.
       </section>
 
-      <section class="panel preview-panel">
-        <h2>App preview</h2>
-        <p>
-          The main workspace keeps formula selection, layout controls, LaTeX editing, and PDF preview in one screen.
-        </p>
-        <figure class="preview-figure">
-          <img src="./app-preview.png" alt="Cheat Sheet Generator editor showing layout options, LaTeX editor, and PDF preview area" />
-          <figcaption>Main editor view from the local app.</figcaption>
+      <section class="app-frame" aria-label="Static preview of the running app">
+        <div class="window-chrome">
+          <div class="window-dots" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="window-title">Cheat Sheet Generator</div>
+        </div>
+
+        <figure class="app-preview">
+          <img src="./current-ui.png" alt="Cheat Sheet Generator interface with formula controls, LaTeX editor, and PDF preview" />
         </figure>
-      </section>
-
-      <section class="panel-grid">
-        <article class="panel">
-          <h2>What it does</h2>
-          <p>
-            The app helps students and instructors assemble class-specific reference sheets,
-            re-order formulas, tune page layout, and preview the final PDF output while working directly with LaTeX.
-          </p>
-        </article>
-        <article class="panel">
-          <h2>Tech stack</h2>
-          <ul>
-            <li>Frontend: React 18 + Vite</li>
-            <li>Backend: Django REST Framework</li>
-            <li>PDF pipeline: Tectonic</li>
-            <li>Storage: SQLite locally, PostgreSQL in Docker</li>
-          </ul>
-        </article>
-      </section>
-
-      <section class="panel">
-        <h2>Key features</h2>
-        <div class="feature-grid">
-          <article>
-            <h3>Formula-driven generation</h3>
-            <p>Select grouped math topics and generate a starter LaTeX sheet instantly.</p>
-          </article>
-          <article>
-            <h3>Live compile workflow</h3>
-            <p>Preview PDF output, manually recompile edits, and auto-recompile when layout options change.</p>
-          </article>
-          <article>
-            <h3>Saved work</h3>
-            <p>Store progress in the browser or save full cheat sheets to the backend.</p>
-          </article>
-          <article>
-            <h3>Flexible exports</h3>
-            <p>Download the generated LaTeX source or the compiled PDF.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel-grid">
-        <article class="panel">
-          <h2>Typical workflow</h2>
-          <ol>
-            <li>Choose classes, categories, and formulas.</li>
-            <li>Generate the sheet and refine the LaTeX.</li>
-            <li>Adjust columns, spacing, margins, and font size.</li>
-            <li>Compile and export the final PDF.</li>
-          </ol>
-        </article>
-        <article class="panel">
-          <h2>Run it locally</h2>
-          <ul>
-            <li>Frontend: <code>http://localhost:5173</code></li>
-            <li>API: <code>http://localhost:8000/api/health/</code></li>
-            <li>Full stack: <code>docker compose up --build</code></li>
-          </ul>
-          <p class="note">
-            This GitHub Pages site is a project overview only. The full app needs the Django API to generate and compile PDFs.
-          </p>
-        </article>
       </section>
     </main>
   </body>
