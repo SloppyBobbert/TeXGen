@@ -175,7 +175,7 @@ docker compose up --build
 ### GitHub Pages
 
 - Public project page: `https://chicostate.github.io/cheat-sheet/`
-- Intended use: static app-style preview of the interface without backend dependencies
+- Intended use: UI demonstration of the frontend without backend dependencies
 
 ### Application runtime
 
