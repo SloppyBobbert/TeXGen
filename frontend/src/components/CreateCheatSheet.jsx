@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
-import { SUBJECT_VIDEOS } from '../data/subjectVideos';
 import { Document, Page, pdfjs } from 'react-pdf';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -314,38 +313,133 @@ const FormulaSelection = ({
   </div>
 );
 
-const LatexEditor = ({ content, onChange, isModified }) => {
+const COMPILE_ERROR_LINE_REGEX = /document\.tex:(\d+):/g;
+const APP_LAYOUT_COMMENT_PREFIX = '% @cheatsheet-layout';
+
+const escapeHtml = (value = '') => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const highlightLatexLine = (line = '') => {
+  if (line.trimStart().startsWith(APP_LAYOUT_COMMENT_PREFIX)) {
+    return `<span class="latex-token app-comment">${escapeHtml(line)}</span>`;
+  }
+
+  const placeholders = [];
+  const stashToken = (html) => {
+    const placeholder = `LATEXTOKEN${placeholders.length}PLACEHOLDER`;
+    placeholders.push(html);
+    return placeholder;
+  };
+
+  let html = escapeHtml(line);
+
+  html = html.replace(/%.*$/g, (match) => stashToken(`<span class="latex-token comment">${match}</span>`));
+  html = html.replace(/\\[a-zA-Z@]+|\\./g, (match) => stashToken(`<span class="latex-token command">${match}</span>`));
+  html = html.replace(/[{}[\]]/g, (match) => `<span class="latex-token brace">${match}</span>`);
+  html = html.replace(/[$&#_^]/g, (match) => `<span class="latex-token symbol">${match}</span>`);
+
+  html = html.replace(/LATEXTOKEN(\d+)PLACEHOLDER/g, (_, index) => placeholders[Number(index)] ?? '');
+
+  return html || '&nbsp;';
+};
+
+const extractCompileErrorLines = (compileError = '') => {
+  const normalizedError = compileError || '';
+  const lineNumbers = new Set();
+
+  for (const match of normalizedError.matchAll(COMPILE_ERROR_LINE_REGEX)) {
+    lineNumbers.add(Number(match[1]));
+  }
+
+  return lineNumbers;
+};
+
+const getCompileErrorSummary = (compileError = '') => {
+  const normalizedError = compileError || '';
+
+  if (!normalizedError) {
+    return '';
+  }
+
+  const lineMatch = normalizedError.match(/document\.tex:(\d+):\s*([^\n]+)/);
+  if (lineMatch) {
+    return `Line ${lineMatch[1]}: ${lineMatch[2].replace(/^error:\s*/i, '').trim()}`;
+  }
+
+  return (normalizedError.split('\n').find((line) => line.trim()) || '').replace(/^error:\s*/i, '').trim();
+};
+
+const LatexEditor = ({ content, onChange, isModified, compileError }) => {
   const textareaRef = useRef(null);
   const lineNumbersRef = useRef(null);
+  const highlightLayerRef = useRef(null);
 
-  const lineCount = content ? content.split('\n').length : 1;
+  const errorLines = useMemo(() => extractCompileErrorLines(compileError), [compileError]);
+  const compileErrorSummary = useMemo(() => getCompileErrorSummary(compileError), [compileError]);
+  const highlightedLines = useMemo(() => {
+    const lines = content ? content.split('\n') : [''];
+
+    return lines.map((line, index) => ({
+      lineNumber: index + 1,
+      highlightedHtml: highlightLatexLine(line),
+      hasError: errorLines.has(index + 1),
+    }));
+  }, [content, errorLines]);
+
+  const lineCount = highlightedLines.length;
 
   const handleScroll = () => {
     if (lineNumbersRef.current && textareaRef.current) {
       lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+
+    if (highlightLayerRef.current && textareaRef.current) {
+      highlightLayerRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightLayerRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
   };
 
   return (
     <div className="input-section">
       <label htmlFor="content">Generated LaTeX Code:</label>
-      <div className="editor-wrapper">
+      {compileErrorSummary ? (
+        <div className="editor-status error">{compileErrorSummary}</div>
+      ) : isModified ? (
+        <div className="editor-status modified">Manual edits ready to recompile</div>
+      ) : null}
+      <div className={`editor-wrapper ${compileErrorSummary ? 'has-error' : ''}`}>
         <div className="line-numbers" ref={lineNumbersRef}>
           {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i + 1} className="line-number">{i + 1}</div>
+            <div key={i + 1} className={`line-number ${errorLines.has(i + 1) ? 'error' : ''}`}>{i + 1}</div>
           ))}
         </div>
-        <textarea
-          ref={textareaRef}
-          id="content"
-          value={content}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
-          className={`textarea-field ${isModified ? 'modified' : ''}`}
-          rows={15}
-          spellCheck="false"
-        />
+        <div className="editor-surface">
+          <div className={`editor-highlight-layer ${isModified ? 'modified' : ''}`} ref={highlightLayerRef} aria-hidden="true">
+            {highlightedLines.map(({ lineNumber, highlightedHtml, hasError }) => (
+              <div
+                key={lineNumber}
+                className={`editor-highlight-line ${hasError ? 'error' : ''}`}
+                dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+              />
+            ))}
+          </div>
+          <textarea
+            ref={textareaRef}
+            id="content"
+            value={content}
+            onChange={(e) => onChange(e.target.value)}
+            onScroll={handleScroll}
+            placeholder='Select classes and categories above, then click "Generate Cheat Sheet" to see the LaTeX code here.'
+            className={`textarea-field ${isModified ? 'modified' : ''}`}
+            rows={15}
+            spellCheck="false"
+            wrap="off"
+          />
+        </div>
       </div>
     </div>
   );
@@ -369,14 +463,6 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
     return () => resizeObserver.disconnect();
   }, []);
 
-  useEffect(() => {
-    fetch('/api/compile/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: ' ' })
-    }).catch(e => console.log('Pre-warm compilation failed, ignoring:', e));
-  }, []);
-
   return (
     <div className="preview-section">
       <label>PDF Preview:</label>
@@ -396,7 +482,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
             loading={<div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>Loading PDF...</div>}
             error={<div style={{ padding: '2rem', color: '#ff4444', textAlign: 'center' }}>Failed to load PDF.</div>}
           >
-            {Array.from(new Array(numPages), (el, index) => (
+            {Array.from(new Array(numPages), (_, index) => (
               <Page 
                 key={`page_${index + 1}`} 
                 pageNumber={index + 1} 
@@ -417,9 +503,9 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   );
 };
 
-const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, content, handleClear }) => (
+const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, isSaving, content, handleClear }) => (
   <div className="actions">
-    <button type="submit" className="btn primary">Save Progress</button>
+    <button type="submit" className="btn primary" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
     <button type="button" onClick={handleDownloadTex} className="btn download">Download .tex</button>
     <button
       type="button"
@@ -433,7 +519,14 @@ const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, conten
   </div>
 );
 
-const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => (
+const FONT_SIZE_PRESETS = ['8pt', '9pt', '10pt', '11pt', '12pt'];
+const SPACING_PRESETS = ['tiny', 'small', 'medium', 'large'];
+
+const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, setSpacing, margins, setMargins }) => {
+  const fontSizeMode = FONT_SIZE_PRESETS.includes(fontSize) ? fontSize : 'custom';
+  const spacingMode = SPACING_PRESETS.includes(spacing) ? spacing : 'custom';
+
+  return (
   <div className="layout-options">
     <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>
       Layout Options
@@ -451,14 +544,15 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value={2}>2 Columns</option>
           <option value={3}>3 Columns</option>
           <option value={4}>4 Columns</option>
+          <option value={5}>5 Columns</option>
         </select>
       </div>
       <div className="layout-control">
         <label htmlFor="fontSize">Text Size:</label>
         <select 
           id="fontSize" 
-          value={fontSize} 
-          onChange={(e) => setFontSize(e.target.value)}
+          value={fontSizeMode} 
+          onChange={(e) => setFontSize(e.target.value === 'custom' ? '10.5pt' : e.target.value)}
           className="layout-select"
         >
           <option value="8pt">Compact (8pt)</option>
@@ -466,21 +560,41 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <option value="10pt">Normal (10pt)</option>
           <option value="11pt">Medium (11pt)</option>
           <option value="12pt">Large (12pt)</option>
+          <option value="custom">Custom</option>
         </select>
+        {fontSizeMode === 'custom' && (
+          <input
+            type="text"
+            value={fontSize}
+            onChange={(e) => setFontSize(e.target.value)}
+            className="layout-select"
+            placeholder="e.g. 10.5pt"
+          />
+        )}
       </div>
       <div className="layout-control">
         <label htmlFor="spacing">Spacing:</label>
         <select 
           id="spacing" 
-          value={spacing} 
-          onChange={(e) => setSpacing(e.target.value)}
+          value={spacingMode} 
+          onChange={(e) => setSpacing(e.target.value === 'custom' ? '0.8pt' : e.target.value)}
           className="layout-select"
         >
           <option value="tiny">Tiny</option>
           <option value="small">Small</option>
           <option value="medium">Medium</option>
           <option value="large">Large</option>
+          <option value="custom">Custom</option>
         </select>
+        {spacingMode === 'custom' && (
+          <input
+            type="text"
+            value={spacing}
+            onChange={(e) => setSpacing(e.target.value)}
+            className="layout-select"
+            placeholder="e.g. 0.8pt"
+          />
+        )}
       </div>
       <div className="layout-control">
         <label htmlFor="margins">Margins:</label>
@@ -498,9 +612,10 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
       </div>
     </div>
   </div>
-);
+  );
+};
 
-const CreateCheatSheet = ({ onSave, initialData }) => {
+const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) => {
   const {
     classesData,
     selectedClasses,
@@ -516,13 +631,14 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     removeSingleFormula,
     selectedCount,
     hasSelectedClasses
-  } = useFormulas();
+  } = useFormulas(initialData);
 
   const {
     title,
     setTitle,
     content,
     contentModified,
+    hasLayoutChanges,
     handleContentChange,
     columns,
     setColumns,
@@ -548,20 +664,6 @@ const CreateCheatSheet = ({ onSave, initialData }) => {
     clearLatex
   } = useLatex(initialData);
 
-const [showLatex, setShowLatex] = useState(false);
-const [modalVideo, setModalVideo] = useState(null);
-const [activeVideoClass, setActiveVideoClass] = useState(null);
-
-const getThumbnail = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
-const getEmbedUrl  = (id) => `https://www.youtube.com/embed/${id}?autoplay=1`;
-
-const videos = activeVideoClass ? (SUBJECT_VIDEOS[activeVideoClass] || []) : [];
-
-const handleToggleClass = (className) => {
-    toggleClass(className);
-    setActiveVideoClass(className);
-};
-
   const handleCompileClick = () => {
     handleCompileOnly();
   };
@@ -571,217 +673,130 @@ const handleToggleClass = (className) => {
     handleGenerateSheet(formulasList);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    onSave({ title, content, columns, fontSize, spacing, margins });
+    await onSave({
+      title,
+      content,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      selectedFormulas: getSelectedFormulasList(),
+    });
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
       clearLatex();
       clearSelections();
-      onSave({ title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large', margins: '0.25in' }, false);
+      onReset?.();
     }
   };
 
   return (
-    <>
-      <div className="app-shell">
-
-        <div className="app-body">
-
-          {/* ══ LEFT PANEL ══ */}
-          <aside className="left-panel">
-            <div className="left-panel-scroll">
-
-              <FormulaSelection
-                classesData={classesData}
-                selectedClasses={selectedClasses}
-                selectedCategories={selectedCategories}
-                groupedFormulas={groupedFormulas}
-                toggleClass={handleToggleClass}
-                toggleCategory={toggleCategory}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-                selectedCount={selectedCount}
-                hasSelectedClasses={hasSelectedClasses}
-                onReorderClass={reorderClass}
-                onReorderFormula={reorderFormula}
-                onRemoveClass={removeClassFromOrder}
-                onRemoveFormula={removeSingleFormula}
-              />
-
-              <LayoutOptions
-                columns={columns}
-                setColumns={setColumns}
-                fontSize={fontSize}
-                setFontSize={setFontSize}
-                spacing={spacing}
-                setSpacing={setSpacing}
-                margins={margins}
-                setMargins={setMargins}
-              />
-
-            </div>
-
-            {/* Footer buttons */}
-            <div className="left-panel-footer">
-              <button
-                type="button"
-                onClick={handleCompileClick}
-                className="btn-compile"
-                disabled={isCompiling || !content}
-              >
-                {isCompiling ? '⏳ Compiling...' : '⚡ Compile PDF'}
-              </button>
-
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                <button
-                  type="button"
-                  onClick={goBack}
-                  disabled={!canGoBack}
-                  className="btn history-btn"
-                  style={{ flex: 1 }}
-                >
-                  ← Back
-                </button>
-                <button
-                  type="button"
-                  onClick={goForward}
-                  disabled={!canGoForward}
-                  className="btn history-btn"
-                  style={{ flex: 1 }}
-                >
-                  Forward →
-                </button>
-              </div>
-
-              {pdfBlob && (
-                <div className="btn-download-row">
-                  <button type="button" onClick={handleDownloadPDF} className="btn-dl">↓ PDF</button>
-                  <button type="button" onClick={handleDownloadTex} className="btn-dl">↓ .tex</button>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                <button
-                  type="button"
-                  onClick={() => onSave({ title, content, columns, fontSize, spacing, margins })}
-                  className="btn history-btn"
-                  style={{ flex: 1 }}
-                >
-                  💾 Save
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="btn clear"
-                  style={{ flex: 1, fontSize: '0.78rem' }}
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          </aside>
-
-          {/* ══ CENTER PANEL — PDF main focus ══ */}
-          <main className="center-panel">
-
-            <div className="pdf-container">
-              {pdfBlob || compileError ? (
-                <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
-              ) : (
-                <div className="pdf-placeholder">
-                  <span>📄</span>
-                  <p>Select a subject, pick categories, then compile</p>
-                  <p>Your PDF will appear here</p>
-                </div>
-              )}
-            </div>
-
-            {/* LaTeX toggle — only appears after content exists */}
-            {content && (
-              <div className="latex-toggle-bar">
-                <button
-                  type="button"
-                  className="btn-toggle-latex"
-                  onClick={() => setShowLatex(v => !v)}
-                >
-                  {showLatex ? '▲ Hide LaTeX' : '▼ Reveal LaTeX Code'}
-                </button>
-                <span className="latex-line-count">
-                  {content.split('\n').length} lines
-                </span>
-              </div>
-            )}
-
-            {/* Collapsible LaTeX drawer */}
-            {content && (
-              <div className={`latex-drawer ${showLatex ? 'open' : 'closed'}`}>
-                <LatexEditor
-                  content={content}
-                  onChange={handleContentChange}
-                  isModified={contentModified}
-                />
-              </div>
-            )}
-          </main>
-
-          {/* ══ RIGHT PANEL — YouTube resources ══ */}
-          <aside className="right-panel">
-            <div className="right-panel-header">
-              📺 {activeVideoClass ? `Resources — ${activeVideoClass}` : 'Resources'}
-            </div>
-            <div className="right-panel-scroll">
-              {!activeVideoClass && (
-                <p className="right-panel-empty">Select a subject to see related videos.</p>
-              )}
-              {activeVideoClass && videos.length === 0 && (
-                <p className="right-panel-empty">No videos added yet for {activeVideoClass}.</p>
-              )}
-              {videos.map((v) => (
-                <div
-                  key={v.videoId}
-                  className="video-card-sm"
-                  onClick={() => setModalVideo(v)}
-                >
-                  <div className="video-thumb-sm">
-                    <img src={getThumbnail(v.videoId)} alt={v.title} loading="lazy" />
-                    <div className="play-icon">▶</div>
-                  </div>
-                  <div className="video-info-sm">
-                    <div className="v-title">{v.title}</div>
-                    <div className="v-channel">{v.channel}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </aside>
-
+    <form onSubmit={handleSave}>
+      {/* Box 1: Selection controls */}
+      <div className="create-cheat-sheet panel-box selection-panel">
+        <div className="form-group">
+          <label htmlFor="title">Title:</label>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="My Math Cheat Sheet"
+            required
+            className="input-field"
+          />
         </div>
+
+        <FormulaSelection
+          classesData={classesData}
+          selectedClasses={selectedClasses}
+          selectedCategories={selectedCategories}
+          groupedFormulas={groupedFormulas}
+          toggleClass={toggleClass}
+          toggleCategory={toggleCategory}
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+          selectedCount={selectedCount}
+          hasSelectedClasses={hasSelectedClasses}
+          onReorderClass={reorderClass}
+          onReorderFormula={reorderFormula}
+          onRemoveClass={removeClassFromOrder}
+          onRemoveFormula={removeSingleFormula}
+        />
       </div>
 
-      {/* ══ VIDEO MODAL ══ */}
-      {modalVideo && (
-        <div className="modal-overlay" onClick={() => setModalVideo(null)}>
-          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setModalVideo(null)}>✕</button>
-            <h4>{modalVideo.title}</h4>
-            <iframe
-              width="100%"
-              height="400"
-              src={getEmbedUrl(modalVideo.videoId)}
-              title={modalVideo.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-            <div className="modal-meta">{modalVideo.channel} · {modalVideo.topic}</div>
+      {/* Box 2: Editor and preview */}
+      <div className="create-cheat-sheet panel-box">
+        <LayoutOptions 
+          columns={columns}
+          setColumns={setColumns}
+          fontSize={fontSize}
+          setFontSize={setFontSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
+          margins={margins}
+          setMargins={setMargins}
+        />
+        
+        <div className="editor-container">
+          <LatexEditor
+            content={content}
+            onChange={handleContentChange}
+            isModified={contentModified || hasLayoutChanges}
+            compileError={compileError}
+          />
+          <div className="compile-button-column">
+            <div className="history-buttons">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={!canGoBack}
+                className="btn history-btn"
+                title="Go back to previous version"
+                aria-label="Go back"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                onClick={goForward}
+                disabled={!canGoForward}
+                className="btn history-btn"
+                title="Go forward to next version"
+                aria-label="Go forward"
+              >
+                →
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={handleCompileClick}
+              className="btn compile-circle"
+              disabled={isCompiling}
+              title={isCompiling ? 'Compiling...' : 'Compile & Preview'}
+              aria-label={isCompiling ? 'Compiling preview' : 'Compile and preview'}
+            >
+              {isCompiling ? '...' : '↻'}
+            </button>
           </div>
+          <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
         </div>
-      )}
-    </>
-    );
-  };
+
+        <ActionToolbar
+          handleDownloadTex={handleDownloadTex}
+          handleDownloadPDF={handleDownloadPDF}
+          isLoading={isLoading}
+          isSaving={isSaving}
+          content={content}
+          handleClear={handleClear}
+        />
+      </div>
+    </form>
+  );
+};
 
 export default CreateCheatSheet;

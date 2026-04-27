@@ -1,6 +1,26 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import AuthContext from './context/AuthContext';
+import Login from './components/Login';
+import SignUp from './components/SignUp';
+import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
+
+const DEFAULT_SHEET = {
+  title: '',
+  content: '',
+  columns: 2,
+  fontSize: '10pt',
+  spacing: 'large',
+  margins: '0.25in',
+  selectedFormulas: [],
+};
+
+const PrivateRoute = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  return user ? children : <Navigate to="/login" replace />;
+};
 
 function App() {
   const normalizeTheme = (value) => {
@@ -16,8 +36,10 @@ function App() {
         console.error("Failed to parse sheet", e);
       }
     }
-    return { title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' };
+    return DEFAULT_SHEET;
   });
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     return normalizeTheme(saved);
@@ -28,8 +50,18 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  const { user, authTokens, logoutUser } = useContext(AuthContext);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleReset = () => {
+    setCheatSheet(DEFAULT_SHEET);
+    setEditorSessionKey((prev) => prev + 1);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(DEFAULT_SHEET));
+    localStorage.removeItem('cheatSheetData');
+    localStorage.removeItem('cheatSheetLatex');
   };
 
   useEffect(() => {
@@ -43,39 +75,117 @@ function App() {
     }
   }, []);
 
-  const handleSave = (data, showFeedback = true) => {
-    setCheatSheet(data);
-    localStorage.setItem('currentCheatSheet', JSON.stringify(data));
-    if (showFeedback) {
-      alert('Progress saved!');
+  const handleSave = async (data, showFeedback = true) => {
+    const nextSheet = {
+      ...cheatSheet,
+      ...data,
+      selectedFormulas: data.selectedFormulas ?? cheatSheet.selectedFormulas ?? [],
+    };
+
+    setCheatSheet(nextSheet);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(nextSheet));
+
+    if (!showFeedback) {
+      return nextSheet;
     }
+
+    setIsSaving(true);
+
+    try {
+      const sheetId = nextSheet.id;
+      const response = await fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
+        method: sheetId ? 'PATCH' : 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(authTokens?.access ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
+        },
+        body: JSON.stringify({
+          title: nextSheet.title,
+          latex_content: nextSheet.content,
+          columns: nextSheet.columns,
+          margins: nextSheet.margins,
+          font_size: nextSheet.fontSize,
+          selected_formulas: nextSheet.selectedFormulas,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.error || 'Failed to save cheat sheet');
+      }
+
+      const savedSheet = await response.json();
+      const persistedSheet = {
+        ...nextSheet,
+        id: savedSheet.id,
+        content: savedSheet.latex_content ?? nextSheet.content,
+        fontSize: savedSheet.font_size ?? nextSheet.fontSize,
+        selectedFormulas: savedSheet.selected_formulas ?? nextSheet.selectedFormulas,
+      };
+
+      setCheatSheet(persistedSheet);
+      localStorage.setItem('currentCheatSheet', JSON.stringify(persistedSheet));
+      alert('Progress saved!');
+      return persistedSheet;
+    } catch (error) {
+      console.error('Failed to save cheat sheet', error);
+      alert(`Failed to save progress: ${error.message}`);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleEditSheet = (sheet) => {
+    const editSheet = {
+      id: sheet.id,
+      title: sheet.title,
+      content: sheet.latex_content,
+      columns: sheet.columns,
+      margins: sheet.margins,
+      fontSize: sheet.font_size,
+      selectedFormulas: sheet.selected_formulas || [],
+    };
+    setCheatSheet(editSheet);
+    setEditorSessionKey((prev) => prev + 1);
+    localStorage.setItem('currentCheatSheet', JSON.stringify(editSheet));
+    localStorage.removeItem('cheatSheetData');
+    localStorage.removeItem('cheatSheetLatex');
   };
 
   return (
     <div className="App">
       <header className="app-header">
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 1rem', width: '100%' }}>
-        <div style={{ flex: 1 }} />
-
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ margin: 0}}>Cheat Sheet Generator</h1>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted' }}>
-            Write Cheat Sheets With LateX Support!
-          </p>
-        </div>
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
+          <div>
+            <h1>Cheat Sheet Generator</h1>
+            <p>Write cheat sheets with LaTeX support</p>
+          </div>
           <button onClick={toggleTheme} className="btn primary" style={{ margin: 0, height: 'fit-content' }}>
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
-          </div>
         </div>
       </header>
       <main>
-        <CreateCheatSheet 
-          initialData={cheatSheet} 
-          onSave={handleSave} 
-          onCancel={() => {}} 
-        />
+        <Routes>
+          <Route path="/" element={
+            <CreateCheatSheet 
+              key={`${cheatSheet.id ?? 'new'}-${editorSessionKey}`}
+              initialData={cheatSheet} 
+              onSave={handleSave} 
+              onReset={handleReset}
+              isSaving={isSaving}
+              onCancel={() => {}} 
+            />
+          } />
+          <Route path="/dashboard" element={
+            <PrivateRoute>
+              <Dashboard onEditSheet={handleEditSheet} onCreateNewSheet={handleReset} />
+            </PrivateRoute>
+          } />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+        </Routes>
       </main>
       <footer className="app-footer">
         <a href="https://github.com/ChicoState/cheat-sheet" target="_blank" rel="noopener noreferrer" title="View on GitHub">

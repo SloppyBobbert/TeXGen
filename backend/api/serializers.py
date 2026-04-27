@@ -1,6 +1,40 @@
 # DRF serializers for the backend API will be added here.
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Template, CheatSheet, PracticeProblem
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        # Add custom claims
+        token['username'] = user.username
+        return token
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'password')
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def validate_password(self, value):
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+        return value
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password']
+        )
+        return user
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -50,10 +84,11 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "selected_formulas",
             "problems",
             "full_latex",
+            "user",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "full_latex"]
+        read_only_fields = ["id", "user", "created_at", "updated_at", "full_latex"]
 
     def get_full_latex(self, obj):
         """Return the fully-assembled LaTeX document string."""

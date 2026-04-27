@@ -15,7 +15,8 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 - **PDF Compilation**: Compile to PDF using Tectonic LaTeX engine on the backend
 - **Download Options**: Download as `.tex` source or `.pdf`
 - **Auto-Save**: Progress automatically saved to browser localStorage - survives page refresh
-- **Version History**: Navigate through last 3 compiled versions with back/forward buttons
+- **Version History**: Navigate through the last 7 saved versions with back/forward buttons
+- **Layout Auto-Recompile**: Recompile the current sheet automatically after layout changes such as columns, spacing, margins, or font size
 
 ### Formatting Options
 - **Column Layout**: Single, two, or three column layouts with auto-scaling formulas that fit within column boundaries
@@ -35,7 +36,7 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 | Frontend | React 18 + Vite |
 | Backend | Django 6 + Django REST Framework |
 | LaTeX Engine | Tectonic |
-| Database | SQLite (dev) / MariaDB (prod) |
+| Database | SQLite (dev) / PostgreSQL (Docker/prod) |
 | Container | Docker Compose |
 
 ## Project Structure
@@ -67,8 +68,24 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 │   │   └── App.css
 │   └── package.json
 ├── docker-compose.yml
+├── docs/                          # Static GitHub Pages project page
+│   ├── app-preview.png
+│   ├── index.html
+│   └── styles.css
 └── README.md
 ```
+
+## Project Page
+
+This repository includes a lightweight static project page in `docs/` for GitHub Pages.
+
+- Source: `docs/index.html` and `docs/styles.css`
+- Deployment: `.github/workflows/pages.yml`
+- Purpose: project overview only
+
+The hosted static page does not run the full app by itself. The full experience still requires the React frontend and Django backend running locally or in Docker.
+
+![Cheat Sheet Generator editor preview](docs/app-preview.png)
 
 ## API Endpoints
 
@@ -93,15 +110,15 @@ A full-stack web application for generating LaTeX-based cheat sheets. Users sele
 
 ### Available Formula Classes
 
-- **PRE-ALGEBRA** - Order of Operations, Fractions, Ratios, Properties, Area/Perimeter, Solving Equations
-- **ALGEBRA I** - Linear Equations, Inequalities, Integer Rules, Decimals/Percents, Mean/Median/Mode, Quadratics, Polynomials, Exponents, Radicals, Functions, Absolute Value, Rational Expressions
-- **ALGEBRA II** - Complex Numbers, Logarithms, Exponential Functions, Polynomial Theorems, Conic Sections, Sequences/Series, Matrices, Binomial Theorem
-- **GEOMETRY** - Angle Relationships, Parallel Lines, Triangles, Pythagorean Theorem, Similar/Congruent Triangles, Quadrilaterals, Polygons, Circles, Circle Theorems, Coordinate Geometry, Surface Area/Volume, Transformations
-- **TRIGONOMETRY** - Right Triangle Trigonometry, Special Angles, Trigonometric Identities, Laws of Sines and Cosines
-- **PRECALCULUS** - Functions and Graphs, Polynomial and Rational Functions, Exponential and Logarithmic Functions, Conic Sections, Parametric Equations and Polar Coordinates, Sequences and Series
-- **CALCULUS I** - Limits and Continuity, Derivatives, Applications of Derivatives, Integrals
-- **CALCULUS II** - Techniques of Integration, Applications of Integration, Sequences and Series
-- **CALCULUS III** - Vectors and Geometry of Space, Vector Functions, Partial Derivatives, Multiple Integrals, Vector Calculus
+- **PRE-ALGEBRA** - Operations and Properties, Fractions, Ratios, and Proportions, Area and Perimeter, Solving Equations
+- **ALGEBRA I** - Linear Equations, Inequalities, Integer Rules, Decimals and Percents, Mean, Median, Mode, Quadratic Equations, Polynomials, Exponents, Radicals, Functions, Absolute Value, Rational Expressions
+- **ALGEBRA II** - Complex Numbers, Logarithms, Exponential Functions, Polynomial Theorems and Binomial Expansion, Conic Sections, Sequences and Series, Matrices
+- **GEOMETRY** - Basic Angle Relationships, Parallel Lines and Transversals, Triangles, Pythagorean Theorem, Similar and Congruent Triangles, Quadrilaterals, Polygons, Circles, Circle Theorems, Coordinate Geometry, Surface Area and Volume, Transformations
+- **TRIGONOMETRY** - Special Triangles and Basic Trig Relationships, Fundamental Identities, Angle Sum and Multiple-Angle Identities, Product and Power Identities, Inverse Trig Identities, Applications
+- **PRECALCULUS** - Functions, Conic Sections, Sequences, Series, and Binomial Theorem, Polar & Complex Polar
+- **CALCULUS I** - Limits, Derivative Definitions and Rules, Common Derivatives, Core Theorems of Calculus, Basic Antiderivatives
+- **CALCULUS II** - Integration Techniques and Improper Integrals, Applications of Integration, Sequences & Series, Power & Taylor Series, Parametric & Polar
+- **CALCULUS III** - Vector Formulas, Partial Derivatives and Optimization, Multiple Integrals
 - **UNIT CIRCLE** - Complete visual representation of the unit circle with radians, degrees, and coordinates
 
 ## Getting Started
@@ -123,6 +140,15 @@ python manage.py migrate
 python manage.py runserver
 ```
 
+Set these backend environment variables in `backend/.env` before running the server:
+
+```env
+DJANGO_SECRET_KEY=your-django-secret-key
+JWT_SIGNING_KEY=your-separate-jwt-signing-key
+```
+
+Use long random values for both keys. `JWT_SIGNING_KEY` should be separate from `DJANGO_SECRET_KEY` so JWT signing does not depend on the Django app secret.
+
 The API will be available at `http://localhost:8000/api/`.
 
 ### Frontend Setup
@@ -135,13 +161,19 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173/`.
 
+### Static Project Page
+
+If GitHub Pages is enabled for this repository, the static overview page is deployed from the `docs/` directory through the Pages workflow.
+
+For local preview, open `docs/index.html` directly in a browser.
+
 ### Docker
 
 ```bash
 docker compose up --build
 ```
 
-This builds and starts the Django backend, React frontend, and MariaDB database.
+This builds and starts the Django backend, React frontend, and PostgreSQL database.
 
 ## Running Tests
 

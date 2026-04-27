@@ -17,14 +17,12 @@ FORMULAS = {
         {"name": "Hyperbola", "latex": r"\frac{(x-h)^2}{a^2}-\frac{(y-k)^2}{b^2}=1"},
         {"name": "Eccentricity", "latex": r"c^2=a^2+b^2\ (\text{hyperbola/ellipse}),\ e=\frac{c}{a}"},
     ],
-    "Sequences & Series": [
+    "Sequences, Series, and Binomial Theorem": [
         {"name": "Arithmetic Sequence", "latex": r"a_n=a_1+(n-1)d"},
         {"name": "Arithmetic Series", "latex": r"S_n=\tfrac{n}{2}(a_1+a_n)"},
         {"name": "Geometric Sequence", "latex": r"a_n=a_1r^{n-1}"},
         {"name": "Geometric Series", "latex": r"S_n=\frac{a_1(1-r^n)}{1-r}"},
         {"name": "Infinite Geometric Series", "latex": r"S_\infty=\frac{a_1}{1-r},\ |r|<1"},
-    ],
-    "Binomial Theorem": [
         {"name": "Binomial Expansion", "latex": r"(a+b)^n=\sum_{k=0}^{n}\binom{n}{k}a^{n-k}b^k"},
         {"name": "Binomial Coefficient", "latex": r"\binom{n}{k}=\frac{n!}{k!(n-k)!}"},
     ],
