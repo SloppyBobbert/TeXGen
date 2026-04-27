@@ -164,11 +164,16 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
-          <div>
-            <h1>Cheat Sheet Generator</h1>
-            <p>Write cheat sheets with LaTeX support</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem', width: '100%' }}>
+          <div style={{ flex: 1 }} />
+
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ margin: 0 }}>Cheat Sheet Generator</h1>
+            <p style={{ margin: 0, fontSize: '0.8543m', color: 'var(--text-muted)'}}>
+              Write Cheat Sheets With Integrated LaTeX Support!
+            </p>
           </div>
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <select
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
@@ -179,6 +184,7 @@ function App() {
         <option key={t.id} value={t.id}>{t.label}</option>
       ))}
     </select>
+  </div>
         </div>
       </header>
       <main>
