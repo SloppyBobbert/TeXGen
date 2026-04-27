@@ -132,6 +132,34 @@
   box-shadow: 0 0 8px rgba(255,110,199,0.4);
 }
 
+
+/* forest theme */
+[data-theme="forest"] {
+  --bg: #0d1f0d;
+  --text: #d4e8d4;
+  --text-muted: #6a8f6a;
+  --panel-bg: #142414;
+  --border: #2d4a2d;
+  --border-subtle: #1a301a;
+  --primary: #6abf6a;
+  --primary-hover: #4aa04a;
+  --card-bg: #142414;
+  --box-bg: #0a180a;
+  --input-bg: #080f08;
+  --input-border: #2d4a2d;
+  --input-text: #d4e8d4;
+  --btn-primary: #6abf6a;
+  --btn-primary-hover: #4aa04a;
+  --btn-download: #6ab8bf;
+  --btn-download-hover: #4a9aaa;
+  --btn-clear: #cc6666;
+  --btn-clear-hover: #aa4444;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.35);
+  --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+
 /* ==========================================================================
    BASE STYLES
    ========================================================================== */
