@@ -54,14 +54,20 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem' }}>
-          <div>
-            <h1>Cheat Sheet Generator</h1>
-            <p>Write cheat sheets with LaTeX support</p>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '0 1rem', width: '100%' }}>
+        <div style={{ flex: 1 }} />
+
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ margin: 0}}>Cheat Sheet Generator</h1>
+          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted' }}>
+            Write Cheat Sheets With LateX Support!
+          </p>
+        </div>
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
           <button onClick={toggleTheme} className="btn primary" style={{ margin: 0, height: 'fit-content' }}>
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
+          </div>
         </div>
       </header>
       <main>

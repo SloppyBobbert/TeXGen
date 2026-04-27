@@ -588,18 +588,6 @@ const handleToggleClass = (className) => {
     <>
       <div className="app-shell">
 
-        {/* ── HEADER ── */}
-        <header className="app-header">
-          <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>📄 Cheat Sheet Generator</span>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter cheat sheet title..."
-          />
-        </header>
-
         <div className="app-body">
 
           {/* ══ LEFT PANEL ══ */}
