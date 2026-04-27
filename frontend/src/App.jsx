@@ -22,9 +22,15 @@ const PrivateRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" replace />;
 };
 
+const THEMES = [
+  { id: 'light',  label: '☀️ Light'      },
+  { id: 'dark',   label: '🌑 Dark'       },
+  { id: 'miami',  label: '🌴 Miami'      },
+];
+
 function App() {
   const normalizeTheme = (value) => {
-    return value === 'dark' || value === 'light' ? value : 'dark';
+    return THEMES.find(t => t.id === value ) ? value : 'light';
   };
 
   const [cheatSheet, setCheatSheet] = useState(() => {
@@ -36,8 +42,9 @@ function App() {
         console.error("Failed to parse sheet", e);
       }
     }
-    return DEFAULT_SHEET;
+    return { title: '', content: '', columns: 2, fontSize: '10pt', spacing: 'large' };
   });
+
   const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [theme, setTheme] = useState(() => {
@@ -50,6 +57,7 @@ function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  
   const { user, authTokens, logoutUser } = useContext(AuthContext);
 
   const toggleTheme = () => {
@@ -74,7 +82,7 @@ function App() {
       }
     }
   }, []);
-        
+
   const handleSave = async (data, showFeedback = true) => {
     const nextSheet = {
       ...cheatSheet,
@@ -161,9 +169,16 @@ function App() {
             <h1>Cheat Sheet Generator</h1>
             <p>Write cheat sheets with LaTeX support</p>
           </div>
-          <button onClick={toggleTheme} className="btn primary" style={{ margin: 0, height: 'fit-content' }}>
-            {theme === 'dark' ? 'Light' : 'Dark'}
-          </button>
+          <select
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          className="layout-select"
+          style={{ fontSize: '0.85rem', cursor: 'pointer' }}
+          >
+        {THEMES.map(t => (
+        <option key={t.id} value={t.id}>{t.label}</option>
+      ))}
+    </select>
         </div>
       </header>
       <main>

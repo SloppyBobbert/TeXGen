@@ -89,6 +89,49 @@
   --shadow-inset: inset 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+/*  MIAMI THEME */
+[data-theme="miami"] {
+  --bg: #0d0221;
+  --text: #f0e6ff;
+  --text-muted: #9d7fc4;
+  --panel-bg: #130330;
+  --border: #2d1060;
+  --border-subtle: #1a0840;
+  --primary: #ff6ec7;
+  --primary-hover: #ff3db0;
+  --card-bg: #130330;
+  --box-bg: #0a0118;
+  --input-bg: #08010f;
+  --input-border: #ff6ec744;
+  --input-text: #f0e6ff;
+  --btn-primary: #ff6ec7;
+  --btn-primary-hover: #ff3db0;
+  --btn-download: #00d4ff;
+  --btn-download-hover: #00aacc;
+  --btn-clear: #ff4466;
+  --btn-clear-hover: #cc2244;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(255,110,199,0.2);
+  --shadow-lg: 0 8px 24px rgba(255,110,199,0.25);
+  --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* Miami glow effects */
+[data-theme="miami"] .btn.primary,
+[data-theme="miami"] .btn-compile {
+  box-shadow: 0 0 12px rgba(255,110,199,0.5), 0 0 24px rgba(255,110,199,0.2);
+}
+
+[data-theme="miami"] .btn.download,
+[data-theme="miami"] .btn-dl {
+  box-shadow: 0 0 12px rgba(0,212,255,0.5), 0 0 24px rgba(0,212,255,0.2);
+}
+
+[data-theme="miami"] .class-btn.active,
+[data-theme="miami"] .class-checkbox-label.checked {
+  box-shadow: 0 0 8px rgba(255,110,199,0.4);
+}
+
 /* ==========================================================================
    BASE STYLES
    ========================================================================== */
