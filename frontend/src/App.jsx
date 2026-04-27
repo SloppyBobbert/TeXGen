@@ -74,7 +74,7 @@ function App() {
       }
     }
   }, []);
-
+        
   const handleSave = async (data, showFeedback = true) => {
     const nextSheet = {
       ...cheatSheet,
