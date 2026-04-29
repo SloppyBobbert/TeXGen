@@ -23,9 +23,9 @@ const PrivateRoute = ({ children }) => {
 };
 
 const THEMES = [
-  { id: 'light',  label: '☀️ Light'      },
-  { id: 'dark',   label: '🌑 Dark'       },
-  { id: 'miami',  label: '🌴 Miami'      },
+  { id: 'light',  label: '☀️ Light 💡'      },
+  { id: 'dark',   label: '🌑 Dark ☾'       },
+  { id: 'miami',  label: '🌴 Miami 🐬'      },
   { id: 'forest', label: '🌲 Forest'     },
 ];
 
