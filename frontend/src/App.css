@@ -1401,6 +1401,7 @@ pdf main focus - center panel
   display: flex;
   align-items: stretch;
   padding: var(--space-md);
+  min-height: 0;
 }
 
 .pdf-placeholder {
@@ -1725,8 +1726,9 @@ three - column responsive
     min-height: 60vh;
   }
 
-  .pdf-container {
-    padding: var(--space-sm);
+  .pdf-container > *{
+    flex: 1;
+    min-width: 0;
   }
 }
 

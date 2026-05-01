@@ -465,41 +465,40 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   }, []);
 
   return (
-    <div className="preview-section">
-      <label>PDF Preview:</label>
-      <div 
-        className="preview-box pdf-viewer-box" 
-        ref={containerRef}
-      >
-        {compileError ? (
-          <div style={{ padding: '20px', color: '#ff4444', backgroundColor: '#331111', borderRadius: '4px', border: '1px solid #ff4444', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '12px', overflowX: 'auto', width: '100%', boxSizing: 'border-box' }}>
-            <strong>Compilation Error:</strong><br /><br />
-            {compileError}
-          </div>
-        ) : pdfBlob ? (
-          <Document 
-            file={pdfBlob} 
+    <div 
+      ref={containerRef}
+      style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}}
+
+    >
+      {compileError ? (
+        <div style={{ padding: '20px', color: '#ff4444', backgroundColor: '#331111', borderRadius: '4px', border: '1px solid #ff4444', whiteSpace: 'prewrap', fontFamily: 'monospace', fontSize: '12px', overflowX: 'auto', width: '100%', boxSizing: 'border-box'}}>
+          <strong>Compilation: Error:</strong><br /><br />
+          {compileError}
+        </div>
+      ) : pdfBlob ? (
+          <Document
+            file={pdfBlob}
             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            loading={<div style={{ padding: '2rem', color: '#666', textAlign: 'center' }}>Loading PDF...</div>}
-            error={<div style={{ padding: '2rem', color: '#ff4444', textAlign: 'center' }}>Failed to load PDF.</div>}
-          >
-            {Array.from(new Array(numPages), (_, index) => (
-              <Page 
-                key={`page_${index + 1}`} 
-                pageNumber={index + 1} 
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                className="pdf-page"
-                width={containerWidth ? containerWidth : undefined}
-              />
-            ))}
+            loading={<div style={{ padding: '2rem', color: '#666', textAlign: 'center'}}>Loading PDF...</div>}
+            error={<div style={{ padding: '2rem', color: '#ff4444', textAlign: 'center'}}>Failed to load PDF.</div>}
+            >
+              {Array.from(new Array(numPages), (_, index) => (
+                <Page 
+                  key={'page_${index + 1}'}
+                  pageNumber={index + 1}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                  className="pdf-page"
+                  width={containerWidth ? containerWidth: undefined}
+                  />
+
+              ))}
           </Document>
-        ) : (
-          <div className="latex-content" style={{ padding: '20px', color: '#666', textAlign: 'center' }}>
-            Generate a sheet to see the PDF.
+      ) : (
+        <div style={{ padding: '20px', color: '#666', textAlign: 'center' }}>
+          Generate a cheat sheet to see your PDF!
           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };
