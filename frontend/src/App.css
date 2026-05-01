@@ -1759,3 +1759,17 @@ three - column responsive
   }
 }
 
+.subject-video-group{
+  margin-bottom: 1rem;
+}
+
+.subject-video-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07rem;
+  color: var(--primary);
+  padding: 0.4rem 0.2rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
