@@ -666,13 +666,11 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
 
   const [showLatex, setShowLatex] = useState(false);
   const [modalVideo, setModalVideo] = useState(null);
-  const [activeVideoClass, setActiveVideoClass] = useState(null);
 
   const getThumbnail = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
   const getEmbedUrl  = (id) => `https://www.youtube.com/embed/${id}?autoplay=1`;
 
-  const videos = activeVideoClass ? (SUBJECT_VIDEOS[activeVideoClass] || []) : [];
-
+ 
   const handleToggleClass = (className) => {
   toggleClass(className);
   setActiveVideoClass(className);
@@ -868,32 +866,45 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
           {/* ══ RIGHT PANEL — YouTube resources ══ */}
           <aside className="right-panel">
             <div className="right-panel-header">
-              📺 {activeVideoClass ? `Resources — ${activeVideoClass}` : 'Resources'}
+              📺 Check Out These Resources!
             </div>
             <div className="right-panel-scroll">
-              {!activeVideoClass && (
-                <p className="right-panel-empty">Select a subject to see related videos.</p>
+              { Object.keys(selectedClasses).filter(cls => selectedClasses[cls]).length == 0 && (
+                <p className="right-panel-empty">Select a subject to see related videos!</p>
               )}
-              {activeVideoClass && videos.length === 0 && (
-                <p className="right-panel-empty">No videos added yet for {activeVideoClass}.</p>
-              )}
-              {videos.map((v) => (
-                <div
-                  key={v.videoId}
-                  className="video-card-sm"
-                  onClick={() => setModalVideo(v)}
-                >
-                  <div className="video-thumb-sm">
-                    <img src={getThumbnail(v.videoId)} alt={v.title} loading="lazy" />
-                    <div className="play-icon">▶</div>
-                  </div>
-                  <div className="video-info-sm">
-                    <div className="v-title">{v.title}</div>
-                    <div className="v-channel">{v.channel}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+              {Object.keys(selectedClasses)
+                .filter(cls => selectedClasses[cls])
+                .map(cls => {
+                  const videos = SUBJECT_VIDEOS[cls] || [];
+                  return (
+                    <div key={cls} className="subject-video-group">
+                      <div className="subject-video-label">{cls}</div>
+                      {videos.length == 0 ? (
+                        <p className="right-panel-empty" style={{ fontSize: '0.72rem', padding: '0.25rem 0' }}>
+                          No videos added yet.
+                        </p>
+                      ) : (
+                        videos.map((v) => (
+                          <div 
+                            key={v.videoId}
+                            className="video-card-sm"
+                            onClick={() => setModalVideo(v)}
+                          >
+                            <div className="video-thumb-sm">
+                              <img src={getThumbnail(v.videoId)} alt={v.title} loading = "lazy" />
+                              <div className="play-icon">▶</div>
+                            </div>
+                            <div className="video-info-sm">
+                              <div className="v-title">{v.title}</div>
+                              <div classNAme="v-channel">{v.channel}</div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
           </aside>
 
         </div>

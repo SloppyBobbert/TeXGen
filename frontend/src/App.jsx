@@ -27,6 +27,7 @@ const THEMES = [
   { id: 'dark',   label: '🌑 Dark ☾'       },
   { id: 'miami',  label: '🌴 Miami 🐬'      },
   { id: 'forest', label: '🌲 Forest'     },
+  { id: 'coolGrey', label: '❄️ Cool Grey'}
 ];
 
 function App() {

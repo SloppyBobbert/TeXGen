@@ -160,6 +160,33 @@
   --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.5);
 }
 
+/* cool grey theme */
+[data-theme="coolGrey"] {
+  --bg: #2e3440;
+  --text: #eceff4;
+  --text-muted: #677691;
+  --panel-bg: #3b4252;
+  --border: #4c566a;
+  --border-subtle: #434c5e;
+  --primary: #b5d7e1;
+  --primary-hover: #b5d7e1;
+  --card-bg: #3b4252;
+  --box-bg: #2e3440;
+  --input-bg: #272c36;
+  --input-border: #4c566a;
+  --input-text: #eceff4;
+  --btn-primary: #88c0d0;
+  --btn-primary-hover: #81a1c1;
+  --btn-download: #a3be8c;
+  --btn-download-hover: #8faa78;
+  --btn-clear: #bf616a;
+  --btn-clear-hover: #a54e57;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.25);
+  --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.4);
+} 
+
 /* ==========================================================================
    BASE STYLES
    ========================================================================== */
@@ -1732,3 +1759,17 @@ three - column responsive
   }
 }
 
+.subject-video-group{
+  margin-bottom: 1rem;
+}
+
+.subject-video-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07rem;
+  color: var(--primary);
+  padding: 0.4rem 0.2rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
