@@ -1201,9 +1201,10 @@ THREE COLUMN LAYOUT
 
 .app-body {
   display: grid;
-  grid-template-columns: 280px 1fr 300px;
   flex: 1;
   overflow: hidden;
+  position: relative;
+  transition: grid-template-columns 300ms ease;
 }
 
 /* 
@@ -1772,4 +1773,25 @@ three - column responsive
   padding: 0.4rem 0.2rem;
   margin-bottom: 0.4rem;
   border-bottom: 1px solid var(--border);
+}
+
+.btn-toggle-left {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin: 0.4rem 0.4rem 0;
+  padding: 0.3rem 0.75rem;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 10;
+}
+
+.btn-toggle-left:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }

@@ -484,7 +484,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
             >
               {Array.from(new Array(numPages), (_, index) => (
                 <Page 
-                  key={'page_${index + 1}'}
+                  key={`page_${index + 1}`}
                   pageNumber={index + 1}
                   renderTextLayer={false}
                   renderAnnotationLayer={false}
@@ -707,10 +707,24 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
     <>
       <div className="app-shell">
 
-        <div className="app-body">
+       <div className="app-body" style={{gridTemplateColumns: leftPanelVisible ? '280px 1fr 300px' : '0 1fr 300px'}}>
+          <button
+            className="panel-toggle-btn"
+            onClick={() =>setLeftPanelVisible(v => !v)}
+            title={leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
+          >
+            {leftPanelVisible ? '◀ Hide' : '▶ Show'}
+          </button>
 
           {/* ══ LEFT PANEL ══ */}
-          <aside className="left-panel">
+          {leftPanelVisible && (
+          <aside className="left-panel" style={{ 
+            overflow: leftPanelVisible ? 'hidden' : 'hidden',
+            minWidth: 0, 
+            visibility: leftPanelVisible ? 'visible' : 'hidden',
+            opacity: leftPanelVisible ? 1 : 0, 
+            transition: 'opacity var(--transition-slow), visibility var(--transition-slow)',
+          }}>
             <div className="left-panel-scroll">
 
               <div className="form-group" style={{ padding: '1rem 1rem 0' }}>
@@ -816,10 +830,16 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
               </div>
             </div>
           </aside>
-
+)}
           {/* ══ CENTER PANEL — PDF main focus ══ */}
           <main className="center-panel">
-
+            <button 
+              className="btn-toggle-left"
+              onClick={() => setLeftPanelVisible(v => !v)}
+              title={leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
+            >
+              {leftPanelVisible ? '◀ Hide' : '▶ Show'}
+            </button>
             <div className="pdf-container">
               {pdfBlob || compileError ? (
                 <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
@@ -894,7 +914,7 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
                             </div>
                             <div className="video-info-sm">
                               <div className="v-title">{v.title}</div>
-                              <div classNAme="v-channel">{v.channel}</div>
+                              <div className="v-channel">{v.channel}</div>
                             </div>
                           </div>
                         ))
