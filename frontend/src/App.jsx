@@ -167,7 +167,12 @@ function App() {
     <div className="App">
       <header className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 1rem', width: '100%' }}>
-          <div style={{ flex: 1 }} />
+          <div style={{ flex: 1, display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <Link to="/" style={{ textDecoration: 'none', color: 'var(--text)' }}>Home</Link>
+            {user && <Link to="/dashboard" style={{ textDecoration: 'none', color: 'var(--text)' }}>Dashboard</Link>}
+            {user && <button onClick={logoutUser} style={{ background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', padding: 0, font: 'inherit' }}>Logout ({user.username})</button>}
+            {!user && <Link to="/login" style={{ textDecoration: 'none', color: 'var(--text)' }}>Login</Link>}
+          </div>
 
           <div style={{ textAlign: 'center' }}>
             <h1 style={{ margin: 0 }}>Cheat Sheet Generator</h1>
