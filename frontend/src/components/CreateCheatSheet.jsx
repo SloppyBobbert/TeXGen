@@ -666,14 +666,11 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
 
   const [showLatex, setShowLatex] = useState(false);
   const [modalVideo, setModalVideo] = useState(null);
-
   const getThumbnail = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
   const getEmbedUrl  = (id) => `https://www.youtube.com/embed/${id}?autoplay=1`;
 
- 
   const handleToggleClass = (className) => {
-  toggleClass(className);
-  setActiveVideoClass(className);
+    toggleClass(className);
   };
   const handleCompileClick = () => {
     handleCompileOnly();
