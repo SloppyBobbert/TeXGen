@@ -33,14 +33,14 @@ test.describe('Authentication Flow', () => {
     await page.fill('#login-username', 'wronguser'); // Adjust selector
     await page.fill('#login-password', 'wrongpassword'); // Adjust selector
     
-    // Listen for the window.alert that your AuthContext displays on failure
-    page.on('dialog', dialog => {
-      expect(dialog.message()).toContain('No active account');
-      dialog.dismiss();
-    });
-
-    // Click the login button
-    await page.click('button[type="submit"]'); // Adjust selector if needed
+    // Wait for the dialog and the submit click concurrently so the assertion
+    // is deterministic (fails if no dialog is shown).
+    const [dialog] = await Promise.all([
+      page.waitForEvent('dialog'),
+      page.click('button[type="submit"]'), // Adjust selector if needed
+    ]);
+    expect(dialog.message()).toContain('No active account');
+    await dialog.dismiss();
   });
 
   test('successful login navigates to dashboard', async ({ page }) => {

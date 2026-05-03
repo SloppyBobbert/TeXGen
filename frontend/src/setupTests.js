@@ -1,24 +1,28 @@
 import '@testing-library/jest-dom';
 
 // Create a mock for localStorage to use in vi tests in jsdom
-const localStorageMock = (function() {
+const localStorageMock = (() => {
   let store = {};
   return {
     getItem(key) {
-      return store[key] || null;
+      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
     },
     setItem(key, value) {
-      store[key] = value.toString();
+      store[key] = String(value);
     },
     removeItem(key) {
       delete store[key];
     },
     clear() {
       store = {};
-    }
+    },
+    key(index) {
+      return Object.keys(store)[index] ?? null;
+    },
+    get length() {
+      return Object.keys(store).length;
+    },
   };
 })();
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
-});
+vi.stubGlobal('localStorage', localStorageMock);
