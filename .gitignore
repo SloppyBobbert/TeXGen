@@ -54,6 +54,8 @@ backend/.env
 # Local coverage/test artifacts (frontend & backend)
 frontend/coverage/
 backend/coverage/
+.coverage
+htmlcov/
 
 # LaTeX/TeX build artifacts (if any contributor compiles PDFs locally)
 *.pdf

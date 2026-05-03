@@ -42,7 +42,7 @@ jobs:
           # We can also keep using sqlite optionally if that's what's default
         run: |
           cd backend
-          coverage run -m pytest
+          coverage run --source=. -m pytest
           coverage report -m
 
   frontend-test:
