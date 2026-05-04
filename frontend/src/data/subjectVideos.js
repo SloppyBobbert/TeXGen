@@ -137,6 +137,12 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemsistry Tutor",
       topic: "Polynomial Theorems and Binomial Expansion"
     },
+    {
+      title: "Conic Sections - Circles, Ellipses, Parabolas, Hyperbola - How To Graph & Write In Standard Form",
+      videoId: "PLrgwD9TleU",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Conic Sections"
+    },
 
   ],
   "GEOMETRY": [
