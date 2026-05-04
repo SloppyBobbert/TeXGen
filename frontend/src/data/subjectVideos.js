@@ -99,7 +99,10 @@ export const SUBJECT_VIDEOS = {
       topic: "Absolute Value"
     },
     {
-
+      title: "Rational Expressions - Basic Introduction",
+      videoId: "0Gq3uw2p6fA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Rational Expressions"
     },
 
   ],
