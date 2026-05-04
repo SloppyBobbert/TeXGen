@@ -20,6 +20,18 @@ export const SUBJECT_VIDEOS = {
       channel: "Professor Leonard",
       topic: "Linear Equations"
     },
+    {
+      title: "Adding and Subtracting Integers Using a Simple Method",
+      videoId: "jVvvUiExjes",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Integer Rules"
+    },
+    {
+      title: "Rational Expressions: Basic Introduction",
+      videoId: "0Gq3uw2p6fA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Integer Rules",
+    },
   ],
   "ALGEBRA II": [
     {
