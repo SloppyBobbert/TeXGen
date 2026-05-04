@@ -86,6 +86,12 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemistry Tutor",
       topic: "Radicals"
     },
+    {
+      title: "Algebra Basics: What Are Functions? - Math Antics",
+      videoId: "52tpYl2tTqk",
+      channel: "mathantics",
+      topic: "Functions"
+    },
 
   ],
   "ALGEBRA II": [
