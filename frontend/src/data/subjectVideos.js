@@ -120,8 +120,14 @@ export const SUBJECT_VIDEOS = {
       topic: "Logarithms"
     },
     {
-      
-    }
+      title: "Exponential growth functions | Exponential and logarithmic functions | Algebra II | Khan Academy",
+      videoId: "6WMZ7J0wwMI",
+      channel: "Khan Academy",
+      topic: "Exponential Functions"
+    },
+    {
+
+    },
 
   ],
   "GEOMETRY": [
