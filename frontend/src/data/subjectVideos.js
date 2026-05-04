@@ -80,6 +80,12 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemistry Tutor",
       topic: "Exponents"
     },
+    {
+      title: "Simplifying Radicals With Variables, Exponents, Fractions, Cube Roots - Algebra",
+      videoId: "Llrngdh3Rrg",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Radicals"
+    },
 
   ],
   "ALGEBRA II": [
