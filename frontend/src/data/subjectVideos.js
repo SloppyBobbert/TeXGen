@@ -44,6 +44,13 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemistry Tutor",
       topic: "Integer Rules",
     },
+    {
+      title: "Solving Algebraic Inequalities",
+      videoId: "uBxs7cSgOes",
+      channel: "Professor Dave Explains",
+      topic: "Inequalities",
+    },
+    
   ],
   "ALGEBRA II": [
     {
