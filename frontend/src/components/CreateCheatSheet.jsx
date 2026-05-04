@@ -840,45 +840,43 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
             >
               {leftPanelVisible ? '◀ Hide' : '▶ Show'}
             </button>
-            <div className="pdf-container">
-              {pdfBlob || compileError ? (
-                <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
-              ) : (
-                <div className="pdf-placeholder">
-                  <span>📄</span>
-                  <p>Select a subject, pick categories, then compile</p>
-                  <p>Your PDF will appear here</p>
-                </div>
-              )}
-            </div>
 
-            {/* LaTeX toggle — only appears after content exists */}
             {content && (
-              <div className="latex-toggle-bar">
-                <button
+              <div className="pdf-topbar">
+                <div style={{ flex: 1 }} />
+                  <button
                   type="button"
                   className="btn-toggle-latex"
                   onClick={() => setShowLatex(v => !v)}
                 >
-                  {showLatex ? '▲ Hide LaTeX' : '▼ Reveal LaTeX Code'}
-                </button>
-                <span className="latex-line-count">
-                  {content.split('\n').length} lines
-                </span>
-              </div>
-            )}
-
-            {/* Collapsible LaTeX drawer */}
-            {content && (
-              <div className={`latex-drawer ${showLatex ? 'open' : 'closed'}`}>
+                 {showLatex ? '📄 Show PDF' : '{ } Show LaTeX'}
+              </button>
+            </div>
+           )}
+             <div className="pdf-container">
+              {showLatex ? (
+              <div className="latex-fullscreen">
                 <LatexEditor
-                  content={content}
-                  onChange={handleContentChange}
-                  isModified={contentModified}
-                  compileError={compileError}
+                content={content}
+                onChange={handleContentChange}
+                isModified={contentModified || hasLayoutChanges}
+                compileError={compileError}
                 />
               </div>
+            ) : (
+              <>
+            {pdfBlob || compileError ? (
+            <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
+            ) : (
+              <div className="pdf-placeholder">
+                  <span>📄</span>
+                <p>Select a subject, pick categories, then compile</p>
+                <p>Your PDF will appear here</p>
+              </div>
+              )}
+              </>
             )}
+            </div>
           </main>
 
           {/* ══ RIGHT PANEL — YouTube resources ══ */}
