@@ -48,9 +48,36 @@ export const SUBJECT_VIDEOS = {
       title: "Solving Algebraic Inequalities",
       videoId: "uBxs7cSgOes",
       channel: "Professor Dave Explains",
-      topic: "Inequalities",
+      topic: "Inequalities"
     },
-    
+    {
+      title: "Converting Between Fractions, Decimals, and Percentages",
+      videoId: "-Xt4UDk7Kzw",
+      channel: "Professor Dave Explains",
+      topic: "Decimals and Percents"
+    },
+    {
+      title: "Math Antics - Mean, Median, and Mode",
+      videoId: "B1HEzNTGeZ4",
+      channel: "mathantics",
+      topic: "Mean, Median, and Mode"
+    },
+    {
+      title: "How To Solve Quadratic Equations Using the Quadratic Formula",
+      videoId: "IlNAJl36-10",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Quadratic Equations"
+    },
+    {
+      title: "Polynomials - Adding, Subtracting, Multiplying and Dividing Algebraic Expressions",
+      videoId: "ZvL9aDGNHqA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Polynomials"
+    },
+    {
+
+    },
+
   ],
   "ALGEBRA II": [
     {
