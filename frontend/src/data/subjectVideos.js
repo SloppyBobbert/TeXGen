@@ -44,6 +44,67 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemistry Tutor",
       topic: "Integer Rules",
     },
+    {
+      title: "Solving Algebraic Inequalities",
+      videoId: "uBxs7cSgOes",
+      channel: "Professor Dave Explains",
+      topic: "Inequalities"
+    },
+    {
+      title: "Converting Between Fractions, Decimals, and Percentages",
+      videoId: "-Xt4UDk7Kzw",
+      channel: "Professor Dave Explains",
+      topic: "Decimals and Percents"
+    },
+    {
+      title: "Math Antics - Mean, Median, and Mode",
+      videoId: "B1HEzNTGeZ4",
+      channel: "mathantics",
+      topic: "Mean, Median, and Mode"
+    },
+    {
+      title: "How To Solve Quadratic Equations Using the Quadratic Formula",
+      videoId: "IlNAJl36-10",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Quadratic Equations"
+    },
+    {
+      title: "Polynomials - Adding, Subtracting, Multiplying and Dividing Algebraic Expressions",
+      videoId: "ZvL9aDGNHqA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Polynomials"
+    },
+    {
+      title: "Simplifying Exponents With Fractions, Variables, Negative Exponents, Multiplication & Division, Math",
+      videoId: "Zt2fdy3zrZU",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Exponents"
+    },
+    {
+      title: "Simplifying Radicals With Variables, Exponents, Fractions, Cube Roots - Algebra",
+      videoId: "Llrngdh3Rrg",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Radicals"
+    },
+    {
+      title: "Algebra Basics: What Are Functions? - Math Antics",
+      videoId: "52tpYl2tTqk",
+      channel: "mathantics",
+      topic: "Functions"
+    },
+    {
+      title: "How To Solve Absolute Value Equations, Basic Introduction, Algebra",
+      videoId: "_cHbhzQVd7Y",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Absolute Value"
+    },
+    {
+      title: "Rational Expressions - Basic Introduction",
+      videoId: "0Gq3uw2p6fA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Rational Expressions"
+    },
+
   ],
   "ALGEBRA II": [
     {
@@ -51,6 +112,42 @@ export const SUBJECT_VIDEOS = {
       videoId: "SP-YJe7Vldo",
       channel: "Khan Academy",
       topic: "Complex Numbers"
+    },
+    {
+      title: "Logarithms | Logarithms | Algebra II | Khan Academy",
+      videoId: "Z5myJ8dg_rM",
+      channel: "Khan Academy",
+      topic: "Logarithms"
+    },
+    {
+      title: "Exponential growth functions | Exponential and logarithmic functions | Algebra II | Khan Academy",
+      videoId: "6WMZ7J0wwMI",
+      channel: "Khan Academy",
+      topic: "Exponential Functions"
+    },
+    {
+      title: "Binomial Theorem Expansion, Pascal's Triangle, Finding Terms & Coefficients, Combinations, Algebra 2",
+      videoId: "s19dWIHficY",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Polynomial Theorems and Binomial Expansion"
+    },
+    {
+      title: "Factor Theorem and Synthetic Division of Polynomial Functions",
+      videoId: "zAGP46nR6-0",
+      channel: "The Organic Chemsistry Tutor",
+      topic: "Polynomial Theorems and Binomial Expansion"
+    },
+    {
+      title: "Conic Sections - Circles, Ellipses, Parabolas, Hyperbola - How To Graph & Write In Standard Form",
+      videoId: "PLrgwD9TleU",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Conic Sections"
+    },
+    {
+      title: "Sequences and Series (Arithmetic & Geometric) Quick Review",
+      videoId: "Tj89FA-d0f8",
+      channel: "Mario's Math Tutoring",
+      topic: "Sequences and Series",
     },
   ],
   "GEOMETRY": [
