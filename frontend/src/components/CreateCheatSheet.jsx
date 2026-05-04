@@ -484,7 +484,7 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
             >
               {Array.from(new Array(numPages), (_, index) => (
                 <Page 
-                  key={'page_${index + 1}'}
+                  key={`page_${index + 1}`}
                   pageNumber={index + 1}
                   renderTextLayer={false}
                   renderAnnotationLayer={false}
@@ -666,6 +666,7 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
 
   const [showLatex, setShowLatex] = useState(false);
   const [modalVideo, setModalVideo] = useState(null);
+  const [leftPanelVisible, setLeftPanelVisible] = useState(true);
   const getThumbnail = (id) => `https://img.youtube.com/vi/${id}/mqdefault.jpg`;
   const getEmbedUrl  = (id) => `https://www.youtube.com/embed/${id}?autoplay=1`;
 
@@ -706,10 +707,24 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
     <>
       <div className="app-shell">
 
-        <div className="app-body">
+       <div className="app-body" style={{gridTemplateColumns: leftPanelVisible ? '280px 1fr 300px' : '0 1fr 300px'}}>
+          <button
+            className="panel-toggle-btn"
+            onClick={() =>setLeftPanelVisible(v => !v)}
+            title={leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
+          >
+            {leftPanelVisible ? '◀ Hide' : '▶ Show'}
+          </button>
 
           {/* ══ LEFT PANEL ══ */}
-          <aside className="left-panel">
+          {leftPanelVisible && (
+          <aside className="left-panel" style={{ 
+            overflow: leftPanelVisible ? 'hidden' : 'hidden',
+            minWidth: 0, 
+            visibility: leftPanelVisible ? 'visible' : 'hidden',
+            opacity: leftPanelVisible ? 1 : 0, 
+            transition: 'opacity var(--transition-slow), visibility var(--transition-slow)',
+          }}>
             <div className="left-panel-scroll">
 
               <div className="form-group" style={{ padding: '1rem 1rem 0' }}>
@@ -815,49 +830,53 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
               </div>
             </div>
           </aside>
-
+)}
           {/* ══ CENTER PANEL — PDF main focus ══ */}
           <main className="center-panel">
+            <button 
+              className="btn-toggle-left"
+              onClick={() => setLeftPanelVisible(v => !v)}
+              title={leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
+            >
+              {leftPanelVisible ? '◀ Hide' : '▶ Show'}
+            </button>
 
-            <div className="pdf-container">
-              {pdfBlob || compileError ? (
-                <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
-              ) : (
-                <div className="pdf-placeholder">
-                  <span>📄</span>
-                  <p>Select a subject, pick categories, then compile</p>
-                  <p>Your PDF will appear here</p>
-                </div>
-              )}
-            </div>
-
-            {/* LaTeX toggle — only appears after content exists */}
             {content && (
-              <div className="latex-toggle-bar">
-                <button
+              <div className="pdf-topbar">
+                <div style={{ flex: 1 }} />
+                  <button
                   type="button"
                   className="btn-toggle-latex"
                   onClick={() => setShowLatex(v => !v)}
                 >
-                  {showLatex ? '▲ Hide LaTeX' : '▼ Reveal LaTeX Code'}
-                </button>
-                <span className="latex-line-count">
-                  {content.split('\n').length} lines
-                </span>
-              </div>
-            )}
-
-            {/* Collapsible LaTeX drawer */}
-            {content && (
-              <div className={`latex-drawer ${showLatex ? 'open' : 'closed'}`}>
+                 {showLatex ? '📄 Show PDF' : '{ } Show LaTeX'}
+              </button>
+            </div>
+           )}
+             <div className="pdf-container">
+              {showLatex ? (
+              <div className="latex-fullscreen">
                 <LatexEditor
-                  content={content}
-                  onChange={handleContentChange}
-                  isModified={contentModified}
-                  compileError={compileError}
+                content={content}
+                onChange={handleContentChange}
+                isModified={contentModified || hasLayoutChanges}
+                compileError={compileError}
                 />
               </div>
+            ) : (
+              <>
+            {pdfBlob || compileError ? (
+            <PdfPreview pdfBlob={pdfBlob} compileError={compileError} />
+            ) : (
+              <div className="pdf-placeholder">
+                  <span>📄</span>
+                <p>Select a subject, pick categories, then compile</p>
+                <p>Your PDF will appear here</p>
+              </div>
+              )}
+              </>
             )}
+            </div>
           </main>
 
           {/* ══ RIGHT PANEL — YouTube resources ══ */}
@@ -893,7 +912,7 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
                             </div>
                             <div className="video-info-sm">
                               <div className="v-title">{v.title}</div>
-                              <div classNAme="v-channel">{v.channel}</div>
+                              <div className="v-channel">{v.channel}</div>
                             </div>
                           </div>
                         ))
