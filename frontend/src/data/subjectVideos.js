@@ -91,4 +91,60 @@ export const SUBJECT_VIDEOS = {
       topic: "Unit Circle"
     },
   ],
+  "PHYSICS I": [
+    {
+      videoId: "b1t41Q3xRM8",
+      title: "Physics 1 Final Exam Review",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Kinematics & Dynamics"
+    },
+    {
+      videoId: "ZM8ECpBuQYE",
+      title: "Motion in a Straight Line: Crash Course #1",
+      channel: "CrashCourse",
+      topic: "Intro to Physics"
+    }
+  ],
+  "PHYSICS II": [
+    {
+      videoId: "uHvs-G-njo8",
+      title: "Physics 2 Final Exam Review",
+      channel: "The Organic Chemistry Tutor",
+      topic: "E&M and Optics"
+    },
+    {
+      videoId: "mdVYqvLAtoQ",
+      title: "Electric Fields: Crash Course #26",
+      channel: "CrashCourse",
+      topic: "Electrostatics"
+    }
+  ],
+  "STATISTICS I": [
+    {
+      videoId: "xxpc-HPWX28",
+      title: "Statistics Exam 1 Review",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Descriptive Stats"
+    },
+    {
+      videoId: "zouPoc49xbk",
+      title: "What Is Statistics: Crash Course #1",
+      channel: "CrashCourse",
+      topic: "Intro to Statistics"
+    }
+  ],
+  "STATISTICS II": [
+    {
+      videoId: "Hp21BeaMUv8",
+      title: "Chi-Square Tests: Crash Course #29",
+      channel: "CrashCourse",
+      topic: "Chi-Square"
+    },
+    {
+      videoId: "zITIFTsivN8",
+      title: "Linear Regression Explained",
+      channel: "StatQuest with Josh Starmer",
+      topic: "Linear Regression"
+    }
+  ],
 };
