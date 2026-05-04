@@ -126,7 +126,16 @@ export const SUBJECT_VIDEOS = {
       topic: "Exponential Functions"
     },
     {
-
+      title: "Binomial Theorem Expansion, Pascal's Triangle, Finding Terms & Coefficients, Combinations, Algebra 2",
+      videoId: "s19dWIHficY",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Polynomial Theorems and Binomial Expansion"
+    },
+    {
+      title: "Factor Theorem and Synthetic Division of Polynomial Functions",
+      videoId: "zAGP46nR6-0",
+      channel: "The Organic Chemsistry Tutor",
+      topic: "Polynomial Theorems and Binomial Expansion"
     },
 
   ],
