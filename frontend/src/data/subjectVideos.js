@@ -12,6 +12,18 @@ export const SUBJECT_VIDEOS = {
       channel: "Math Antics",
       topic: "Fractions"
     },
+    {
+      title: "Area and Perimeter",
+      videoId: "gtMKsFXjLHw",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Area and Perimeter"
+    },
+    {
+      title: "Algebra Basics - Solving Basic Equations - Quick Review!",
+      videoId: "kWOTmyoaWJg",
+      channel: "The Organic Chemistry Tutor",
+      Topic: "Solving Equations"
+    },
   ],
   "ALGEBRA I": [
     {
@@ -19,6 +31,18 @@ export const SUBJECT_VIDEOS = {
       videoId: "l3XzepN03KQ",
       channel: "Professor Leonard",
       topic: "Linear Equations"
+    },
+    {
+      title: "Adding and Subtracting Integers Using a Simple Method",
+      videoId: "jVvvUiExjes",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Integer Rules"
+    },
+    {
+      title: "Rational Expressions: Basic Introduction",
+      videoId: "0Gq3uw2p6fA",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Integer Rules",
     },
   ],
   "ALGEBRA II": [
