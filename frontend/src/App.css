@@ -187,6 +187,55 @@
   --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.4);
 } 
 
+/* Neon Theme */
+[data-theme="neon"] {
+  --bg: #050510;
+  --text: #f0f0ff;
+  --text-muted: #7070aa;
+  --panel-bg: #080820;
+  --border: #1a1a4a;
+  --border-subtle: #0f0f30;
+  --primary: #00f5ff;
+  --primary-hover: #00c8d4;
+  --card-bg: #080820;
+  --box-bg: #050515;
+  --input-bg: #03030e;
+  --input-border: #00f5ff44;
+  --input-text: #f0f0ff;
+  --btn-primary: #00f5ff;
+  --btn-primary-hover: #00c8d4;
+  --btn-download: #ff00ff;
+  --btn-download-hover: #cc00cc;
+  --btn-clear: #ff2d55;
+  --btn-clear-hover: #cc0033;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(0,245,255,0.15);
+  --shadow-lg: 0 8px 24px rgba(0,245,255,0.2);
+  --shadow-inset: inset 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* Neon theme glow effects */
+[data-theme="neon"] .btn.primary,
+[data-theme="neon"] .btn-compile {
+  color: #050510;
+  text-shadow: none;
+  box-shadow: 0 0 12px rgba(0,245,255,0.6), 0 0 24px rgba(0,245,255,0.3);
+}
+
+[data-theme="neon"] .btn.download,
+[data-theme="neon"] .btn-dl {
+  color: #050510;
+  box-shadow: 0 0 12px rgba(255,0,255,0.6), 0 0 24px rgba(255,0,255,0.3);
+}
+
+[data-theme="neon"] .left-panel,
+[data-theme="neon"] .right-panel {
+  box-shadow: inset 0 0 30px rgba(0,245,255,0.03);
+}
+
+[data-theme="neon"] .class-btn.active {
+  box-shadow: 0 0 10px rgba(0,245,255,0.5);
+}
 /* ==========================================================================
    BASE STYLES
    ========================================================================== */

@@ -24,10 +24,11 @@ const PrivateRoute = ({ children }) => {
 
 const THEMES = [
   { id: 'light',  label: '☀️ Light 💡'      },
-  { id: 'dark',   label: '🌑 Dark ☾'       },
+  { id: 'dark',    label: '🌑 Dark ☾'       },
   { id: 'miami',  label: '🌴 Miami 🐬'      },
-  { id: 'forest', label: '🌲 Forest'     },
-  { id: 'coolGrey', label: '❄️ Cool Grey'}
+  { id: 'forest',    label: '🌲 Forest'     },
+  { id: 'coolGrey',    label: '❄️ Cool Grey'}, 
+  { id: 'neon',         label:     '🩵 neon'}
 ];
 
 function App() {
