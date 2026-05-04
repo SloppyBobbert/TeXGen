@@ -75,7 +75,10 @@ export const SUBJECT_VIDEOS = {
       topic: "Polynomials"
     },
     {
-
+      title: "Simplifying Exponents With Fractions, Variables, Negative Exponents, Multiplication & Division, Math",
+      videoId: "Zt2fdy3zrZU",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Exponents"
     },
 
   ],
