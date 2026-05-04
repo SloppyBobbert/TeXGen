@@ -113,6 +113,16 @@ export const SUBJECT_VIDEOS = {
       channel: "Khan Academy",
       topic: "Complex Numbers"
     },
+    {
+      title: "Logarithms | Logarithms | Algebra II | Khan Academy",
+      videoId: "Z5myJ8dg_rM",
+      channel: "Khan Academy",
+      topic: "Logarithms"
+    },
+    {
+      
+    }
+
   ],
   "GEOMETRY": [
     {
