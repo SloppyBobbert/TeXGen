@@ -143,7 +143,12 @@ export const SUBJECT_VIDEOS = {
       channel: "The Organic Chemistry Tutor",
       topic: "Conic Sections"
     },
-
+    {
+      title: "Sequences and Series (Arithmetic & Geometric) Quick Review",
+      videoId: "Tj89FA-d0f8",
+      channel: "Mario's Math Tutoring",
+      topic: "Sequences and Series",
+    },
   ],
   "GEOMETRY": [
     {
