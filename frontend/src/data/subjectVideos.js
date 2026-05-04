@@ -12,6 +12,18 @@ export const SUBJECT_VIDEOS = {
       channel: "Math Antics",
       topic: "Fractions"
     },
+    {
+      title: "Area and Perimeter",
+      videoId: "gtMKsFXjLHw",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Area and Perimeter"
+    },
+    {
+      title: "Algebra Basics - Solving Basic Equations - Quick Review!",
+      videoId: "kWOTmyoaWJg",
+      channel: "The Organic Chemistry Tutor",
+      Topic: "Solving Equations"
+    },
   ],
   "ALGEBRA I": [
     {
