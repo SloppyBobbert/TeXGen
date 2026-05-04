@@ -92,6 +92,15 @@ export const SUBJECT_VIDEOS = {
       channel: "mathantics",
       topic: "Functions"
     },
+    {
+      title: "How To Solve Absolute Value Equations, Basic Introduction, Algebra",
+      videoId: "_cHbhzQVd7Y",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Absolute Value"
+    },
+    {
+
+    },
 
   ],
   "ALGEBRA II": [
