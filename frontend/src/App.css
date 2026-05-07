@@ -3522,9 +3522,6 @@ select:focus:not(:focus-visible) {
   min-width: 80px;
 }
 
-.pdf-preview-scroll {
-  position: relative;
-}
 
 .pdf-scroll-top-btn {
    position: sticky;
