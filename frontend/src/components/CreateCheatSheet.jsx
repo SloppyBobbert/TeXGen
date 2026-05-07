@@ -804,7 +804,7 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
       window.addEventListener('resize', updatePreviewSize);
       return () => window.removeEventListener('resize', updatePreviewSize);
     }
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new window.ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
         setContainerWidth(entry.contentRect.width);
@@ -1229,16 +1229,17 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   };
 
   useEffect(() => {
-    if(!initialData) return 
-    if(initialData.title) setTitle(initialData.title);
-    if (initialData.content){
+    if (!initialData) return;
+    if (initialData.title) setTitle(initialData.title);
+    if (initialData.content) {
       handleContentChange(initialData.content);
     }
     if (initialData.columns) setColumns(initialData.columns);
-    if(initialData.fontSize) setFontSize(initialData.fontSize);
+    if (initialData.fontSize) setFontSize(initialData.fontSize);
     if (initialData.spacing) setSpacing(initialData.spacing);
     if (initialData.margins) setMargins(initialData.margins);
-  }, [initialData]);
+    if (initialData.orientation) setOrientation(initialData.orientation);
+  }, [handleContentChange, initialData, setColumns, setFontSize, setMargins, setOrientation, setSpacing, setTitle]);
 
   useEffect(() => {
     const hasCompiledBefore = Boolean(initialData?.compileHistory?.length || pdfBlob || content.trim());
@@ -1476,25 +1477,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       }, 600);
       return () => clearTimeout(timer);
     }, [pdfBlob, isCompiling]);
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){
-        const isModifierPressed = event.ctrlKey || event.metaKey;
-        const normalizedKey = typeof event.key === 'string' ? event.key.toLowerCase() : '';
-        event.preventDefault();
-        if(!isCompiling) handleCompileClick();
-        return;
-      }
-      if((event.ctrlKey || event.metaKey) && event.key === 's'){
-        event.preventDefault();
-        handleSave({ preventDefault: () => {} });
-        return;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCompiling]);
-  const handleCompileClick = () => {
+  const handleCompileClick = useCallback(() => {
     if (!hasCollapsedLeftPanelOnceRef.current) {
       // First compile: keep controls reachable while reclaiming preview space.
       hasCollapsedLeftPanelOnceRef.current = true;
@@ -1518,28 +1501,55 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     handleCompileOnly(selectedFormulas);
-  };
+  }, [canRegenerateFromSelections, columns, contentModified, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
 
-  const handleSave = async (e) => {
+  const handleSave = useCallback(async (e) => {
     e?.preventDefault?.();
-    try { 
-    await onSave({
-      title,
-      content,
-      contentSource,
-      columns,
-      fontSize,
-      spacing,
-      margins,
-      orientation,
-      selectedFormulas: getSelectedFormulasList(),
-    });
-    setLastSavedAt(Date.now());
-    showToast('Cheat sheet saved successfully!');
-  } catch {
-    showToast('Failed to save. Please try again.', 'error');
-  }
-};
+    setSaveStatus('saving');
+    try {
+      await onSave({
+        title,
+        content,
+        contentSource,
+        columns,
+        fontSize,
+        spacing,
+        margins,
+        orientation,
+        selectedFormulas: getSelectedFormulasList(),
+      });
+      setSaveStatus('saved');
+      setLastSavedAt(Date.now());
+      showToast('Cheat sheet saved successfully!');
+    } catch {
+      setSaveStatus('offline');
+      showToast('Failed to save. Please try again.', 'error');
+    }
+  }, [columns, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const isModifierPressed = event.ctrlKey || event.metaKey;
+      const normalizedKey = typeof event.key === 'string' ? event.key.toLowerCase() : '';
+
+      if (!isModifierPressed) {
+        return;
+      }
+
+      if (normalizedKey === 'enter') {
+        event.preventDefault();
+        if (!isCompiling) handleCompileClick();
+        return;
+      }
+
+      if (normalizedKey === 's') {
+        event.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCompileClick, handleSave, isCompiling]);
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {

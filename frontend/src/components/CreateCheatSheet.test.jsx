@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CreateCheatSheet from './CreateCheatSheet';
 import { useFormulas } from '../hooks/formulas';
@@ -59,6 +59,8 @@ describe('CreateCheatSheet Component', () => {
     setSpacing: vi.fn(),
     margins: '0.15in',
     setMargins: vi.fn(),
+    orientation: 'portrait',
+    setOrientation: vi.fn(),
     pdfBlob: null,
     isGenerating: false,
     isCompiling: false,
@@ -151,6 +153,25 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.queryByLabelText(/Generated LaTeX Code:/i)).not.toBeInTheDocument();
   });
 
+  it('restores saved orientation from initial data', () => {
+    const setOrientation = vi.fn();
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      setOrientation,
+    });
+
+    render(
+      <CreateCheatSheet
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onReset={vi.fn()}
+        initialData={{ orientation: 'landscape' }}
+      />,
+    );
+
+    expect(setOrientation).toHaveBeenCalledWith('landscape');
+  });
+
   it('compiles existing manual content without regenerating', () => {
     const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
@@ -194,6 +215,50 @@ describe('CreateCheatSheet Component', () => {
 
     expect(handlePreviewMock).not.toHaveBeenCalled();
     expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
+  });
+
+  it('compiles on Ctrl+Enter and prevents the browser default action', () => {
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ name: 'test' }];
+
+    useLatex.mockReturnValue({ ...mockUseLatex, handlePreview: handlePreviewMock });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />);
+
+    const shortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(shortcutEvent);
+
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+  });
+
+  it('saves on Ctrl+S and prevents the browser default action', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    const shortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(shortcutEvent);
+
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
   });
 
   it('can open youtube resources when class is selected', () => {

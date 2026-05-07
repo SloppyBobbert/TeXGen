@@ -3515,7 +3515,7 @@ select:focus:not(:focus-visible) {
   color: white;
 }
 
-.pdf-toolbar-notes {
+.pdf-toolbar-note {
   font-size: 0.75rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
