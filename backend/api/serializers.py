@@ -83,6 +83,7 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "columns",
             "font_size",
             "spacing",
+            "orientation",
             "selected_formulas",
             "problems",
             "full_latex",

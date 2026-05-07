@@ -1219,6 +1219,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       fontSize,
       spacing,
       margins,
+      orientation,
       selectedFormulas: getSelectedFormulasList(),
       compileSnapshot: {
         title,
@@ -1228,13 +1229,14 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
         fontSize,
         spacing,
         margins,
+        orientation,
         selectedFormulas: getSelectedFormulasList(),
         compiledAt: new Date().toISOString(),
       },
     }, false).catch((error) => {
       console.error('Failed to autosave compiled sheet', error);
     });
-  }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, pdfBlob, spacing, title]);
+  }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, pdfBlob, spacing, title, orientation]);
 
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();
@@ -1353,6 +1355,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       fontSize,
       spacing,
       margins,
+      orientation,
       selectedFormulas: getSelectedFormulasList(),
     });
   };
