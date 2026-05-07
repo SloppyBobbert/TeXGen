@@ -10,6 +10,7 @@ const DEFAULT_LAYOUT = {
   fontSize: '9pt',
   spacing: 'small',
   margins: '0.15in',
+  orientation: 'portrait',
 };
 
 function getInitialContentSource(data) {
@@ -84,6 +85,7 @@ export function useLatex(initialData) {
   const [fontSize, setFontSize] = useState(initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize);
   const [spacing, setSpacing] = useState(initialData?.spacing ?? DEFAULT_LAYOUT.spacing);
   const [margins, setMargins] = useState(initialData?.margins ?? DEFAULT_LAYOUT.margins);
+  const [orientation, setOrientation] = useState(initialData?.orientation ?? DEFAULT_LAYOUT.orientation);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -103,6 +105,7 @@ export function useLatex(initialData) {
     fontSize: initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize,
     spacing: initialData?.spacing ?? DEFAULT_LAYOUT.spacing,
     margins: initialData?.margins ?? DEFAULT_LAYOUT.margins,
+    orientation: initialData?.orientation ?? DEFAULT_LAYOUT.orientation,
   });
 
   // Revoke the object URL when the component unmounts to prevent memory leaks
@@ -172,11 +175,13 @@ export function useLatex(initialData) {
       setFontSize(saved.fontSize ?? DEFAULT_LAYOUT.fontSize);
       setSpacing(saved.spacing ?? DEFAULT_LAYOUT.spacing);
       setMargins(saved.margins ?? DEFAULT_LAYOUT.margins);
+      setOrientation(saved.orientation ?? DEFAULT_LAYOUT.orientation);
       lastCompiledLayoutRef.current = {
         columns: saved.columns ?? DEFAULT_LAYOUT.columns,
         fontSize: saved.fontSize ?? DEFAULT_LAYOUT.fontSize,
         spacing: saved.spacing ?? DEFAULT_LAYOUT.spacing,
         margins: saved.margins ?? DEFAULT_LAYOUT.margins,
+        orientation: saved.orientation ?? DEFAULT_LAYOUT.orientation,
       };
     } else if (initialData) {
       initialLoaded.current = true;
@@ -187,11 +192,13 @@ export function useLatex(initialData) {
       setFontSize(initialData.fontSize ?? DEFAULT_LAYOUT.fontSize);
       setSpacing(initialData.spacing ?? DEFAULT_LAYOUT.spacing);
       setMargins(initialData.margins ?? DEFAULT_LAYOUT.margins);
+      setOrientation(initialData.orientation ?? DEFAULT_LAYOUT.orientation);
       lastCompiledLayoutRef.current = {
         columns: initialData.columns ?? DEFAULT_LAYOUT.columns,
         fontSize: initialData.fontSize ?? DEFAULT_LAYOUT.fontSize,
         spacing: initialData.spacing ?? DEFAULT_LAYOUT.spacing,
         margins: initialData.margins ?? DEFAULT_LAYOUT.margins,
+        orientation: initialData.orientation ?? DEFAULT_LAYOUT.orientation,
       };
     }
   }, [initialData]);
@@ -208,12 +215,12 @@ export function useLatex(initialData) {
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      saveLatexStorage({ title, content, contentSource, columns, fontSize, spacing, margins });
+      saveLatexStorage({ title, content, contentSource, columns, fontSize, spacing, margins, orientation });
     }, SAVE_DEBOUNCE_MS);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [title, content, contentSource, columns, fontSize, spacing, margins]);
+  }, [title, content, contentSource, columns, fontSize, spacing, margins, orientation]);
 
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
     const response = await fetch('/api/compile/', {
@@ -248,6 +255,7 @@ export function useLatex(initialData) {
         font_size: fontSize,
         spacing,
         margins,
+        orientation,
       }),
     });
 
@@ -258,7 +266,7 @@ export function useLatex(initialData) {
 
     const data = await response.json();
     return data.tex_code;
-  }, [columns, fontSize, spacing, margins]);
+  }, [columns, fontSize, spacing, margins, orientation]);
 
   const normalizeLatexContent = useCallback(async (latexContent) => {
     const response = await fetch('/api/compile/', {
@@ -273,6 +281,7 @@ export function useLatex(initialData) {
         font_size: fontSize,
         spacing,
         margins,
+        orientation,
         normalize_only: true,
       }),
     });
@@ -284,13 +293,15 @@ export function useLatex(initialData) {
 
     const data = await response.json();
     return data.tex_code || latexContent;
-  }, [authTokens, columns, fontSize, margins, spacing]);
+  }, [authTokens, columns, fontSize, margins, spacing, orientation]);
 
   const hasLayoutChanges =
     lastCompiledLayoutRef.current.columns !== columns ||
     lastCompiledLayoutRef.current.fontSize !== fontSize ||
     lastCompiledLayoutRef.current.spacing !== spacing ||
-    lastCompiledLayoutRef.current.margins !== margins;
+    lastCompiledLayoutRef.current.margins !== margins ||
+    lastCompiledLayoutRef.current.orientation !== orientation;
+    
   const canRegenerateFromSelections = !content.trim() || contentSource === 'generated';
 
   const handleCompileOnly = useCallback(async (selectedList = []) => {
@@ -328,8 +339,9 @@ export function useLatex(initialData) {
         font_size: fontSize,
         spacing,
         margins,
+        orientation,
       });
-      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins, orientation };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -337,7 +349,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing]);
+  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing, orientation]);
 
   useEffect(() => {
     if (!initialLoaded.current) return;
@@ -372,7 +384,8 @@ export function useLatex(initialData) {
             columns: regenerateOptions.columns,
             font_size: regenerateOptions.fontSize,
             spacing: regenerateOptions.spacing,
-            margins: margins
+            margins: margins,
+            orientation: orientation
           }),
         });
         if (response.ok) {
@@ -401,8 +414,9 @@ export function useLatex(initialData) {
         font_size: fontSize,
         spacing,
         margins,
+        orientation,
       });
-      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins };
+      lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins, orientation };
       setContentModified(false);
     } catch (error) {
       setCompileError(error.message);
@@ -410,7 +424,7 @@ export function useLatex(initialData) {
       setIsCompiling(false);
       isCompilingRef.current = false;
     }
-  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing]);
+  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing, orientation]);
 
   useEffect(() => {
     if (!initialLoaded.current || hasRestoredPreviewRef.current) return;
@@ -472,6 +486,7 @@ export function useLatex(initialData) {
           font_size: fontSize,
           spacing,
           margins,
+          orientation,
         }),
       });
       if (!response.ok) {
@@ -560,6 +575,7 @@ export function useLatex(initialData) {
     setFontSize(initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize);
     setSpacing(initialData?.spacing ?? DEFAULT_LAYOUT.spacing);
     setMargins(initialData?.margins ?? DEFAULT_LAYOUT.margins);
+    setOrientation(initialData?.orientation ?? DEFAULT_LAYOUT.orientation);
     setHistory([]);
     setHistoryIndex(-1);
     lastCompiledLayoutRef.current = {
@@ -567,6 +583,7 @@ export function useLatex(initialData) {
       fontSize: initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize,
       spacing: initialData?.spacing ?? DEFAULT_LAYOUT.spacing,
       margins: initialData?.margins ?? DEFAULT_LAYOUT.margins,
+      orientation: initialData?.orientation ?? DEFAULT_LAYOUT.orientation,
     };
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
@@ -595,6 +612,8 @@ export function useLatex(initialData) {
     setSpacing,
     margins,
     setMargins,
+    orientation,
+    setOrientation,
     pdfBlob,
     isGenerating,
     isCompiling,

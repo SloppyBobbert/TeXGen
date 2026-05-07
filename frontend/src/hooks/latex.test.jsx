@@ -45,6 +45,7 @@ describe('useLatex hook', () => {
     expect(result.current.fontSize).toBe('9pt');
     expect(result.current.spacing).toBe('small');
     expect(result.current.margins).toBe('0.15in');
+    expect(result.current.orientation).toBe('portrait'); // <-- Added orientation default
     expect(result.current.pdfBlob).toBeNull();
     expect(result.current.compileError).toBeNull();
   });
@@ -56,7 +57,8 @@ describe('useLatex hook', () => {
       columns: 3,
       fontSize: '12pt',
       spacing: 'medium',
-      margins: '0.5in'
+      margins: '0.5in',
+      orientation: 'landscape' // <-- Added orientation custom data
     };
 
     const { result } = renderHook(() => useLatex(initialData), { wrapper });
@@ -67,6 +69,7 @@ describe('useLatex hook', () => {
     expect(result.current.fontSize).toBe('12pt');
     expect(result.current.spacing).toBe('medium');
     expect(result.current.margins).toBe('0.5in');
+    expect(result.current.orientation).toBe('landscape'); // <-- Added orientation assertion
   });
 
   test('treats persisted generated sheets as safe to regenerate', () => {

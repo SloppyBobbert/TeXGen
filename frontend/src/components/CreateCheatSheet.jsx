@@ -234,7 +234,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const [expandedGroups, setExpandedGroups] = React.useState({});
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -266,6 +266,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
       }
     }
   };
+
 
   const toggleGroup = (className) => {
     setExpandedGroups(prev => ({ ...prev, [className]: !prev[className] }));
@@ -683,7 +684,7 @@ const LatexEditor = ({ content, onChange, isModified, compileError }) => {
             value={content}
             onChange={(e) => onChange(e.target.value)}
             onScroll={handleScroll}
-            placeholder='Select classes and categories above, then click "Compile PDF" to see the LaTeX code here.'
+            placeholder='Select classes and categories above, then click "GET CHEAT SHEET" to see the LaTeX code here.'
             className={`textarea-field ${isModified ? 'modified' : ''}`}
             rows={15}
             spellCheck="false"
@@ -1051,6 +1052,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [panelLayout, setPanelLayout] = useState(() => loadPanelLayout());
   const [videoSearchRequest, setVideoSearchRequest] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const [lastSavedAt, setLastSavedAt] = useState(null);
   const [classesCollapseSignal, setClassesCollapseSignal] = useState(0);
   const pendingPanelLayoutRef = useRef(panelLayout);
   const hasCollapsedLeftPanelOnceRef = useRef(false);
@@ -1059,6 +1062,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const modalDialogRef = useRef(null);
   const appBodyRef = useRef(null);
   const centerPanelRef = useRef(null);
+  const compileBtnRef = useRef(null);
   const snapshots = useMemo(() => [...(initialData?.compileHistory || [])].reverse(), [initialData?.compileHistory]);
   const selectedClassNames = useMemo(
     () => classesData.filter((cls) => selectedClasses[cls.name]).map((cls) => cls.name),
@@ -1109,6 +1113,31 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       refocusOpener();
     }
   }, []);
+
+  const getSaveStatusText = () => {
+    if (saveStatus === 'saving') return 'Saving...';
+    if (saveStatus === 'offline') return 'Offline changes pending'
+    if (saveStatus === 'saved' && lastSavedAt) {
+      const diff = Date.now() - lastSavedAt;
+      const minutes = Math.floor(diff / 60000);
+      if (minutes < 1) return 'Saved just now';
+      if (minutes === 1) return 'Saved 1 min ago';
+      return `Saved ${minutes} min ago`;
+    }
+    return '';
+  };
+
+  useEffect(() => {
+    if(!initialData) return 
+    if(initialData.title) setTitle(initialData.title);
+    if (initialData.content){
+      handleContentChange(initialData.content);
+    }
+    if (initialData.columns) setColumns(initialData.columns);
+    if(initialData.fontSize) setFontSize(initialData.fontSize);
+    if (initialData.spacing) setSpacing(initialData.spacing);
+    if (initialData.margins) setMargins(initialData.margins);
+  }, [initialData]);
 
   useEffect(() => {
     const hasCompiledBefore = Boolean(initialData?.compileHistory?.length || pdfBlob || content.trim());
@@ -1210,7 +1239,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     lastAutoSavedPdfRef.current = pdfBlob;
-
+    setSaveStatus('saving');
+    setLastSavedAt(Date.now());
     onSave({
       title,
       content,
@@ -1233,10 +1263,21 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
         selectedFormulas: getSelectedFormulasList(),
         compiledAt: new Date().toISOString(),
       },
-    }, false).catch((error) => {
+    }, false)
+      .then(() => {
+        setSaveStatus('saved');
+        setLastSavedAt(Date.now());
+      }).catch((error) => {
       console.error('Failed to autosave compiled sheet', error);
+      setSaveStatus('offline');
     });
+<<<<<<< HEAD
   }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, pdfBlob, spacing, title, orientation]);
+=======
+  }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, pdfBlob, spacing, title]);
+
+  
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
 
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();
@@ -1318,7 +1359,16 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
 
   const workspaceSplitTemplate = `minmax(${LATEX_PANEL_MIN_WIDTH}px, ${panelLayout.latexWidth}px) 10px minmax(${MIN_PREVIEW_WIDTH}px, 1fr)`;
   const previewLayoutSignature = `${appBodyGridTemplate}|${workspaceSplitTemplate}|${leftPanelVisible}|${rightPanelVisible}|${showLatex}`;
-
+    useEffect(() => {
+      if (!pdfBlob || isCompiling) return;
+      const btn = compileBtnRef.current;
+      if (!btn) return;
+      btn.classList.add('compile-success');
+      const timer = setTimeout(() => {
+        btn.classList.remove('compile-success');
+      }, 600);
+      return () => clearTimeout(timer);
+    }, [pdfBlob, isCompiling]);
   const handleCompileClick = () => {
     if (!hasCollapsedLeftPanelOnceRef.current) {
       // First compile: keep controls reachable while reclaiming preview space.
@@ -1346,7 +1396,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   };
 
   const handleSave = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     await onSave({
       title,
       content,
@@ -1426,12 +1476,17 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
             {/* Footer buttons */}
             <div className="left-panel-footer">
               <button
+                ref={compileBtnRef}
                 type="button"
                 onClick={handleCompileClick}
                 className="btn-compile"
                 disabled={isCompiling}
+                aria-label="Compile PDF"
               >
-                {isCompiling ? 'Compiling…' : 'Compile PDF'}
+                <span className="btn-compile-icon">{isCompiling ? '↻' : '⚡'}</span>
+                <span className="btn-compile-text">
+                {isCompiling ? 'Compiling…' : 'GET CHEAT SHEET'}
+                </span>
               </button>
 
               <div className="button-row">
@@ -1523,6 +1578,9 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
               </div>
 
               <div className="workspace-topbar-group workspace-topbar-group-end">
+                <span className="save-status">
+                  {getSaveStatusText()}
+                </span>
                 <button
                   type="button"
                   className="btn-toggle-panel"

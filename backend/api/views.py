@@ -37,15 +37,11 @@ YOUTUBE_RESOURCE_CACHE = {}
 VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
 VALID_SPACING = {"tiny", "small", "medium", "large"}
 VALID_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
-<<<<<<< HEAD
 VALID_ORIENTATION = {"portrait", "landscape"} 
-=======
 DEFAULT_COLUMNS = 4
 DEFAULT_FONT_SIZE = "9pt"
 DEFAULT_SPACING = "small"
 DEFAULT_MARGINS = "0.15in"
->>>>>>> af1ff138475768f9f924bbb5507570998035711a
-
 
 def is_valid_custom_pt(value, min_value, max_value):
     normalized = str(value or "").strip()
@@ -78,14 +74,10 @@ def validate_layout_params(columns, font_size, margins, spacing, orientation="po
         margins = DEFAULT_MARGINS
     
     if spacing not in VALID_SPACING and not is_valid_custom_pt(spacing, 0, 6):
-<<<<<<< HEAD
-        spacing = "large"
-        
+        spacing = DEFAULT_SPACING
+
     if orientation not in VALID_ORIENTATION:
         orientation = "portrait"
-=======
-        spacing = DEFAULT_SPACING
->>>>>>> af1ff138475768f9f924bbb5507570998035711a
     
     return columns, font_size, margins, spacing, orientation
 
@@ -291,17 +283,7 @@ def get_classes(request):
 @api_view(["POST"])
 def generate_sheet(request):
     """
-    POST /api/generate-sheet/
-<<<<<<< HEAD
-    """
-    selected = request.data.get("formulas", [])
-    columns = request.data.get("columns", 2)
-    font_size = request.data.get("font_size", "10pt")
-    margins = request.data.get("margins", "0.25in")
-    spacing = request.data.get("spacing", "large")
-    orientation = request.data.get("orientation", "portrait") 
-=======
-    Accepts { "formulas": [...], "columns": 4, "font_size": "9pt", "margins": "0.15in", "spacing": "small" }
+    Accepts { "formulas": [...], "columns": 4, "font_size": "9pt", "margins": "0.15in", "spacing": "small", "orientation": "portrait" }
     Each formula: { "class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula" }
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
@@ -311,7 +293,7 @@ def generate_sheet(request):
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
     margins = request.data.get("margins", DEFAULT_MARGINS)
     spacing = request.data.get("spacing", DEFAULT_SPACING)
->>>>>>> af1ff138475768f9f924bbb5507570998035711a
+    orientation = request.data.get("orientation", "portrait")
     
     columns, font_size, margins, spacing, orientation = validate_layout_params(columns, font_size, margins, spacing, orientation)
     
@@ -376,7 +358,10 @@ def compile_latex(request):
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
     normalize_only = is_truthy(request.data.get("normalize_only"))
+<<<<<<< HEAD
     
+=======
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
     columns = request.data.get("columns", DEFAULT_COLUMNS)
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
     margins = request.data.get("margins", DEFAULT_MARGINS)

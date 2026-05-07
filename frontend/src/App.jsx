@@ -146,7 +146,9 @@ const THEMES = [
   { id: 'miami',  label: '🌴 Miami 🐬'      },
   { id: 'forest',    label: '🌲 Forest'     },
   { id: 'coolGrey',    label: '❄️ Cool Grey'}, 
-  { id: 'neon',         label:     '🩵 neon'}
+  { id: 'neon',         label:     '🩵 neon'},
+  { id: 'galaxy',     label: '🌌 Galaxy'    },
+  {id: 'crimson', label: '❤️ Red'           },
 ];
 
 function App() {

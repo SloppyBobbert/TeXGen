@@ -1,321 +1,586 @@
-// Curated videos shown by default before the optional YouTube API search runs.
-// Paste subject links here as strings, or use objects when you want better labels:
-// 'ALGEBRA I': [
-//   'https://www.youtube.com/watch?v=VIDEO_ID',
-//   { url: 'https://youtu.be/VIDEO_ID', title: 'Linear Equations', channel: 'Khan Academy', categories: ['Linear Equations'] },
-//   { url: 'https://youtu.be/VIDEO_ID', title: 'Algebra Review', channel: 'Khan Academy' }, // class-wide fallback
-// ],
 export const CURATED_SUBJECT_VIDEOS = {
-  'PRE-ALGEBRA': [
+ "PRE-ALGEBRA": [
+   {
+     title: "Order of Operations (PEMDAS)",
+     videoId: "dAgfnK528RA",
+     channel: "Khan Academy",
+     topic: "Operations and Properties"
+   },
+   {
+     title: "Fractions Explained",
+     videoId: "n0FZhQ_GkKw",
+     channel: "Math Antics",
+     topic: "Fractions, Ratios, and Proportions"
+   },
+   {
+     title: "Area and Perimeter",
+     videoId: "gtMKsFXjLHw",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Area and Perimeter"
+   },
+   {
+     title: "Algebra Basics - Solving Basic Equations",
+     videoId: "kWOTmyoaWJg",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Solving Equations"
+   },
+ ],
+ "ALGEBRA I": [
+   {
+     title: "Solving Linear Equations",
+     videoId: "l3XzepN03KQ",
+     channel: "Professor Leonard",
+     topic: "Linear Equations"
+   },
+   {
+     title: "Solving Algebraic Inequalities",
+     videoId: "uBxs7cSgOes",
+     channel: "Professor Dave Explains",
+     topic: "Inequalities"
+   },
+   {
+     title: "Adding and Subtracting Integers",
+     videoId: "jVvvUiExjes",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Integer Rules"
+   },
+   {
+     title: "Converting Between Fractions, Decimals, and Percentages",
+     videoId: "-Xt4UDk7Kzw",
+     channel: "Professor Dave Explains",
+     topic: "Decimals and Percents"
+   },
+   {
+     title: "Mean, Median, and Mode",
+     videoId: "B1HEzNTGeZ4",
+     channel: "mathantics",
+     topic: "Mean, Median, Mode"
+   },
+   {
+     title: "How To Solve Quadratic Equations Using the Quadratic Formula",
+     videoId: "IlNAJl36-10",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Quadratic Equations"
+   },
+   {
+     title: "Polynomials - Adding, Subtracting, Multiplying and Dividing",
+     videoId: "ZvL9aDGNHqA",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polynomials"
+   },
+   {
+     title: "Simplifying Exponents With Fractions, Variables, Negative Exponents",
+     videoId: "Zt2fdy3zrZU",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Exponents"
+   },
+   {
+     title: "Simplifying Radicals With Variables, Exponents, Fractions",
+     videoId: "Llrngdh3Rrg",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Radicals"
+   },
+   {
+     title: "What Are Functions?",
+     videoId: "52tpYl2tTqk",
+     channel: "mathantics",
+     topic: "Functions"
+   },
+   {
+     title: "How To Solve Absolute Value Equations",
+     videoId: "_cHbhzQVd7Y",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Absolute Value"
+   },
+   {
+     title: "Rational Expressions - Basic Introduction",
+     videoId: "0Gq3uw2p6fA",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Rational Expressions"
+   },
+ ],
+ "ALGEBRA II": [
+   {
+     title: "Complex Numbers",
+     videoId: "SP-YJe7Vldo",
+     channel: "Khan Academy",
+     topic: "Complex Numbers"
+   },
+   {
+     title: "Logarithms | Algebra II",
+     videoId: "Z5myJ8dg_rM",
+     channel: "Khan Academy",
+     topic: "Logarithms"
+   },
+   {
+     title: "Graphing Logarithmic Functions",
+     videoId: "SmutsiPnWuc",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Logarithms"
+   },
+   {
+     title: "Exponential Growth Functions | Algebra II",
+     videoId: "6WMZ7J0wwMI",
+     channel: "Khan Academy",
+     topic: "Exponential Functions"
+   },
+   {
+     title: "Binomial Theorem Expansion, Pascal's Triangle",
+     videoId: "s19dWIHficY",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polynomial Theorems and Binomial Expansion"
+   },
+   {
+     title: "Factor Theorem and Synthetic Division",
+     videoId: "zAGP46nR6-0",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polynomial Theorems and Binomial Expansion"
+   },
+   {
+     title: "Conic Sections - Circles, Ellipses, Parabolas, Hyperbola",
+     videoId: "PLrgwD9TleU",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Conic Sections"
+   },
+   {
+     title: "Sequences and Series (Arithmetic & Geometric) Quick Review",
+     videoId: "Tj89FA-d0f8",
+     channel: "Mario's Math Tutoring",
+     topic: "Sequences and Series"
+   },
+   {
+     title: "Understanding Matrices and Matrix Notation",
+     videoId: "y6bVhgmy2rw",
+     channel: "Professor Dave Explains",
+     topic: "Matrices"
+   },
+ ],
+ "GEOMETRY": [
+   {
+     title: "Types of Angles and Angle Relationships",
+     videoId: "dA94zyaLuhk",
+     channel: "Professor Dave Explains",
+     topic: "Basic Angle Relationships"
+   },
+   {
+     title: "Parallel Lines Cut by a Transversal",
+     videoId: "3Ex7SpsA9MI",
+     channel: "Mario's Math Tutoring",
+     topic: "Parallel Lines and Transversals"
+   },
+   {
+     title: "Triangles",
+     videoId: "DdAwGinauoI",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Triangles"
+   },
+   {
+     title: "Pythagorean Theorem",
+     videoId: "d8EA5TxGzcY",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Pythagorean Theorem"
+   },
+   {
+     title: "Triangle Congruence Theorems - SSS, SAS, ASA, AAS",
+     videoId: "jWHOF6cFbpw",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Similar and Congruent Triangles"
+   },
+   {
+     title: "Similar Triangles",
+     videoId: "YiFwvAFk-xs",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Similar and Congruent Triangles"
+   },
+   {
+     title: "Quadrilaterals - Geometry",
+     videoId: "ogcH3eM5beM",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Quadrilaterals"
+   },
+   {
+     title: "Polygons",
+     videoId: "E_-3ulbtcLk",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polygons"
+   },
+   {
+     title: "Circles In Geometry - Circumference, Area, Arc Length",
+     videoId: "Fzaof9cX-PM",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Circles"
+   },
+   {
+     title: "Circle Theorems - Inscribed Angles, Intersecting Chords",
+     videoId: "XckhcRlr4w8",
+     channel: "Mario's Math Tutoring",
+     topic: "Circle Theorems"
+   },
+   {
+     title: "Coordinate Geometry, Basic Introduction",
+     videoId: "PXnAKcBipKM",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Coordinate Geometry"
+   },
+   {
+     title: "Surface Area and Volume Review",
+     videoId: "eBAq_caikJ4",
+     channel: "Mario's Math Tutoring",
+     topic: "Surface Area and Volume"
+   },
+   {
+     title: "Introduction to Transformations",
+     videoId: "XiAoUDfrar0",
+     channel: "Khan Academy",
+     topic: "Transformations"
+   },
+ ],
+ "TRIGONOMETRY": [
+   {
+     title: "30-60-90 Triangles - Special Right Triangle Trigonometry",
+     videoId: "yJMGIKCVO-s",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Special Triangles and Basic Trig Relationships"
+   },
+   {
+     title: "Trigonometry For Beginners!",
+     videoId: "FuBZlvOUxYE",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Special Triangles and Basic Trig Relationships"
+   },
+   {
+     title: "Trig Identities",
+     videoId: "m1OitPmkydY",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Fundamental Identities"
+   },
+   {
+     title: "Double Angle Identities & Formulas",
+     videoId: "SE5SBTgrwH8",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Angle Sum and Multiple-Angle Identities"
+   },
+   {
+     title: "Sum/Difference, Double/Half-Angle Formulas",
+     videoId: "0cB4MLhaCk0",
+     channel: "Professor Dave Explains",
+     topic: "Angle Sum and Multiple-Angle Identities"
+   },
+   {
+     title: "Product To Sum Identities and Sum To Product Formulas",
+     videoId: "8Prc7VGt40w",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Product and Power Identities"
+   },
+   {
+     title: "Power Reducing Formulas - Trigonometric Identities",
+     videoId: "56XzcYWUr_8",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Product and Power Identities"
+   },
+   {
+     title: "Evaluating Inverse Trigonometric Functions",
+     videoId: "jt7p-mCC0ng",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Inverse Trig Identities"
+   },
+   {
+     title: "Trigonometry - Real Life Applications",
+     videoId: "sCyQ9DcDp2E",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Applications"
+   },
+ ],
+ "PRECALCULUS": [
+   {
+     title: "Functions and Graphs | Precalculus",
+     videoId: "kvU9sOzT2mk",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Functions"
+   },
+   {
+     title: "Verifying Trigonometric Identities",
+     videoId: "LlFbHDQVRk4",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Functions"
+   },
+   {
+     title: "Conic Sections: Hyperbolas, Ellipses, Parabolas, Circles",
+     videoId: "b7gJuUN-1GU",
+     channel: "Mario's Math Tutoring",
+     topic: "Conic Sections"
+   },
+   {
+     title: "Arithmetic Sequences and Series - Basic Introduction",
+     videoId: "XZJdyPkCxuE",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Sequences, Series, and Binomial Theorem"
+   },
+   {
+     title: "Binomial Theorem Expansion",
+     videoId: "s19dWIHficY",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Sequences, Series, and Binomial Theorem"
+   },
+   {
+     title: "Polar Coordinates Basic Introduction",
+     videoId: "mgMYdo4f0XE",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polar & Complex Polar"
+   },
+   {
+     title: "Polar Equations to Rectangular Equations",
+     videoId: "flTz_pSzVFI",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Polar & Complex Polar"
+   },
+ ],
+ "CALCULUS I": [
+   {
+     title: "The Essence of Calculus",
+     videoId: "WUvTyaaNkzM",
+     channel: "3Blue1Brown",
+     topic: "Limits"
+   },
+   {
+     title: "Calculus Made EASY! Finally Understand It in Minutes!",
+     videoId: "n3xBZIvgZhc",
+     channel: "TabletClass Math",
+     topic: "Limits"
+   },
+   {
+     title: "Basic Differentiation Rules For Derivatives",
+     videoId: "IvLpN1G1Ncg",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Derivative Definitions and Rules"
+   },
+   {
+     title: "Calculus 1 - Derivatives",
+     videoId: "5yfh5cf4-0w",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Common Derivatives"
+   },
+   {
+    title: "Fundamental Theorem of Calculus Part 1",
+    videoId: "aeB5BWY0RlE",
+    channel: "The Organic Chemistry Tutor",
+    topic: "Core Theorems of Calculus"
+   },
+   {
+     title: "Antiderivatives",
+     videoId: "xaCPDMEkbig",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Basic Antiderivatives"
+   },
+ ],
+ "CALCULUS II": [
+   {
+     title: "Calculus 2 - Integral Test For Convergence",
+     videoId: "iLEWXYPZrU8",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Sequences & Series"
+   },
+   {
+     title: "Calculus 2 Full Course",
+     videoId: "H9eCT6f_Ftw",
+     channel: "Professor Leonard",
+     topic: "Integration Techniques and Improper Integrals"
+   },
+   {
+     title: "Improper Integrals - Convergence and Divergence - Calculus 2",
+     videoId: "ND9cEdfCFr0",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Integration Techniques and Improper Integrals"
+   },
+   {
+    title: "Applications of Integration Formula Review - Antiderivatives, Definite Integrals, FTC, Area, Disk Me",
+    videoId: "H71xfyzbkZI",
+    channel: "The Organic Chemistry Tutor",
+    topic: "Applications of Integration"
+   },
+   {
+     title: "Taylor Series and Maclaurin Series - Calculus 2",
+     videoId: "LDBnS4c7YbA",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Power & Taylor Series",
+   },
+   {
+    title: "Parametric Equations",
+    videoId: "QaN_3TytT_U",
+    channel: "Professor Dave Explains",
+    topic: "Parametric & Polar"
+   },
+   {
+     title: "Polar Coordinates Basic Introduction, Conversion to Rectangular, How to Plot Points, Negative R Value",
+     videoId: "aSdaT62ndYE&t=9s",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Parametric & Polar"
+   },
+ ],
+ "CALCULUS III": [
+   {
+     title: "Calculus 3 Full Course",
+     videoId: "tGVnBAHLApA",
+     channel: "Professor Leonard",
+     topic: "Vector Formulas"
+   },
+   {
+     title: "Partial Derivatives - Multivariable Calculus",
+     videoId: "JAf_aSIJryg",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Partial Derivatives and Optimization"
+   },
+   {
+     title: "Double and Triple Integrals",
+     videoId: "UubU3U2C8WM",
+     channel: "Professor Dave Explains",
+     topic: "Multiple Integrals"
+   },
+ ],
+ "UNIT CIRCLE": [
+   {
+     title: "Trigonometry Concepts - Don't Memorize! Visualize!",
+     videoId: "2hame37LsH8",
+     channel: "Dennis Davis",
+     topic: "Unit Circle"
+   },
+   {
+     title: "Unit Circle Explained",
+     videoId: "1m9p9iubMLU",
+     channel: "Khan Academy",
+     topic: "Unit Circle"
+   },
+ ],
+ "PHYSICS I": [
     {
-      videoId: 'dAgfnK528RA',
-      title: 'Order of Operations (PEMDAS)',
-      channel: 'Khan Academy',
-      categories: ['Operations and Properties'],
+      title: "Work, Energy, and Power - Basic Introduction",
+      videoId: "_MR1Dp8-F8w",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Work, Energy & Power"
     },
     {
-      url: 'https://www.youtube.com/watch?v=5hG8e9jGeaA',
-      title: 'Fractions and Basic Equations Review',
-      channel: 'YouTube',
-      categories: ['Fractions, Ratios, and Proportions'],
+      title: "What is Light? Maxwell and the Electromagnetic Spectrum",
+      videoId: "pj_ya0e20vE",
+      channel: "Professor Dave Explains",
+      topic: "Electricity & Waves"
     },
     {
-      url: 'https://www.youtube.com/watch?v=SC2WMzopxh8',
-      title: 'Fractions Practice',
-      channel: 'YouTube',
-      categories: ['Fractions, Ratios, and Proportions'],
+      title: "Dynamics: What are Forces?",
+      videoId: "iAMxWvyykRU",
+      channel: "Professor Dave Explains",
+      topic: "Dynamics (Forces)"
     },
-    {
-      url: 'https://www.youtube.com/watch?v=sHTFUo3xRWQ',
-      title: 'Algebra Basics: Solving Basic Equations Part 2',
-      channel: 'mathantics',
-      categories: ['Solving Equations'],
-    },
-    {
-      videoId: 'gtMKsFXjLHw',
-      title: 'Area and Perimeter',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Area and Perimeter'],
-    },
-  ],
-  'ALGEBRA I': [
-    {
-      url: 'https://www.youtube.com/watch?v=Tx6ZpJ8fv1A',
-      title: 'Linear Equations - Algebra',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Linear Equations'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=IWigvJcCAJ0',
-      title: 'Introduction to the quadratic equation',
-      channel: 'Khan Academy',
-      categories: ['Quadratic Equations'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=M4LallQS0GA',
-      title: 'Solve 2 to the x = 9, what is x?',
-      channel: 'TabletClass Math',
-      categories: ['Exponents'],
-    },
-    { videoId: 'uBxs7cSgOes', title: 'Solving Algebraic Inequalities', channel: 'Professor Dave Explains', categories: ['Inequalities'] },
-    { videoId: 'jVvvUiExjes', title: 'Adding and Subtracting Integers', channel: 'The Organic Chemistry Tutor', categories: ['Integer Rules'] },
-    { videoId: '-Xt4UDk7Kzw', title: 'Fractions, Decimals, and Percentages', channel: 'Professor Dave Explains', categories: ['Decimals and Percents'] },
-    { videoId: 'B1HEzNTGeZ4', title: 'Mean, Median, and Mode', channel: 'mathantics', categories: ['Mean, Median, Mode'] },
-    { videoId: 'ZvL9aDGNHqA', title: 'Polynomials', channel: 'The Organic Chemistry Tutor', categories: ['Polynomials'] },
-    { videoId: 'Llrngdh3Rrg', title: 'Simplifying Radicals', channel: 'The Organic Chemistry Tutor', categories: ['Radicals'] },
-    { videoId: '52tpYl2tTqk', title: 'What Are Functions?', channel: 'mathantics', categories: ['Functions'] },
-    { videoId: '_cHbhzQVd7Y', title: 'Absolute Value Equations', channel: 'The Organic Chemistry Tutor', categories: ['Absolute Value'] },
-    { videoId: '0Gq3uw2p6fA', title: 'Rational Expressions', channel: 'The Organic Chemistry Tutor', categories: ['Rational Expressions'] },
-  ],
-  'ALGEBRA II': [
-    { videoId: 'SP-YJe7Vldo', title: 'Complex Numbers', channel: 'Khan Academy', categories: ['Complex Numbers'] },
-    {
-      url: 'https://www.youtube.com/watch?v=SmutsiPnWuc',
-      title: 'Graphing Logarithmic Functions',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Logarithms'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=xt4IMWznDuc',
-      title: 'Logarithms | Algebra II',
-      channel: 'Khan Academy',
-      categories: ['Logarithms'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=NRB6s77nx2g',
-      title: 'Domain and Range Functions & Graphs',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Exponential Functions'],
-    },
-    { videoId: 's19dWIHficY', title: 'Binomial Theorem Expansion', channel: 'The Organic Chemistry Tutor', categories: ['Polynomial Theorems and Binomial Expansion'] },
-    { videoId: 'PLrgwD9TleU', title: 'Conic Sections', channel: 'The Organic Chemistry Tutor', categories: ['Conic Sections'] },
-    { videoId: 'Tj89FA-d0f8', title: 'Sequences and Series', channel: "Mario's Math Tutoring", categories: ['Sequences and Series'] },
-  ],
-  GEOMETRY: [
-    {
-      url: 'https://www.youtube.com/watch?v=dA94zyaLuhk',
-      title: 'Types of Angles and Angle Relationships',
-      channel: 'Professor Dave Explains',
-      categories: ['Basic Angle Relationships', 'Parallel Lines and Transversals'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=YIqZmNYeC5M',
-      title: 'Circles: radius, diameter, circumference and Pi',
-      channel: 'Khan Academy',
-      categories: ['Circles', 'Circle Theorems'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=R2J3o9z7n9k',
-      title: 'Angle Theorems and Circles',
-      channel: 'YouTube',
-      categories: ['Basic Angle Relationships', 'Triangles', 'Circles', 'Circle Theorems'],
-    },
-    {
-      videoId: '302sBERMVwY',
-      title: 'Geometry Introduction',
-      channel: 'Professor Leonard',
-      categories: ['Pythagorean Theorem', 'Similar and Congruent Triangles', 'Quadrilaterals', 'Polygons', 'Coordinate Geometry', 'Surface Area and Volume', 'Transformations'],
-    },
-  ],
-  TRIGONOMETRY: [
-    {
-      url: 'https://www.youtube.com/watch?v=FuBZlvOUxYE',
-      title: 'Trigonometry For Beginners!',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Special Triangles and Basic Trig Relationships', 'Applications'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=qlItePRGLE4',
-      title: 'All of TRIGONOMETRY in 36 minutes!',
-      channel: 'JensenMath',
-      categories: ['Special Triangles and Basic Trig Relationships', 'Fundamental Identities'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=PUB0TaZ7bhA',
-      title: 'Right-Triangle Trig and Identities',
-      channel: 'YouTube',
-      categories: ['Fundamental Identities', 'Angle Sum and Multiple-Angle Identities', 'Product and Power Identities', 'Inverse Trig Identities', 'Applications'],
-    },
-  ],
-  PRECALCULUS: [
-    {
-      url: 'https://www.youtube.com/watch?v=mgMYdo4f0XE',
-      title: 'Polar Coordinates Basic Introduction',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Polar & Complex Polar'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=LlFbHDQVRk4',
-      title: 'Verifying Trigonometric Identities',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Functions'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=_svU1SgdHpw',
-      title: 'Basic Trig Identities Involving Sin, Cos, and Tan',
-      channel: 'Math and Science',
-      categories: ['Functions'],
-    },
-    { videoId: 'eI4an8aSsgw', title: 'Full Precalculus Course', channel: 'Professor Leonard', categories: ['Conic Sections', 'Sequences, Series, and Binomial Theorem'] },
-  ],
-  'CALCULUS I': [
-    {
-      url: 'https://www.youtube.com/watch?v=n3xBZIvgZhc',
-      title: 'Calculus Made EASY! Finally Understand It in Minutes!',
-      channel: 'TabletClass Math',
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=WUvTyaaNkzM',
-      title: 'The Essence of Calculus',
-      channel: '3Blue1Brown',
-      categories: ['Limits', 'Derivative Definitions and Rules', 'Core Theorems of Calculus'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=ZjbDmy7RO6E',
-      title: 'Optimization Problems - Calculus',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Derivative Definitions and Rules', 'Common Derivatives', 'Core Theorems of Calculus'],
-    },
-    { videoId: '5yfh5cf4-0w', title: 'Calculus 1 Full Course', channel: 'Professor Leonard', categories: ['Basic Antiderivatives'] },
-  ],
-  'CALCULUS II': [
-    {
-      url: 'https://www.youtube.com/watch?v=iLEWXYPZrU8',
-      title: 'Calculus 2 - Integral Test For Convergence',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Sequences & Series'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=fYyARMqiaag',
-      title: 'Series and Convergence',
-      channel: 'YouTube',
-      categories: ['Sequences & Series', 'Power & Taylor Series'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=8d8wJqk1W0E',
-      title: 'Series Practice',
-      channel: 'YouTube',
-      categories: ['Sequences & Series', 'Power & Taylor Series'],
-    },
-    { videoId: 'H9eCT6f_Ftw', title: 'Calculus 2 Full Course', channel: 'Professor Leonard', categories: ['Integration Techniques and Improper Integrals', 'Applications of Integration', 'Parametric & Polar'] },
-  ],
-  'CALCULUS III': [
-    {
-      url: 'https://www.youtube.com/watch?v=iVMDEPc2YQw',
-      title: 'Multivariable Calculus',
-      channel: 'YouTube',
-      categories: ['Vector Formulas'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=TrcCbdWwCBc',
-      title: 'Partial Derivatives and Optimization',
-      channel: 'YouTube',
-      categories: ['Partial Derivatives and Optimization'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=YQH40HgxnKg',
-      title: 'Multiple Integrals',
-      channel: 'YouTube',
-      categories: ['Multiple Integrals'],
-    },
-  ],
-  'UNIT CIRCLE': [
-    {
-      url: 'https://www.youtube.com/watch?v=2hame37LsH8',
-      title: "Trigonometry Concepts - Don't Memorize! Visualize!",
-      channel: 'Dennis Davis',
-      categories: ['UNIT CIRCLE'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=bVog_o1Qs80',
-      title: 'Sine and Cosine - Definition & Meaning',
-      channel: 'Math and Science',
-      categories: ['UNIT CIRCLE'],
-    },
-  ],
-  'PHYSICS I': [
-    {
-      url: 'https://www.youtube.com/watch?v=40sww1q5_hc',
-      title: 'Momentum and Impulse',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Momentum & Collisions'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=DxL2HoqLbyA',
-      title: 'Mechanics Review',
-      channel: 'YouTube',
-      categories: ['Kinematics (Motion)', 'Dynamics (Forces)', 'Work, Energy & Power'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=EceJQ05KTf4',
-      title: 'Impulse and Momentum Practice',
-      channel: 'YouTube',
-      categories: ['Momentum & Collisions'],
-    },
-    { videoId: 'b1t41Q3xRM8', title: 'Physics 1 Final Exam Review', channel: 'The Organic Chemistry Tutor', categories: ['Electricity & Waves'] },
-  ],
-  'PHYSICS II': [
-    {
-      url: 'https://www.youtube.com/watch?v=U2xGyC-T_io',
-      title: 'The Biggest Misconception About Electricity',
-      channel: 'Veritasium',
-      categories: ['Electrostatics', 'Circuits'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=lzF3DJw_GDc',
-      title: 'Electrostatics',
-      channel: 'YaleCourses',
-      categories: ['Electrostatics'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=b9-RpGUSRe8',
-      title: "Faraday's & Lenz's Law of Electromagnetic Induction",
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Magnetism'],
-    },
-    { videoId: 'uHvs-G-njo8', title: 'Physics 2 Final Exam Review', channel: 'The Organic Chemistry Tutor', categories: ['Waves & Optics'] },
-  ],
-  'STATISTICS I': [
-    {
-      url: 'https://www.youtube.com/watch?v=uzkc-qNVoOk',
-      title: 'Descriptive Statistics',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Descriptive Statistics'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=y2G03Lumhe0',
-      title: 'Probability Distributions',
-      channel: 'The Organic Chemistry Tutor',
-      categories: ['Probability', 'Distributions'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=KZF9IBm9C6E',
-      title: 'Probability Practice',
-      channel: 'YouTube',
-      categories: ['Probability'],
-    },
-    { videoId: 'xxpc-HPWX28', title: 'Statistics Exam 1 Review', channel: 'The Organic Chemistry Tutor', categories: ['Inferential Statistics'] },
-  ],
-  'STATISTICS II': [
-    {
-      url: 'https://www.youtube.com/watch?v=0oc49DyA3hU',
-      title: 'Hypothesis Testing',
-      channel: 'YouTube',
-      categories: ['Two-Sample Inference', 'Chi-Square Tests', 'ANOVA (Analysis of Variance)'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=JQc3yx0-Q9E',
-      title: 'Inferential Statistics',
-      channel: 'YouTube',
-      categories: ['Two-Sample Inference', 'Chi-Square Tests', 'ANOVA (Analysis of Variance)'],
-    },
-    {
-      url: 'https://www.youtube.com/watch?v=PaFPbb66DxQ',
-      title: 'Regression Analysis',
-      channel: 'YouTube',
-      categories: ['Linear Regression'],
-    },
-  ],
+   {
+     title: "Physics 1 Final Exam Review",
+     videoId: "b1t41Q3xRM8",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Kinematics (Motion)"
+   },
+   {
+     title: "Motion in a Straight Line: Crash Course #1",
+     videoId: "ZM8ECpBuQYE",
+     channel: "CrashCourse",
+     topic: "Kinematics (Motion)"
+   },
+   {
+     title: "Momentum and Impulse",
+     videoId: "40sww1q5_hc",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Momentum & Collisions"
+   },
+ ],
+ "PHYSICS II": [
+   {
+     title: "Transverse and Longitudinal Waves",
+     videoId: "XY0RJu4sDHk",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Waves & Optics"
+   },
+   {
+     title: "Charging By Induction - Electrostatics",
+     videoId: "ZbBHnod_Mew",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Electrostatics"
+   },
+   {
+     title: "Magnetism, Magnetic Field Force, Right Hand Rule, Ampere's Law, Torque, Solenoid, Physics Problems",
+     videoId: "csMqfwJRjCs",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Magnetism"
+   },
+   {
+    title: "Electric Current & Circuits Explained, Ohm's Law, Charge, Power, Physics Problems, Basic Electricity",
+    videoId: "r-SCyD7f_zI",
+    channel: "The Organic Chemistry Tutor",
+    topic: "Circuits"
+   },
+ ],
+ "STATISTICS I": [
+   {
+     title: "Descriptive Statistics vs Inferential Statistics",
+     videoId: "VHYOuWu9jQI",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Descriptive statistics"
+   },
+   {
+     title: "Descriptive Statistics",
+     videoId: "uzkc-qNVoOk",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Descriptive Statistics"
+   },
+   {
+     title: "Probability Distributions",
+     videoId: "y2G03Lumhe0",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Probability"
+   },
+   {
+      title: "Standard Normal Distribution Tables, Z Scores, Probability & Empirical Rule - Stats",
+      videoId: "CjF_yQ2N638",
+      channel: "The Organic Chemistry Tutor",
+      topic: "Distributions"
+   },
+   {
+      title: "What is inferential statistics? Explained in 6 simple Steps.",
+      videoId: "idZHQwVohOo",
+      channel: "numiqo",
+      topic: "Inferential Statistics"
+   },
+ ],
+ "STATISTICS II": [
+   {
+     title: "Chi Square Test",
+     videoId: "HKDqlYSLt68",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Chi-Square Tests"
+   },
+   {
+     title: "Linear Regression Explained",
+     videoId: "zITIFTsivN8",
+     channel: "StatQuest with Josh Starmer",
+     topic: "Linear Regression"
+   },
+   {
+     title: "Hypothesis Testing",
+     videoId: "0oc49DyA3hU",
+     channel: "The Organic Chemistry Tutor",
+     topic: "Hypothesis Testing"
+   },
+   {
+     title: "ANOVA: Crash Course Statistics #33",
+     videoId: "oOuu8IBd-yo",
+     channel: "CrashCourse",
+     topic: "ANOVA (Analysis of Variance)"
+   },
+   {
+     title: "Test Statistics: Crash Course Statistics #26",
+     videoId: "QZ7kgmhdIwA",
+     channel: "CrashCourse",
+     topic: "Two-Sample Inference"
+
+
+   },
+ ],
 };
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);

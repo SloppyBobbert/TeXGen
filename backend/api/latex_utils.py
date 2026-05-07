@@ -46,7 +46,11 @@ LEGACY_PROBLEM_LABEL_PATTERN = re.compile(r"\\textbf\{Problem ([^}]*)\}\s*")
 LEGACY_ANSWER_LABEL_PATTERN = re.compile(r"\\textbf\{Answer:\}\s*")
 APP_LAYOUT_COMMENT_LINE_PATTERN = re.compile(r"(?m)^% @cheatsheet-layout .*\n?")
 APP_LAYOUT_COMMENT_BLOCK_PATTERN = re.compile(
+<<<<<<< HEAD
     r"(?m)(?:^% @cheatsheet-layout .*\n){4,5}^%\n?"
+=======
+    r"(?m)(?:^% @cheatsheet-layout .*\n)+^%\n?"
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
 )
 
 
@@ -130,7 +134,11 @@ def append_text_heading(lines, text):
 
 
 def build_layout_comment_block(columns=4, font_size="9pt", margins="0.15in", spacing="small", orientation="portrait"):
+<<<<<<< HEAD
     block = [
+=======
+    return [
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
         f"% @cheatsheet-layout columns: {columns} | change layout options up top to update columns",
         f"% @cheatsheet-layout font_size: {font_size} | change layout options up top to update text size",
         f"% @cheatsheet-layout spacing: {spacing} | change layout options up top to update spacing",
@@ -145,10 +153,17 @@ def build_layout_comment_block(columns=4, font_size="9pt", margins="0.15in", spa
 
 
 def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="small", orientation="portrait"):
+<<<<<<< HEAD
+=======
+    """
+    Build a dynamic LaTeX header based on user-selected options.
+    """
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
     size_command = get_body_font_command(font_size)
     spacing_values = get_spacing_values(spacing, font_size)
     doc_class, doc_class_size = get_document_class(font_size)
     
+<<<<<<< HEAD
     # Keep the default clean, only add landscape overrides if requested
     doc_options = f"{doc_class_size},fleqn"
     geometry_options = f"margin={margins}"
@@ -156,6 +171,17 @@ def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="
     if orientation == "landscape":
         doc_options += ",letterpaper,landscape"
         geometry_options += ",letterpaper,landscape"
+=======
+    # 1. Force the PDF driver to rotate by passing landscape and letterpaper to the document class
+    doc_options = f"{doc_class_size},fleqn,letterpaper"
+    if orientation == "landscape":
+        doc_options += ",landscape"
+
+    # 2. Also pass them to the geometry package
+    geometry_options = f"letterpaper,margin={margins}"
+    if orientation == "landscape":
+        geometry_options += ",landscape"
+>>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
 
     header_lines = [
         f"\\documentclass[{doc_options}]{{{doc_class}}}",
@@ -163,7 +189,7 @@ def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="
         "\\usepackage{amsmath, amssymb}",
         "\\usepackage{enumitem}",
         "\\usepackage{multicol}",
-        "\\usepackage{adjustbox}",  # For auto-scaling equations to fit column width
+        "\\usepackage{adjustbox}",  
         "",
         "\\setlength{\\mathindent}{0pt}",
         "\\setlist[itemize]{noitemsep, topsep=0pt, leftmargin=*}",

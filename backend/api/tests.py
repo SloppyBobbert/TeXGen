@@ -91,6 +91,7 @@ class TestCheatSheetModel(TestCase):
             columns=1,
             font_size="10pt",
             user=self.user,
+            orientation="portrait",
         )
         full = sheet.build_full_latex()
         assert "\\begin{document}" in full
@@ -192,7 +193,7 @@ class TestCheatSheetModel(TestCase):
 
         full = sheet.build_full_latex()
 
-        assert "\\documentclass[8pt]{extarticle}" in full
+        assert "\\documentclass[8pt,fleqn,letterpaper]{extarticle}" in full
 
     def test_build_full_latex_custom_font_size_uses_supported_wrapper(self):
         sheet = CheatSheet.objects.create(
@@ -204,7 +205,7 @@ class TestCheatSheetModel(TestCase):
 
         full = sheet.build_full_latex()
 
-        assert "\\documentclass[10pt]{article}" in full
+        assert "\\documentclass[10pt,fleqn,letterpaper]{article}" in full
         assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in full
 
     def test_build_full_latex_includes_saved_spacing(self):
@@ -237,9 +238,9 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=4, font_size="8pt", margins="0.5in", spacing="tiny")
+        normalized = normalize_latex_layout(raw, columns=4, font_size="8pt", margins="0.5in", spacing="tiny", orientation="portrait")
 
-        assert "\\documentclass[8pt,fleqn]{extarticle}" in normalized
+        assert "\\documentclass[8pt,fleqn,letterpaper]{extarticle}" in normalized
         assert "margin=0.5in" in normalized
         assert "\\begin{multicols}{4}" in normalized
         assert "\\begin{multicols}{2}" not in normalized
@@ -383,11 +384,17 @@ class TestLatexUtils:
 
     def test_build_dynamic_header_accepts_custom_font_and_spacing(self):
         header = build_dynamic_header(columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
-        assert "\\documentclass[10pt,fleqn]{article}" in header
+        assert "\\documentclass[10pt,fleqn,letterpaper]{article}" in header
         assert "\\fontsize{10.5pt}{11.3pt}\\selectfont" in header
         assert "\\setlength{\\baselineskip}{11.1pt}" in header
         assert "\\setlength{\\parskip}{0.6pt}" in header
         assert "\\begin{multicols}{5}" in header
+
+    def test_build_dynamic_header_landscape_includes_landscape_options(self):
+        header = build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="small", orientation="landscape")
+        assert "landscape" in header
+        assert "\\documentclass[9pt,fleqn,letterpaper,landscape]{extarticle}" in header
+        assert "letterpaper,margin=0.15in,landscape" in header
 
     def test_build_latex_for_formulas_includes_editable_layout_comments(self):
         tex = build_latex_for_formulas(
@@ -402,6 +409,7 @@ class TestLatexUtils:
         assert "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size" in tex
         assert "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing" in tex
         assert "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins" in tex
+        assert "% @cheatsheet-layout orientation: portrait | change layout options up top to update orientation" in tex
 
 
 # ── API Tests ────────────────────────────────────────────────────────
@@ -1246,7 +1254,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\documentclass[8pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[8pt,fleqn,letterpaper]{extarticle}" in tex
         assert "\\documentclass[8pt,fleqn]{article}" not in tex
 
     def test_generate_sheet_9pt_uses_extarticle(self, auth_client):
@@ -1261,7 +1269,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\documentclass[9pt,fleqn]{extarticle}" in tex
+        assert "\\documentclass[9pt,fleqn,letterpaper]{extarticle}" in tex
         assert "\\documentclass[9pt,fleqn]{article}" not in tex
 
     def test_generate_sheet_10pt_uses_article(self, auth_client):
@@ -1276,7 +1284,7 @@ class TestGenerateSheetEndpoint:
         )
         assert resp.status_code == 200
         tex = resp.json()["tex_code"]
-        assert "\\documentclass[10pt,fleqn]{article}" in tex
+        assert "\\documentclass[10pt,fleqn,letterpaper]{article}" in tex
         assert "extarticle" not in tex
 
     def test_generate_sheet_latex_injection_blocked(self, auth_client):
@@ -1375,6 +1383,7 @@ class TestCompileEndpoint:
                 "font_size": "8pt",
                 "spacing": "tiny",
                 "margins": "0.25in",
+                "orientation": "portrait",
             },
             format="json",
         )
@@ -1387,6 +1396,7 @@ class TestCompileEndpoint:
             "font_size": "8pt",
             "spacing": "tiny",
             "margins": "0.25in",
+            "orientation": "portrait", 
         }
         assert "\\begin{multicols}{2}" in tex
         assert "\\fontsize{8pt}{8.8pt}\\selectfont" in tex
@@ -1395,6 +1405,7 @@ class TestCompileEndpoint:
         assert "% @cheatsheet-layout font_size: 8pt | change layout options up top to update text size" in tex
         assert "% @cheatsheet-layout spacing: tiny | change layout options up top to update spacing" in tex
         assert "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins" in tex
+        assert "orientation: portrait" in tex 
 
 
 # ── Auth Endpoint Tests ──────────────────────────────────────────────
