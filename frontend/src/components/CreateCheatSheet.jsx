@@ -1466,6 +1466,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   useEffect(() => {
     const handleKeyDown = (event) => {
       if((event.ctrlKey || event.metaKey) && event.key === 'Enter'){
+        const isModifierPressed = event.ctrlKey || event.metaKey;
+        const normalizedKey = typeof event.key === 'string' ? event.key.toLowerCase() : '';
         event.preventDefault();
         if(!isCompiling) handleCompileClick();
         return;
