@@ -372,7 +372,7 @@ def compile_latex(request):
         font_size = cheatsheet.font_size
         margins = cheatsheet.margins
         spacing = cheatsheet.spacing
-        orientation = getattr(cheatsheet, 'orientation', 'portrait') # Fix suggested by Copilot!
+        orientation = getattr(cheatsheet, "orientation", None) or "portrait"
         content = cheatsheet.build_full_latex()
     
     if not content:
