@@ -1567,7 +1567,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
           {leftPanelVisible && (
           <aside className="left-panel">
             <div className="left-panel-scroll">
-
              <div className="form-group left-panel-title-group">
               <div className="title-header-row">
               <label htmlFor="title">Title:</label>
@@ -1582,7 +1581,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="My Math Cheat Sheet"
+            placeholder="My Cheat Sheet"
             required
             className="input-field"
             maxLength={80}
