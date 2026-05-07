@@ -1385,8 +1385,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     });
   }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, pdfBlob, spacing, title]);
 
-  
-
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();
 

@@ -372,6 +372,7 @@ def compile_latex(request):
         font_size = cheatsheet.font_size
         margins = cheatsheet.margins
         spacing = cheatsheet.spacing
+        orientation = getattr(cheatsheet, "orientation", None) or "portrait"
         content = cheatsheet.build_full_latex()
     
     if not content:
@@ -380,15 +381,17 @@ def compile_latex(request):
     content = normalize_latex_layout(content, columns, font_size, margins, spacing, orientation)
 
     if normalize_only:
+        layout_response = {
+            "columns": columns,
+            "font_size": font_size,
+            "margins": margins,
+            "spacing": spacing,
+            "orientation": orientation,
+        }
+
         return Response({
             "tex_code": content,
-            "layout": {
-                "columns": columns,
-                "font_size": font_size,
-                "margins": margins,
-                "spacing": spacing,
-                "orientation": orientation,
-            },
+            "layout": layout_response,
         })
     
     with tempfile.TemporaryDirectory() as tempdir:
