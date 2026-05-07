@@ -1568,27 +1568,28 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
           <aside className="left-panel">
             <div className="left-panel-scroll">
 
-              <div className="form-group left-panel-title-group">
-                <label htmlFor="title">Title:</label>
-                <input
-                  type="text"
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="My Math Cheat Sheet"
-                  required
-                  className="input-field"
-                  maxLength={80}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <div className="title-char-counter">
-                  <span className={title.length > 70 ? 'title-char-counter-warn' : ''}>
-                    {title.length}/80
-                  </span>
-                </div>
+             <div className="form-group left-panel-title-group">
+              <div className="title-header-row">
+              <label htmlFor="title">Title:</label>
+              <div className="title-char-counter">
+                <span className={title.length > 70 ? 'title-char-counter-warn' : ''}>
+                {title.length}/80
+                </span>
               </div>
-
+            </div>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="My Math Cheat Sheet"
+            required
+            className="input-field"
+            maxLength={80}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
               <FormulaSelection
                 classesData={classesData}
                 selectedClasses={selectedClasses}
@@ -1641,7 +1642,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
                 <button
                   type="button"
                   onClick={goBack}
-                  disabled={!canGoBack}
                   className="btn history-btn"
                 >
                   Back
@@ -1649,7 +1649,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
                 <button
                   type="button"
                   onClick={goForward}
-                  disabled={!canGoForward}
                   className="btn history-btn"
                 >
                   Forward
