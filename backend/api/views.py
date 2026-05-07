@@ -386,12 +386,8 @@ def compile_latex(request):
             "font_size": font_size,
             "margins": margins,
             "spacing": spacing,
+            "orientation": orientation,
         }
-        
-        # BACKWARD COMPATIBILITY FIX: 
-        # Only return orientation if it is landscape to avoid breaking legacy tests
-        if orientation == "landscape":
-            layout_response["orientation"] = orientation
 
         return Response({
             "tex_code": content,

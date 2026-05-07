@@ -130,18 +130,14 @@ def append_text_heading(lines, text):
 
 
 def build_layout_comment_block(columns=4, font_size="9pt", margins="0.15in", spacing="small", orientation="portrait"):
-    block = [
+    return [
         f"% @cheatsheet-layout columns: {columns} | change layout options up top to update columns",
         f"% @cheatsheet-layout font_size: {font_size} | change layout options up top to update text size",
         f"% @cheatsheet-layout spacing: {spacing} | change layout options up top to update spacing",
         f"% @cheatsheet-layout margins: {margins} | change layout options up top to update margins",
+        f"% @cheatsheet-layout orientation: {orientation} | change layout options up top to update orientation",
+        "%"
     ]
-    # Hide the orientation comment on standard sheets to pass legacy tests
-    if orientation == "landscape":
-        block.append(f"% @cheatsheet-layout orientation: {orientation} | change layout options up top to update orientation")
-    
-    block.append("%")
-    return block
 
 
 def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="small", orientation="portrait"):
@@ -152,13 +148,15 @@ def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="
     spacing_values = get_spacing_values(spacing, font_size)
     doc_class, doc_class_size = get_document_class(font_size)
     
-    # Keep the default clean, only add landscape overrides if requested
-    doc_options = f"{doc_class_size},fleqn"
-    geometry_options = f"margin={margins}"
-    
+    # Force the PDF driver to use letterpaper, add landscape if requested
+    doc_options = f"{doc_class_size},fleqn,letterpaper"
     if orientation == "landscape":
-        doc_options += ",letterpaper,landscape"
-        geometry_options += ",letterpaper,landscape"
+        doc_options += ",landscape"
+
+    # Also pass them to the geometry package
+    geometry_options = f"letterpaper,margin={margins}"
+    if orientation == "landscape":
+        geometry_options += ",landscape"
 
     header_lines = [
         f"\\documentclass[{doc_options}]{{{doc_class}}}",
