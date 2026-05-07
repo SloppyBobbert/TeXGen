@@ -1175,9 +1175,22 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const handleClearVideoSearch = () => {
     setVideoSearchRequest(null);
   };
+  const toastTimeoutRef = useRef(null);
   const showToast = useCallback((message, type = 'success') => {
+    if (toastTimeoutRef.current){
+      clearTimeout(toastTimeoutRef.current);
+    }
     setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    toastTimeoutRef.current = setTimeout(() => {
+       setToast(null);
+       toastTimeoutRef.current = null;
+     }, 3000);
+    }, []);
+    useEffect(() => () => {
+     if (toastTimeoutRef.current) {
+       clearTimeout(toastTimeoutRef.current);
+       toastTimeoutRef.current = null;
+     }
   }, []);
   const curatedVideosByTopic = useMemo(() => groupVideosByTopic(curatedVideoResources), [curatedVideoResources]);
   const searchedVideosByTopic = useMemo(() => groupVideosByTopic(visibleSearchedVideoResources), [visibleSearchedVideoResources]);

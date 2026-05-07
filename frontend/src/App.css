@@ -3316,7 +3316,7 @@ select:focus:not(:focus-visible) {
 }
 
 .left-panel-scroll::-webkit-scrollbar-thumb:hover,
-right-panel-scroll::-webkit-scrollbar-thumb:hover,
+.right-panel-scroll::-webkit-scrollbar-thumb:hover,
 .pdf-preview-scroll::-webkit-scrollbar-thumb:hover,
 .formula-reorder-panel::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
@@ -3424,8 +3424,8 @@ right-panel-scroll::-webkit-scrollbar-thumb:hover,
   margin-top: 0.2rem;
 }
 
-.tile-char-counter-warn {
-  color: var (--btn-clear);
+.title-char-counter-warn {
+  color: var(--btn-clear);
   font-weight: 600;
 }
 
