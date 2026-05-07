@@ -1271,13 +1271,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       console.error('Failed to autosave compiled sheet', error);
       setSaveStatus('offline');
     });
-<<<<<<< HEAD
-  }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, pdfBlob, spacing, title, orientation]);
-=======
   }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, pdfBlob, spacing, title]);
-
-  
->>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
 
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();

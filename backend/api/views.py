@@ -358,10 +358,6 @@ def compile_latex(request):
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
     normalize_only = is_truthy(request.data.get("normalize_only"))
-<<<<<<< HEAD
-    
-=======
->>>>>>> c39a5c1e8955e3967c069ea4ebf22445847f62b8
     columns = request.data.get("columns", DEFAULT_COLUMNS)
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
     margins = request.data.get("margins", DEFAULT_MARGINS)
