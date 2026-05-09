@@ -3574,3 +3574,13 @@ select:focus:not(:focus-visible) {
 .pdf-scroll-top-btn:active {
   transform: translateX(-40px) scale(0.98);
 }
+
+.class-emoji { font-size: 0.85rem; margin-right: 0.2rem; }
+.class-formula-count {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  background: var(--box-bg);
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+}

@@ -296,7 +296,13 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
     </div>
   );
 }
-
+const SUBJECT_EMOJIS = {
+  'PRE-ALGEBRA': '🔢', 'ALGEBRA I': '📐', 'ALGEBRA II': '📊',
+  'GEOMETRY': '△', 'TRIGONOMETRY': '📡', 'PRECALCULUS': '🔭',
+  'CALCULUS I': '∫', 'CALCULUS II': '∫∫', 'CALCULUS III': '∫∫∫',
+  'UNIT CIRCLE': '⭕', 'PHYSICS I': '⚡', 'PHYSICS II': '🔬',
+  'STATISTICS I': '📈', 'STATISTICS II': '📊',
+};
 const UNTITLED_TITLE_REGEX = /^Untitled Sheet \(\d+\)$/;
 
 const formatViewCount = (viewCount) => {
@@ -500,7 +506,11 @@ const FormulaSelection = ({
                   checked={isChecked}
                   onChange={() => toggleClass(cls.name)}
                 />
+                <span className="class-emoji">{SUBJECT_EMOJIS[cls.name] || '📚'}</span>
                 {cls.name}
+                <span className="class-formula-count">
+                  {cls.categories.reduce((sum, cat) => sum + cat.formulas.length, 0)}
+                </span>
               </label>
             );
           })}
