@@ -1112,8 +1112,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     pdfBlob,
     isCompiling,
     compileError,
-    canGoBack,
-    canGoForward,
     goBack,
     goForward,
     handlePreview,
