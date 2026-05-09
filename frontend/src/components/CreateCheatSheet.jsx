@@ -1629,9 +1629,15 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
                 aria-label="Compile PDF"
                 title="Generate LaTeX and compile to PDF. First compile will auto-generate from your current selected subjects."
               >
-                <span className="btn-compile-icon">{isCompiling ? '↻' : '⚡'}</span>
+                <span className="btn-compile-icon">{isCompiling ? '↻' : ''}</span>
                 <span className="btn-compile-text">
-                {isCompiling ? 'Compiling…' : 'GET CHEAT SHEET'}
+                {isCompiling ? 'Compiling…' :  (
+                  <>
+                  GET CHEAT SHEET 
+                  <span classnName="btn-compile-hint"> Ctrl + ↵</span>
+                  </>
+
+                )}
                 </span>
               </button>
 

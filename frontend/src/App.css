@@ -2114,6 +2114,14 @@ left panel - footer buttons
   box-shadow: none;
 }
 
+.btn-compile-hint {
+  font-size: 0.6rem;
+  opacity: 0.6;
+  margin-left: 0.4rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 .btn-compile:hover:not(:disabled) {
   background: var(--btn-primary-hover);
   box-shadow: none;
