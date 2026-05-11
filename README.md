@@ -79,7 +79,7 @@ The main editor is a three-region workspace:
 - GitHub Pages project-page assets were removed; the app is now documented as a local/Docker full-stack project
 - Animated compile button with shimmer effect while compiling with a green flash on success
 - Toast notification now replaces the browser alert on save 
-- Keyboard Shortcuts: Ctrl+Enter to compile, Ctrl+S to save, Escape to close the video model
+- Keyboard Shortcuts: Ctrl+Enter to compile, Ctrl+S to save, Escape to close the video modal
 - Browser tab title now updates to reflect the name of the active cheat sheet 
 - character counter on the title input with a limit of 80 characters
 - New 'last saved' timestamp displayed next to the save button
