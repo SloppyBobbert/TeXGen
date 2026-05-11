@@ -93,7 +93,7 @@ The main editor is a three-region workspace:
 - Improved muted text contrast to meet the WCAG AA standards
 - Custom scrollbar styling across all the panels
 - Hover transitions on video cards
-- Smooth transitiions for panel show/hide options
+- Smooth transitions for panel show/hide options
 - Improvements for mobile responsiveness for screens under 768px
 - Divider lines between the layout option selections 
 - Full implementation of YouTube videos across each subject
