@@ -178,7 +178,12 @@ describe('CreateCheatSheet Component', () => {
     const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
-    useLatex.mockReturnValue({ ...mockUseLatex, contentModified: true, handleCompileOnly: handleCompileOnlyMock });
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentModified: true,
+      canRegenerateFromSelections: false,
+      handleCompileOnly: handleCompileOnlyMock,
+    });
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
       selectedCount: 1,
@@ -190,6 +195,32 @@ describe('CreateCheatSheet Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
     expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
+  });
+
+  it('regenerates from selections when source is generated even if contentModified is true', () => {
+    const handleCompileOnlyMock = vi.fn();
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ name: 'updated-formula' }];
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentModified: true,
+      canRegenerateFromSelections: true,
+      handleCompileOnly: handleCompileOnlyMock,
+      handlePreview: handlePreviewMock,
+    });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
   });
 
   it('does not overwrite compiled manual LaTeX on later compile clicks', () => {

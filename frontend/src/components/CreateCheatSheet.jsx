@@ -1530,13 +1530,13 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     const selectedFormulas = getSelectedFormulasList();
-    if (!contentModified && canRegenerateFromSelections && selectedFormulas.length > 0) {
+    if (canRegenerateFromSelections && selectedFormulas.length > 0) {
       handlePreview(null, { formulas: selectedFormulas, columns, fontSize, spacing });
       return;
     }
 
     handleCompileOnly(selectedFormulas);
-  }, [canRegenerateFromSelections, columns, contentModified, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
+  }, [canRegenerateFromSelections, columns, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
 
   const handleSave = useCallback(async (e) => {
     e?.preventDefault?.();
