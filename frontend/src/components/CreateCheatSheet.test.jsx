@@ -223,6 +223,33 @@ describe('CreateCheatSheet Component', () => {
     expect(handleCompileOnlyMock).not.toHaveBeenCalled();
   });
 
+  it('regenerates after class changes when sheet was generated previously in session', () => {
+    const handleCompileOnlyMock = vi.fn();
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ class: 'Math 101', category: 'Algebra', name: 'updated-formula' }];
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentSource: 'generated',
+      canRegenerateFromSelections: false,
+      contentModified: false,
+      handleCompileOnly: handleCompileOnlyMock,
+      handlePreview: handlePreviewMock,
+    });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+  });
+
   it('does not overwrite compiled manual LaTeX on later compile clicks', () => {
     const handleCompileOnlyMock = vi.fn();
     const handlePreviewMock = vi.fn();

@@ -1174,6 +1174,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const [classesCollapseSignal, setClassesCollapseSignal] = useState(0);
   const pendingPanelLayoutRef = useRef(panelLayout);
   const hasCollapsedLeftPanelOnceRef = useRef(false);
+  const hasGeneratedFromSelectionsRef = useRef(contentSource === 'generated');
   const lastAutoSavedPdfRef = useRef(null);
   const lastVideoOpenerRef = useRef(null);
   const modalDialogRef = useRef(null);
@@ -1502,8 +1503,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
 
   const workspaceSplitTemplate = `minmax(${LATEX_PANEL_MIN_WIDTH}px, ${panelLayout.latexWidth}px) 10px minmax(${MIN_PREVIEW_WIDTH}px, 1fr)`;
   const previewLayoutSignature = `${appBodyGridTemplate}|${workspaceSplitTemplate}|${leftPanelVisible}|${rightPanelVisible}|${showLatex}`;
-    useEffect(() => {
-      if (!pdfBlob || isCompiling) return;
+  useEffect(() => {
+    if (!pdfBlob || isCompiling) return;
       const btn = compileBtnRef.current;
       if (!btn) return;
       btn.classList.add('compile-success');
@@ -1511,7 +1512,14 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
         btn.classList.remove('compile-success');
       }, 600);
       return () => clearTimeout(timer);
-    }, [pdfBlob, isCompiling]);
+  }, [pdfBlob, isCompiling]);
+
+  useEffect(() => {
+    if (contentSource === 'generated') {
+      hasGeneratedFromSelectionsRef.current = true;
+    }
+  }, [contentSource]);
+
   const handleCompileClick = useCallback(() => {
     if (!hasCollapsedLeftPanelOnceRef.current) {
       // First compile: keep controls reachable while reclaiming preview space.
@@ -1530,13 +1538,19 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     const selectedFormulas = getSelectedFormulasList();
-    if (canRegenerateFromSelections && selectedFormulas.length > 0) {
+    const shouldRegenerateFromSelections = selectedFormulas.length > 0 && (
+      canRegenerateFromSelections ||
+      (hasGeneratedFromSelectionsRef.current && !contentModified)
+    );
+
+    if (shouldRegenerateFromSelections) {
+      hasGeneratedFromSelectionsRef.current = true;
       handlePreview(null, { formulas: selectedFormulas, columns, fontSize, spacing });
       return;
     }
 
     handleCompileOnly(selectedFormulas);
-  }, [canRegenerateFromSelections, columns, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
+  }, [canRegenerateFromSelections, columns, contentModified, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
 
   const handleSave = useCallback(async (e) => {
     e?.preventDefault?.();
