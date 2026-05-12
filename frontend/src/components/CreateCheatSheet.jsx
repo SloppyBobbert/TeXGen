@@ -737,6 +737,12 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
   const [currentPage, setCurrentPage] = useState(1);
   const scrollRef = useRef(null);
   const scrollFrameRef = useRef(null);
+  const cancelPendingScrollFrame = useCallback(() => {
+    if (scrollFrameRef.current) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
+  }, []);
 
   const updateScrollState = useCallback(() => {
     const scrollContainer = scrollRef.current;
@@ -769,21 +775,22 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
     });
   }, [updateScrollState]);
 
-  useEffect(() => () => {
-    if (scrollFrameRef.current) {
-      window.cancelAnimationFrame(scrollFrameRef.current);
-      scrollFrameRef.current = null;
-    }
-  }, []);
+  useEffect(() => {
+    return () => cancelPendingScrollFrame();
+  }, [cancelPendingScrollFrame]);
 
   useEffect(() => {
+    if (!pdfBlob || compileError || !numPages) {
+      return;
+    }
     updateScrollState();
   }, [numPages, updateScrollState, pdfBlob, compileError]);
 
   useEffect(() => {
+    cancelPendingScrollFrame();
     setCurrentPage(1);
     setShowScrollTop(false);
-  }, [pdfBlob, compileError]);
+  }, [cancelPendingScrollFrame, pdfBlob]);
 
   const scrollToTop = () => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
