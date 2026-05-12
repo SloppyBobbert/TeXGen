@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import CreateCheatSheet from './CreateCheatSheet';
 import { useFormulas } from '../hooks/formulas';
@@ -31,6 +31,8 @@ describe('CreateCheatSheet Component', () => {
     selectedCategories: {},
     groupedFormulas: [],
     toggleClass: vi.fn(),
+    selectAllClasses: vi.fn(),
+    deselectAllClasses: vi.fn(),
     toggleCategory: vi.fn(),
     getSelectedFormulasList: vi.fn(),
     clearSelections: vi.fn(),
@@ -59,6 +61,8 @@ describe('CreateCheatSheet Component', () => {
     setSpacing: vi.fn(),
     margins: '0.15in',
     setMargins: vi.fn(),
+    orientation: 'portrait',
+    setOrientation: vi.fn(),
     pdfBlob: null,
     isGenerating: false,
     isCompiling: false,
@@ -151,11 +155,35 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.queryByLabelText(/Generated LaTeX Code:/i)).not.toBeInTheDocument();
   });
 
+  it('restores saved orientation from initial data', () => {
+    const setOrientation = vi.fn();
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      setOrientation,
+    });
+
+    render(
+      <CreateCheatSheet
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onReset={vi.fn()}
+        initialData={{ orientation: 'landscape' }}
+      />,
+    );
+
+    expect(setOrientation).toHaveBeenCalledWith('landscape');
+  });
+
   it('compiles existing manual content without regenerating', () => {
     const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
-    useLatex.mockReturnValue({ ...mockUseLatex, contentModified: true, handleCompileOnly: handleCompileOnlyMock });
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentModified: true,
+      canRegenerateFromSelections: false,
+      handleCompileOnly: handleCompileOnlyMock,
+    });
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
       selectedCount: 1,
@@ -167,6 +195,102 @@ describe('CreateCheatSheet Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
     expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
+  });
+
+  it('regenerates from selections when source is generated even if contentModified is true', () => {
+    const handleCompileOnlyMock = vi.fn();
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ name: 'updated-formula' }];
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentModified: true,
+      canRegenerateFromSelections: true,
+      handleCompileOnly: handleCompileOnlyMock,
+      handlePreview: handlePreviewMock,
+    });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+  });
+
+  it('regenerates after class changes when sheet was generated previously in session', () => {
+    const handleCompileOnlyMock = vi.fn();
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ class: 'Math 101', category: 'Algebra', name: 'updated-formula' }];
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentSource: 'generated',
+      canRegenerateFromSelections: false,
+      contentModified: false,
+      handleCompileOnly: handleCompileOnlyMock,
+      handlePreview: handlePreviewMock,
+    });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+  });
+
+  it('regenerates when selections change after initial empty-source compile', () => {
+    const handleCompileOnlyMock = vi.fn();
+    const handlePreviewMock = vi.fn();
+    const firstSelection = [{ class: 'Math 101', category: 'Algebra', name: 'first-formula' }];
+    const secondSelection = [{ class: 'Math 102', category: 'Geometry', name: 'second-formula' }];
+
+    useLatex
+      .mockReturnValueOnce({
+        ...mockUseLatex,
+        contentSource: 'empty',
+        canRegenerateFromSelections: true,
+        contentModified: false,
+        handleCompileOnly: handleCompileOnlyMock,
+        handlePreview: handlePreviewMock,
+      })
+      .mockReturnValue({
+        ...mockUseLatex,
+        contentSource: 'manual',
+        canRegenerateFromSelections: false,
+        contentModified: false,
+        handleCompileOnly: handleCompileOnlyMock,
+        handlePreview: handlePreviewMock,
+      });
+
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValueOnce(firstSelection).mockReturnValueOnce(secondSelection),
+    });
+
+    const { rerender } = render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    rerender(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+
+    expect(handlePreviewMock).toHaveBeenCalledTimes(2);
+    expect(handlePreviewMock).toHaveBeenNthCalledWith(2, null, expect.objectContaining({ formulas: secondSelection }));
+    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
   });
 
   it('does not overwrite compiled manual LaTeX on later compile clicks', () => {
@@ -194,6 +318,69 @@ describe('CreateCheatSheet Component', () => {
 
     expect(handlePreviewMock).not.toHaveBeenCalled();
     expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
+  });
+
+  it('compiles on Ctrl+Enter and prevents the browser default action', () => {
+    const handlePreviewMock = vi.fn();
+    const selectedFormulas = [{ name: 'test' }];
+
+    useLatex.mockReturnValue({ ...mockUseLatex, handlePreview: handlePreviewMock });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />);
+
+    const shortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(shortcutEvent);
+
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+  });
+
+  it('saves on Ctrl+S and prevents the browser default action', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    const shortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(shortcutEvent);
+
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+  });
+
+  it('ignores repeated shortcut keydown events', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    const repeatedShortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      repeat: true,
+    });
+
+    window.dispatchEvent(repeatedShortcutEvent);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(0));
+    expect(repeatedShortcutEvent.defaultPrevented).toBe(false);
   });
 
   it('can open youtube resources when class is selected', () => {

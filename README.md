@@ -77,6 +77,26 @@ The main editor is a three-region workspace:
 - curated class/section video links with compact right-rail cards and API search kept as a per-section fallback
 - LaTeX editor remains closed by default so the compiled PDF stays front and center
 - GitHub Pages project-page assets were removed; the app is now documented as a local/Docker full-stack project
+- Animated compile button with shimmer effect while compiling with a green flash on success
+- Toast notification now replaces the browser alert on save 
+- Keyboard Shortcuts: Ctrl+Enter to compile, Ctrl+S to save, Escape to close the video modal
+- Browser tab title now updates to reflect the name of the active cheat sheet 
+- character counter on the title input with a limit of 80 characters
+- New 'last saved' timestamp displayed next to the save button
+- Scroll to top button in the PDF Preview
+- Empty state illustration in the right panel when no sections are selected
+- Section count badge on the right panel header
+- Select all/Deselect all option above the subject class list 
+- Clear search button for YouTube Search Results
+- PDF page number display in the preview toolbar 
+- Focus ring styles for keyboard navigation accessibility 
+- Improved muted text contrast to meet the WCAG AA standards
+- Custom scrollbar styling across all the panels
+- Hover transitions on video cards
+- Smooth transitions for panel show/hide options
+- Improvements for mobile responsiveness for screens under 768px
+- Divider lines between the layout option selections 
+- Full implementation of YouTube videos across each subject
 
 ### Editing and generation
 
@@ -120,6 +140,17 @@ The main editor is a three-region workspace:
 - curated class/section links in `frontend/src/data/subjectVideos.js` shown before any API call
 - section-scoped “search more” behavior so the YouTube API is a last-resort fallback for the clicked section only
 - request validation and error handling for missing key, invalid topics, empty results, and upstream failures
+
+### Themes
+- Light Mode
+- Dark Mode
+- Miami Theme
+- Forest Theme
+- Cool Gray Theme
+- Neon Theme
+- Galaxy Theme
+- Red Theme
+- Pink 'Blossom' Inspired Theme
 
 ## Tech stack
 
@@ -313,6 +344,8 @@ Services:
 - PHYSICS II
 - STATISTICS I
 - STATISTICS II
+- LINEAR ALGEBRA I
+- LINEAR ALGEBRA II
 
 Each class contains multiple categories and formulas in `backend/api/formula_data/`.
 

@@ -149,6 +149,7 @@ const THEMES = [
   { id: 'neon',         label:     '🩵 neon'},
   { id: 'galaxy',     label: '🌌 Galaxy'    },
   {id: 'crimson', label: '❤️ Red'           },
+  {id: 'blossom',        label: '🌸 Blossom'},
 ];
 
 function App() {

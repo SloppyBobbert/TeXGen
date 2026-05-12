@@ -252,6 +252,45 @@ export function useFormulas(initialData) {
     });
   };
 
+  const selectAllClasses = useCallback(() => {
+    const nextSelectedClasses = {};
+    const nextSelectedCategories = {};
+    const nextGroupedFormulas = [];
+
+    classesData.forEach((cls) => {
+      nextSelectedClasses[cls.name] = true;
+
+      const formulasForClass = [];
+      cls.categories?.forEach((category) => {
+        nextSelectedCategories[`${cls.name}:${category.name}`] = true;
+        category.formulas?.forEach((formula) => {
+          formulasForClass.push({
+            class: cls.name,
+            category: category.name,
+            name: formula.name,
+          });
+        });
+      });
+
+      if (formulasForClass.length > 0) {
+        nextGroupedFormulas.push({
+          class: cls.name,
+          formulas: formulasForClass,
+        });
+      }
+    });
+
+    setSelectedClasses(nextSelectedClasses);
+    setSelectedCategories(nextSelectedCategories);
+    setGroupedFormulas(nextGroupedFormulas);
+  }, [classesData]);
+
+  const deselectAllClasses = useCallback(() => {
+    setSelectedClasses({});
+    setSelectedCategories({});
+    setGroupedFormulas([]);
+  }, []);
+
   const reorderClass = useCallback((oldIndex, newIndex) => {
     setGroupedFormulas(prev => {
       const newOrder = [...prev];
@@ -300,6 +339,8 @@ export function useFormulas(initialData) {
     reorderFormula,
     removeClassFromOrder,
     removeSingleFormula,
+    selectAllClasses,
+    deselectAllClasses,
     selectedCount,
     hasSelectedClasses
   };

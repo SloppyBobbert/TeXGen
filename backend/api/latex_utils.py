@@ -136,7 +136,7 @@ def build_layout_comment_block(columns=4, font_size="9pt", margins="0.15in", spa
         f"% @cheatsheet-layout spacing: {spacing} | change layout options up top to update spacing",
         f"% @cheatsheet-layout margins: {margins} | change layout options up top to update margins",
         f"% @cheatsheet-layout orientation: {orientation} | change layout options up top to update orientation",
-        "%",
+        "%"
     ]
 
 
@@ -148,12 +148,12 @@ def build_dynamic_header(columns=4, font_size="9pt", margins="0.15in", spacing="
     spacing_values = get_spacing_values(spacing, font_size)
     doc_class, doc_class_size = get_document_class(font_size)
     
-    # 1. Force the PDF driver to rotate by passing landscape and letterpaper to the document class
+    # Force the PDF driver to use letterpaper, add landscape if requested
     doc_options = f"{doc_class_size},fleqn,letterpaper"
     if orientation == "landscape":
         doc_options += ",landscape"
 
-    # 2. Also pass them to the geometry package
+    # Also pass them to the geometry package
     geometry_options = f"letterpaper,margin={margins}"
     if orientation == "landscape":
         geometry_options += ",landscape"

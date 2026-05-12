@@ -581,6 +581,47 @@ export const CURATED_SUBJECT_VIDEOS = {
 
    },
  ],
+ "LINEAR ALGEBRA I": [
+  {
+    title: "Introduction to Vectors and Their Operations",
+    videoId: "KBSCMTYaH1s",
+    channel: "Professor Dave Explains",
+    topic: "Vector Basics"
+  },
+  {
+    title: "Linear Algebra - Matrix Operations",
+    videoId: "p48uw2vFWQs",
+    channel: "Postcard Professor",
+    topic: "Matrix Operations"
+  },
+  {
+    title: "Cramer's Rule - 2x2 Linear System",
+    videoId: "vXqlIOX2itM",
+    channel: "The Organic Chemistry Tutor",
+    topic: "2x2 Systems"
+  },
+ ],
+ "LINEAR ALGEBRA II": [
+  {
+    title: "Linear Algebra: Properties of Matrix Operations - Part 1 (Section 2.2) | Math with Professor V",
+    videoId: "pqhI8RCNkZk",
+    channel: "Math With Professor V",
+    topic: "Matrix Properties"
+  },
+  {
+    title: "Eigenvectors and eigenvalues | Chapter 14, Essence of linear algebra",
+    videoId: "PFDu9oVAE-g",
+    channel: "3Blue1Brown",
+    topic: "Eigenvalues & Eigenvectors"
+  },
+  {
+    title: "Further Matrix Decompositions: LU, Cholesky, QR, and SVD",
+    videoId: "wHAJzemKQW4",
+    channel: "Professor Dave Explains",
+    topic: "Decompositions & Spaces",
+  },
+ ],
+
 };
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);
