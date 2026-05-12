@@ -443,6 +443,8 @@ const FormulaSelection = ({
   selectedCategories, 
   groupedFormulas,
   toggleClass, 
+  selectAllClasses,
+  deselectAllClasses,
   toggleCategory, 
   selectedCount, 
   hasSelectedClasses,
@@ -474,21 +476,17 @@ const FormulaSelection = ({
     <button
       type="button"
       className="btn-select-all"
-      onClick={() => classesData.forEach((cls) => {
-        if (!selectedClasses[cls.name]) toggleClass(cls.name);
-      })}
+      onClick={selectAllClasses}
     >
       Select All
     </button>
     <button
       type="button"
       className="btn-select-all btn-deselect-all"
-      onClick={() => classesData.forEach((cls) => {
-        if (selectedClasses[cls.name]) toggleClass(cls.name);
-        })}
-        >
-        Deselect All
-        </button>
+      onClick={deselectAllClasses}
+    >
+      Deselect All
+    </button>
       </div>
         <div className="class-checkboxes">
           {classesData.map((cls) => {
@@ -738,14 +736,19 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const scrollRef = useRef(null);
+  const scrollFrameRef = useRef(null);
 
-  const handlePdfScroll = () => {
-    if (scrollRef.current) {
-      setShowScrollTop(scrollRef.current.scrollTop > 300);
+  const updateScrollState = useCallback(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) {
+      return;
     }
-    const pages = scrollRef.current?.querySelectorAll('.pdf-page');
+
+    setShowScrollTop(scrollContainer.scrollTop > 300);
+
+    const pages = scrollContainer.querySelectorAll('.pdf-page');
     if (pages?.length) {
-      const containerTop = scrollRef.current.getBoundingClientRect().top;
+      const containerTop = scrollContainer.getBoundingClientRect().top;
       let current = 1;
       pages.forEach((page, index) => {
         const pageTop = page.getBoundingClientRect().top - containerTop;
@@ -753,7 +756,34 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
       });
       setCurrentPage(current);
     }
-  };
+  }, []);
+
+  const handlePdfScroll = useCallback(() => {
+    if (scrollFrameRef.current) {
+      return;
+    }
+
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      updateScrollState();
+    });
+  }, [updateScrollState]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) {
+      window.cancelAnimationFrame(scrollFrameRef.current);
+      scrollFrameRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    updateScrollState();
+  }, [numPages, updateScrollState, pdfBlob, compileError]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setShowScrollTop(false);
+  }, [pdfBlob, compileError]);
 
   const scrollToTop = () => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1079,6 +1109,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     selectedCategories,
     groupedFormulas,
     toggleClass,
+    selectAllClasses,
+    deselectAllClasses,
     toggleCategory,
     getSelectedFormulasList,
     clearSelections,
@@ -1525,6 +1557,10 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      if (event.repeat) {
+        return;
+      }
+
       const isModifierPressed = event.ctrlKey || event.metaKey;
       const normalizedKey = typeof event.key === 'string' ? event.key.toLowerCase() : '';
 
@@ -1593,6 +1629,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
                 selectedCategories={selectedCategories}
                 groupedFormulas={groupedFormulas}
                 toggleClass={toggleClass}
+                selectAllClasses={selectAllClasses}
+                deselectAllClasses={deselectAllClasses}
                 toggleCategory={toggleCategory}
                 selectedCount={selectedCount}
                 hasSelectedClasses={hasSelectedClasses}

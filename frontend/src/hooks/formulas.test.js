@@ -139,4 +139,32 @@ describe('useFormulas hook', () => {
 
     expect(result.current.selectedCount).toBe(4);
   });
+
+  it('selects and deselects all classes in a single action', async () => {
+    const { result } = renderHook(() => useFormulas());
+
+    await vi.waitFor(() => {
+      expect(result.current.classesData.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      result.current.selectAllClasses();
+    });
+
+    expect(result.current.selectedClasses.Algebra).toBe(true);
+    expect(result.current.selectedClasses.Geometry).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Linear Equations']).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Quadratics']).toBe(true);
+    expect(result.current.selectedCategories['Geometry:Shapes']).toBe(true);
+    expect(result.current.selectedCount).toBe(4);
+
+    act(() => {
+      result.current.deselectAllClasses();
+    });
+
+    expect(result.current.selectedClasses).toEqual({});
+    expect(result.current.selectedCategories).toEqual({});
+    expect(result.current.groupedFormulas).toEqual([]);
+    expect(result.current.selectedCount).toBe(0);
+  });
 });

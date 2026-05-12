@@ -31,6 +31,8 @@ describe('CreateCheatSheet Component', () => {
     selectedCategories: {},
     groupedFormulas: [],
     toggleClass: vi.fn(),
+    selectAllClasses: vi.fn(),
+    deselectAllClasses: vi.fn(),
     toggleCategory: vi.fn(),
     getSelectedFormulasList: vi.fn(),
     clearSelections: vi.fn(),
@@ -259,6 +261,25 @@ describe('CreateCheatSheet Component', () => {
 
     expect(shortcutEvent.defaultPrevented).toBe(true);
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+  });
+
+  it('ignores repeated shortcut keydown events', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    const repeatedShortcutEvent = new window.KeyboardEvent('keydown', {
+      key: 's',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      repeat: true,
+    });
+
+    window.dispatchEvent(repeatedShortcutEvent);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(0));
+    expect(repeatedShortcutEvent.defaultPrevented).toBe(false);
   });
 
   it('can open youtube resources when class is selected', () => {
