@@ -1538,9 +1538,10 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     const selectedFormulas = getSelectedFormulasList();
+    const isPreviouslyGeneratedAndUnmodified = hasGeneratedFromSelectionsRef.current && !contentModified;
     const shouldRegenerateFromSelections = selectedFormulas.length > 0 && (
       canRegenerateFromSelections ||
-      (hasGeneratedFromSelectionsRef.current && !contentModified)
+      isPreviouslyGeneratedAndUnmodified
     );
 
     if (shouldRegenerateFromSelections) {
