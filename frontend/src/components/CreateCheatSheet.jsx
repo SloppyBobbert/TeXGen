@@ -1544,7 +1544,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     );
 
     if (shouldRegenerateFromSelections) {
-      hasGeneratedFromSelectionsRef.current = true;
       handlePreview(null, { formulas: selectedFormulas, columns, fontSize, spacing });
       return;
     }
