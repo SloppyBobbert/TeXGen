@@ -1175,6 +1175,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const pendingPanelLayoutRef = useRef(panelLayout);
   const hasCollapsedLeftPanelOnceRef = useRef(false);
   const hasGeneratedFromSelectionsRef = useRef(false);
+  const lastGeneratedSelectionSignatureRef = useRef('');
   const lastAutoSavedPdfRef = useRef(null);
   const lastVideoOpenerRef = useRef(null);
   const modalDialogRef = useRef(null);
@@ -1538,13 +1539,21 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
 
     const selectedFormulas = getSelectedFormulasList();
+    const selectionSignature = selectedFormulas
+      .map((formula) => `${formula.class}|${formula.category}|${formula.name}`)
+      .join('||');
+    const hasSelectionChangedSinceGenerate =
+      lastGeneratedSelectionSignatureRef.current &&
+      lastGeneratedSelectionSignatureRef.current !== selectionSignature;
     const isPreviouslyGeneratedAndUnmodified = hasGeneratedFromSelectionsRef.current && !contentModified;
     const shouldRegenerateFromSelections = selectedFormulas.length > 0 && (
       canRegenerateFromSelections ||
-      isPreviouslyGeneratedAndUnmodified
+      isPreviouslyGeneratedAndUnmodified ||
+      (!contentModified && hasSelectionChangedSinceGenerate)
     );
 
     if (shouldRegenerateFromSelections) {
+      lastGeneratedSelectionSignatureRef.current = selectionSignature;
       handlePreview(null, { formulas: selectedFormulas, columns, fontSize, spacing });
       return;
     }
