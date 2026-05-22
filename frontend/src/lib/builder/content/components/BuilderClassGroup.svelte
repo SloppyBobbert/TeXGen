@@ -48,7 +48,7 @@
   <Collapsible
     bind:open
     class={cn(
-      "rounded-lg border border-border bg-background transition-colors",
+      "rounded-lg border border-border bg-card transition-colors",
       isSourceSectionClass && "border-dashed border-primary/60 bg-primary/5",
       sortable.isDragging && !isOverlay && "invisible",
       isOverlay && "shadow-lg",
