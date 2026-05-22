@@ -42,6 +42,7 @@
 
 <div class="relative" {@attach sortable.attach}>
   <label
+    for={`section-${section.id}`}
     class={cn(
       "flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-muted/60",
       sortable.isDropTarget && !isOverlay && "bg-primary/5",
@@ -58,6 +59,7 @@
       <IconGripVertical class="size-4 shrink-0" aria-hidden="true" />
     </button>
     <Checkbox
+      id={`section-${section.id}`}
       class="cursor-pointer"
       checked={section.selected}
       onCheckedChange={(value) => (section.selected = Boolean(value))}
