@@ -43,6 +43,8 @@
     "vite": "^8.0.7"
   },
   "dependencies": {
-    "@dnd-kit/helpers": "^0.4.0"
+    "@dnd-kit/helpers": "^0.4.0",
+    "mode-watcher": "^1.1.0",
+    "svelte-toolbelt": "^0.10.6"
   }
 }
