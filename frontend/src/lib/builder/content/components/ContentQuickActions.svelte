@@ -23,7 +23,7 @@
     type="button"
     size="sm"
     variant="outline"
-    class="flex-1 cursor-pointer"
+    class="flex-1 cursor-pointer bg-card hover:bg-muted/70 dark:bg-card dark:hover:bg-muted/50"
     onclick={deselectAll}>Deselect All</Button
   >
 </div>
