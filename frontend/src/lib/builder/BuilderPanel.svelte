@@ -8,7 +8,7 @@
   class="flex h-full min-h-0 w-full flex-col overflow-hidden border-border bg-card text-card-foreground md:w-96 md:border-r"
 >
   <Tabs value="content" class="flex min-h-0 flex-1 flex-col px-4 py-4">
-    <TabsList class="sticky top-0 z-20 grid w-full grid-cols-2 bg-card">
+    <TabsList class="sticky top-0 z-20 grid w-full grid-cols-2">
       <TabsTrigger value="content" class="cursor-pointer">Content</TabsTrigger>
       <TabsTrigger value="design" class="cursor-pointer">Design</TabsTrigger>
     </TabsList>
