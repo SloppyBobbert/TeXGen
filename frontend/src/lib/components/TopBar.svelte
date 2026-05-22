@@ -1,6 +1,5 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button"
-  import logo from "$lib/assets/logo.svg"
   import IconMoon from "@tabler/icons-svelte/icons/moon"
   import IconSun from "@tabler/icons-svelte/icons/sun"
   import { toggleMode } from "mode-watcher"
@@ -8,7 +7,18 @@
 
 <header class="flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
   <div class="flex items-center gap-2">
-    <img src={logo} alt="" class="size-10 text-primary" />
+    <svg
+      aria-hidden="true"
+      class="size-10 text-foreground"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 1024 1024"
+    >
+      <path
+        fill="currentColor"
+        fill-rule="evenodd"
+        d="M 181 215 L 172 240 L 172 728 L 212 728 L 213 316 L 810 316 L 811 728 L 851 728 L 851 269 L 845 251 L 836 241 L 817 233 L 411 233 L 387 206 L 369 199 L 211 199 L 192 205 Z M 100 751 L 104 777 L 117 799 L 135 814 L 160 823 L 863 823 L 885 816 L 907 798 L 918 780 L 923 762 L 922 750 L 608 750 L 602 768 L 587 776 L 436 776 L 426 772 L 419 765 L 415 750 Z M 391 403 L 389 411 L 487 540 L 390 649 L 388 662 L 618 662 L 635 587 L 625 583 L 619 585 L 607 610 L 595 621 L 580 628 L 558 631 L 437 630 L 528 525 L 448 420 L 545 419 L 574 423 L 592 432 L 606 448 L 616 472 L 623 472 L 631 467 L 615 403 Z M 245 236 L 257 236 L 265 240 L 269 244 L 274 254 L 274 264 L 272 270 L 265 278 L 260 281 L 257 281 L 256 282 L 245 282 L 238 279 L 231 272 L 228 265 L 228 253 L 231 246 L 237 240 Z M 312 239 L 319 236 L 330 236 L 337 239 L 345 247 L 348 255 L 347 267 L 344 273 L 336 280 L 330 282 L 319 282 L 312 279 L 305 272 L 302 266 L 302 262 L 301 261 L 302 252 L 305 246 Z"
+      />
+    </svg>
     <span class="text-lg font-semibold tracking-tight">TeXGen</span>
   </div>
 
