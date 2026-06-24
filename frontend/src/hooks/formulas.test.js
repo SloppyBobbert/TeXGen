@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFormulas } from './formulas';
 
 // Mock the global fetch
@@ -39,12 +39,55 @@ describe('useFormulas hook', () => {
     });
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('fetches classes data on mount', async () => {
     const { result } = renderHook(() => useFormulas());
 
     // Wait for the fetch to resolve and state to update
     await waitFor(() => {
       expect(result.current.classesData).toEqual(mockClassesData.classes);
+    });
+  });
+
+  it('restores saved selections from localStorage after classes load', async () => {
+    window.localStorage.setItem('cheatSheetData', JSON.stringify({
+      selectedClasses: { Algebra: true },
+      selectedCategories: {
+        'Algebra:Linear Equations': true,
+        'Algebra:Quadratics': true
+      },
+      groupedFormulas: [
+        {
+          class: 'Algebra',
+          formulas: [
+            { class: 'Algebra', category: 'Linear Equations', name: 'Slope Formula' },
+            { class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }
+          ]
+        }
+      ]
+    }));
+
+    const { result } = renderHook(() => useFormulas());
+
+    await waitFor(() => {
+      expect(result.current.classesData).toEqual(mockClassesData.classes);
+      expect(result.current.selectedClasses).toEqual({ Algebra: true });
+      expect(result.current.selectedCategories).toEqual({
+        'Algebra:Linear Equations': true,
+        'Algebra:Quadratics': true
+      });
+      expect(result.current.groupedFormulas).toEqual([
+        {
+          class: 'Algebra',
+          formulas: [
+            { class: 'Algebra', category: 'Linear Equations', name: 'Slope Formula' },
+            { class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }
+          ]
+        }
+      ]);
     });
   });
 
@@ -141,5 +184,47 @@ describe('useFormulas hook', () => {
     });
 
     expect(result.current.selectedCount).toBe(4);
+  });
+
+  it('clears selections and removes saved cheat sheet data', async () => {
+    const { result } = renderHook(() => useFormulas());
+
+    await waitFor(() => {
+      expect(result.current.classesData.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      result.current.toggleClass('Algebra');
+    });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('cheatSheetData')).not.toBeNull();
+    });
+
+    act(() => {
+      result.current.clearSelections();
+    });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('cheatSheetData')).toBeNull();
+      expect(result.current.selectedClasses).toEqual({});
+      expect(result.current.selectedCategories).toEqual({});
+      expect(result.current.groupedFormulas).toEqual([]);
+      expect(result.current.selectedCount).toBe(0);
+    });
+  });
+
+  it('logs fetch failures and keeps classes data empty', async () => {
+    const error = new Error('network down');
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    global.fetch = vi.fn().mockRejectedValue(error);
+
+    const { result } = renderHook(() => useFormulas());
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to fetch classes', error);
+    });
+
+    expect(result.current.classesData).toEqual([]);
   });
 });

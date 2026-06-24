@@ -21,9 +21,16 @@ global.URL.revokeObjectURL = vi.fn();
 global.fetch = vi.fn();
 
 describe('useLatex hook', () => {
+  let alertSpy;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocalStorage.clear();
+    alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
   });
 
   const wrapper = ({ children }) => (
@@ -161,6 +168,70 @@ describe('useLatex hook', () => {
 
     expect(result.current.compileError).toContain('Syntax error');
     expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('handleGenerateSheet with no formulas does not fetch and alerts to select at least one formula', async () => {
+    const { result } = renderHook(() => useLatex(), { wrapper });
+
+    await act(async () => {
+      await result.current.handleGenerateSheet([]);
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(window.alert).toHaveBeenCalledWith('Please select at least one category first.');
+    expect(result.current.isGenerating).toBe(false);
+  });
+
+  test('handleGenerateSheet surfaces generate failure and clears generating state', async () => {
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Backend generation failed' })
+    });
+
+    await act(async () => {
+      await result.current.handleGenerateSheet(['formula']);
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith('Error generating sheet:', expect.any(Error));
+    expect(window.alert).toHaveBeenCalledWith('Failed to generate LaTeX. Is the backend running?');
+    expect(result.current.isGenerating).toBe(false);
+
+    errorSpy.mockRestore();
+  });
+
+  test('handleDownloadPDF surfaces compile failure and does not click download link', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'Test content', title: 'FileTitle' }), { wrapper });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const mockClick = vi.fn();
+    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue({
+      click: mockClick,
+      href: '',
+      download: ''
+    });
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Compile failed' })
+    });
+
+    await act(async () => {
+      await result.current.handleDownloadPDF();
+    });
+
+    expect(errorSpy).toHaveBeenCalledWith('Error generating PDF:', expect.any(Error));
+    expect(window.alert).toHaveBeenCalledWith('Failed to generate PDF. Check console for details.');
+    expect(mockClick).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
+
+    createElementSpy.mockRestore();
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 
   test('handleDownloadTex works correctly', () => {
