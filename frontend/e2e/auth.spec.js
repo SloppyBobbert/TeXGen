@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/classes/', async route => {
     await route.fulfill({
       status: 200,
-      body: JSON.stringify([]), // Return empty array or mock classes data
+      body: JSON.stringify({ classes: [] }),
     });
   });
 });

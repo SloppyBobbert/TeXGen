@@ -23,7 +23,7 @@ test.describe('Dashboard Flow', () => {
   test('should display empty state when no sheets exist', async ({ page }) => {
     // Mock classes data
     await page.route('**/api/classes/', async route => {
-      await route.fulfill({ status: 200, body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, body: JSON.stringify({ classes: [] }) });
     });
 
     // Mock empty cheat sheets
@@ -44,7 +44,7 @@ test.describe('Dashboard Flow', () => {
   test('should display saved cheat sheets', async ({ page }) => {
     // Mock classes data
     await page.route('**/api/classes/', async route => {
-      await route.fulfill({ status: 200, body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, body: JSON.stringify({ classes: [] }) });
     });
 
     // Mock cheat sheets with data
@@ -69,7 +69,7 @@ test.describe('Dashboard Flow', () => {
 
   test('create new sheet button navigates to creator', async ({ page }) => {
     await page.route('**/api/classes/', async route => {
-      await route.fulfill({ status: 200, body: JSON.stringify([]) });
+      await route.fulfill({ status: 200, body: JSON.stringify({ classes: [] }) });
     });
     await page.route('**/api/cheatsheets/', async route => {
       await route.fulfill({ status: 200, body: JSON.stringify([]) });
