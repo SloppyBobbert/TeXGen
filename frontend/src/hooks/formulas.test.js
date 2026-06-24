@@ -91,6 +91,75 @@ describe('useFormulas hook', () => {
     });
   });
 
+  it('normalizes restored formulas into renamed categories when the formula name still exists', async () => {
+    window.localStorage.setItem('cheatSheetData', JSON.stringify({
+      groupedFormulas: [
+        {
+          class: 'Algebra',
+          formulas: [
+            { class: 'Algebra', category: 'Old Linear Equations', name: 'Slope Formula' }
+          ]
+        }
+      ]
+    }));
+
+    const { result } = renderHook(() => useFormulas());
+
+    await waitFor(() => {
+      expect(result.current.groupedFormulas).toEqual([
+        {
+          class: 'Algebra',
+          formulas: [
+            { class: 'Algebra', category: 'Linear Equations', name: 'Slope Formula' }
+          ]
+        }
+      ]);
+    });
+
+    expect(result.current.selectedClasses).toEqual({ Algebra: true });
+    expect(result.current.selectedCategories).toEqual({
+      'Algebra:Linear Equations': true
+    });
+  });
+
+  it('restores initialData selections when localStorage is empty and ignores malformed formulas', async () => {
+    const initialData = {
+      selectedFormulas: [
+        { class: 'Algebra', category: 'Legacy Quadratics', name: 'Quadratic Formula' },
+        { class: 'Algebra', category: 'Linear Equations' },
+        { class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }
+      ]
+    };
+
+    const { result } = renderHook(() => useFormulas(initialData));
+
+    await waitFor(() => {
+      expect(result.current.groupedFormulas).toEqual([
+        {
+          class: 'Algebra',
+          formulas: [
+            { class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }
+          ]
+        },
+        {
+          class: 'Geometry',
+          formulas: [
+            { class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }
+          ]
+        }
+      ]);
+    });
+
+    expect(result.current.selectedClasses).toEqual({
+      Algebra: true,
+      Geometry: true
+    });
+    expect(result.current.selectedCategories).toEqual({
+      'Algebra:Quadratics': true,
+      'Geometry:Shapes': true
+    });
+  });
+
   it('toggles a full class selection', async () => {
     const { result } = renderHook(() => useFormulas());
 

@@ -22,6 +22,7 @@ const mockSheets = [
 describe('Dashboard Component', () => {
   beforeEach(() => {
     global.fetch = vi.fn();
+    window.alert = vi.fn();
   });
 
   afterEach(() => {
@@ -48,6 +49,16 @@ describe('Dashboard Component', () => {
     expect(screen.getByRole('button', { name: /create your first sheet/i })).toBeInTheDocument();
   });
 
+  it('renders empty state without auth tokens and does not fetch sheets', async () => {
+    renderWithContext(<Dashboard />, {});
+
+    await waitFor(() => {
+      expect(screen.getByText(/you haven't saved any cheat sheets yet/i)).toBeInTheDocument();
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('renders a list of sheets when API returns data', async () => {
     global.fetch.mockResolvedValueOnce({
       ok: true,
@@ -62,6 +73,18 @@ describe('Dashboard Component', () => {
 
     expect(screen.getByText('Math Formulas')).toBeInTheDocument();
     expect(screen.getByText('Physics Laws')).toBeInTheDocument();
+  });
+
+  it('renders an error message when loading sheets fails', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+    });
+
+    renderWithContext(<Dashboard />, { authTokens: { access: 'fake-token' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/error: failed to load cheat sheets/i)).toBeInTheDocument();
+    });
   });
 
   it('calls onEditSheet and navigate when Edit is clicked', async () => {
@@ -108,6 +131,57 @@ describe('Dashboard Component', () => {
     expect(window.confirm).toHaveBeenCalled();
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/cheatsheets/1/', expect.objectContaining({ method: 'DELETE' }));
+    });
+  });
+
+  it('shows an alert when deleting a sheet fails', async () => {
+    window.confirm = vi.fn(() => true);
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSheets,
+    });
+
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+    });
+
+    renderWithContext(<Dashboard />, { authTokens: { access: 'fake-token' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Math Formulas')).toBeInTheDocument();
+    });
+
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+    fireEvent.click(deleteButtons[0]);
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Failed to delete cheat sheet');
+    });
+  });
+
+  it('shows an alert when PDF download fails', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSheets,
+    });
+
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Compile failed' }),
+    });
+
+    renderWithContext(<Dashboard />, { authTokens: { access: 'fake-token' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Math Formulas')).toBeInTheDocument();
+    });
+
+    const downloadButtons = screen.getAllByRole('button', { name: /download pdf/i });
+    fireEvent.click(downloadButtons[0]);
+
+    await waitFor(() => {
+      expect(window.alert).toHaveBeenCalledWith('Compile failed');
     });
   });
 });

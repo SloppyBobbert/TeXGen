@@ -1,7 +1,8 @@
 import React, { useContext } from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import AuthContext, { AuthProvider } from './AuthContext';
 
 // Mock jwt-decode
@@ -147,5 +148,104 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user')).toHaveTextContent('No user');
       expect(mockNavigate).toHaveBeenCalledWith('/');
     });
+  });
+
+  it('refreshes tokens for an authenticated user', async () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access: 'fake-access-token', refresh: 'fake-refresh-token' })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access: 'refreshed-access-token', refresh: 'refreshed-refresh-token' })
+    });
+
+    renderWithRouter(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    fireEvent.click(screen.getByText('Login'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('testuser');
+    });
+
+    const refreshTokens = setIntervalSpy.mock.calls.at(-1)?.[0];
+
+    await act(async () => {
+      await refreshTokens();
+    });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenNthCalledWith(2, '/api/token/refresh/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: 'fake-refresh-token' }),
+      });
+      expect(jwtDecode).toHaveBeenLastCalledWith('refreshed-access-token');
+      expect(screen.getByTestId('user')).toHaveTextContent('testuser');
+    });
+  });
+
+  it('clears auth state when token refresh fails', async () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access: 'fake-access-token', refresh: 'fake-refresh-token' })
+    });
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ detail: 'Token refresh failed' })
+    });
+
+    renderWithRouter(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    fireEvent.click(screen.getByText('Login'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('testuser');
+    });
+
+    const refreshTokens = setIntervalSpy.mock.calls.at(-1)?.[0];
+
+    await act(async () => {
+      await refreshTokens();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user')).toHaveTextContent('No user');
+      expect(mockNavigate).toHaveBeenCalledTimes(2);
+      expect(mockNavigate).toHaveBeenLastCalledWith('/');
+    });
+  });
+
+  it('does not refresh tokens when no user is authenticated', () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+
+    renderWithRouter(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+
+    const refreshTokens = setIntervalSpy.mock.calls.at(-1)?.[0];
+
+    act(() => {
+      refreshTokens();
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(screen.getByTestId('user')).toHaveTextContent('No user');
   });
 });

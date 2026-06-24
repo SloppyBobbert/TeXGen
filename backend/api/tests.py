@@ -210,6 +210,20 @@ class TestCheatSheetModel(TestCase):
 
 
 class TestLatexUtils:
+    def test_normalize_latex_layout_wraps_plain_content_in_full_document(self):
+        raw = "\\section*{Quick Notes}\nBody line"
+
+        normalized = normalize_latex_layout(raw, columns=3, font_size="9pt", margins="0.4in", spacing="small")
+
+        assert "\\documentclass[9pt,fleqn]{extarticle}" in normalized
+        assert "margin=0.4in" in normalized
+        assert "\\begin{document}" in normalized
+        assert "\\begin{multicols}{3}" in normalized
+        assert "\\raggedcolumns" in normalized
+        assert "\\section*{Quick Notes}\nBody line" in normalized
+        assert normalized.count("\\begin{document}") == 1
+        assert normalized.count("\\end{document}") == 1
+
     def test_normalize_latex_layout_rewraps_existing_document_with_current_settings(self):
         raw = (
             "\\documentclass{article}\n"
@@ -359,6 +373,34 @@ class TestLatexUtils:
         assert normalized_twice.count("% @cheatsheet-layout margins:") == 1
         assert normalized_twice.count("%\nBody line") == 1
 
+    def test_normalize_latex_layout_updates_existing_document_without_duplicate_wrappers(self):
+        raw = (
+            "\\documentclass[10pt,fleqn]{article}\n"
+            "\\usepackage[margin=0.25in]{geometry}\n"
+            "\\begin{document}\n"
+            "\\fontsize{10pt}{10.8pt}\\selectfont\n"
+            "% @cheatsheet-layout columns: 2 | change layout options up top to update columns\n"
+            "% @cheatsheet-layout font_size: 10pt | change layout options up top to update text size\n"
+            "% @cheatsheet-layout spacing: large | change layout options up top to update spacing\n"
+            "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins\n"
+            "%\n"
+            "Body line\n"
+            "\\end{document}"
+        )
+
+        normalized = normalize_latex_layout(raw, columns=1, font_size="11pt", margins="0.9in", spacing="tiny")
+
+        assert "\\documentclass[11pt,fleqn]{article}" in normalized
+        assert "margin=0.9in" in normalized
+        assert "% @cheatsheet-layout columns: 1 | change layout options up top to update columns" in normalized
+        assert "% @cheatsheet-layout font_size: 11pt | change layout options up top to update text size" in normalized
+        assert "% @cheatsheet-layout spacing: tiny | change layout options up top to update spacing" in normalized
+        assert "% @cheatsheet-layout margins: 0.9in | change layout options up top to update margins" in normalized
+        assert normalized.count("\\begin{document}") == 1
+        assert normalized.count("\\end{document}") == 1
+        assert "\\begin{multicols}" not in normalized
+        assert "Body line" in normalized
+
     def test_build_dynamic_header_keeps_headers_close_to_body_size(self):
         header = build_dynamic_header(columns=2, font_size="10pt", margins="0.25in", spacing="large")
         assert "\\usepackage{titlesec}" not in header
@@ -388,6 +430,37 @@ class TestLatexUtils:
         assert "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size" in tex
         assert "% @cheatsheet-layout spacing: 0.6pt | change layout options up top to update spacing" in tex
         assert "% @cheatsheet-layout margins: 0.5in | change layout options up top to update margins" in tex
+
+    def test_build_latex_for_formulas_emits_class_and_category_headings_across_groups(self):
+        tex = build_latex_for_formulas(
+            [
+                {"class_name": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula", "latex": "m=\\frac{y_2-y_1}{x_2-x_1}"},
+                {"class_name": "ALGEBRA I", "category": "Quadratics", "name": "Vertex Form", "latex": "y=a(x-h)^2+k"},
+                {"class_name": "GEOMETRY", "category": "Triangles", "name": "Area", "latex": "A=\\frac{1}{2}bh"},
+                {"class_name": "GEOMETRY", "category": "GEOMETRY", "name": "Distance", "latex": "d=\\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}"},
+            ],
+            columns=2,
+            font_size="10pt",
+            margins="0.25in",
+            spacing="medium",
+        )
+
+        assert "% ===== BEGIN CLASS: ALGEBRA I =====" in tex
+        assert "\\noindent ALGEBRA I\\par" in tex
+        assert "% ===== BEGIN CATEGORY: Linear Equations =====" in tex
+        assert "\\noindent Linear Equations\\par" in tex
+        assert "% ===== END CATEGORY: Linear Equations =====" in tex
+        assert "% ===== BEGIN CATEGORY: Quadratics =====" in tex
+        assert "\\noindent Quadratics\\par" in tex
+        assert "% ===== END CLASS: ALGEBRA I =====" in tex
+        assert "% ===== BEGIN CLASS: GEOMETRY =====" in tex
+        assert "\\noindent GEOMETRY\\par" in tex
+        assert "% ===== BEGIN CATEGORY: Triangles =====" in tex
+        assert "\\noindent Triangles\\par" in tex
+        assert "% Formula Block: Distance" in tex
+        assert "% ===== BEGIN CATEGORY: GEOMETRY =====" not in tex
+        assert tex.count("\\begin{flushleft}") == 3
+        assert tex.count("\\end{flushleft}") == 3
 
 
 # ── API Tests ────────────────────────────────────────────────────────
