@@ -8,6 +8,7 @@ const mockLocalStorage = (() => {
   return {
     getItem: (key) => store[key] || null,
     setItem: (key, value) => { store[key] = value.toString(); },
+    removeItem: (key) => { delete store[key]; },
     clear: () => { store = {}; }
   };
 })();
@@ -170,6 +171,122 @@ describe('useLatex hook', () => {
     expect(result.current.isCompiling).toBe(false);
   });
 
+  test('auto-compiles after layout changes when content exists', async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useLatex({ content: 'Original content' }), { wrapper });
+
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tex_code: 'Normalized content' })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => new Blob(['pdf'])
+      });
+
+    act(() => {
+      result.current.setColumns(3);
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(450);
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.content).toBe('Normalized content');
+    expect(result.current.hasLayoutChanges).toBe(false);
+
+    vi.useRealTimers();
+  });
+
+  test('handlePreview regenerates content before compiling when regenerateOptions are provided', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'Existing content', margins: '0.5in' }), { wrapper });
+
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tex_code: 'Regenerated content' })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => new Blob(['pdf'])
+      });
+
+    await act(async () => {
+      await result.current.handlePreview(null, {
+        formulas: ['formula'],
+        columns: 4,
+        fontSize: '12pt',
+        spacing: 'medium'
+      });
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/generate-sheet/',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          formulas: ['formula'],
+          columns: 4,
+          font_size: '12pt',
+          spacing: 'medium',
+          margins: '0.5in'
+        })
+      })
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/compile/',
+      expect.objectContaining({
+        body: JSON.stringify({
+          content: 'Regenerated content',
+          columns: 2,
+          font_size: '10pt',
+          spacing: 'large',
+          margins: '0.5in'
+        })
+      })
+    );
+    expect(result.current.content).toBe('Regenerated content');
+    expect(result.current.compileError).toBeNull();
+  });
+
+  test('handlePreview skips a second compile while one is already running', async () => {
+    let resolveCompile;
+    const compilePromise = new Promise((resolve) => {
+      resolveCompile = resolve;
+    });
+
+    global.fetch.mockReturnValueOnce(compilePromise);
+
+    const { result } = renderHook(() => useLatex({ content: 'Test content' }), { wrapper });
+
+    let firstPreviewPromise;
+    await act(async () => {
+      firstPreviewPromise = result.current.handlePreview();
+      await Promise.resolve();
+      await result.current.handlePreview();
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.isCompiling).toBe(true);
+
+    resolveCompile({
+      ok: true,
+      blob: async () => new Blob(['pdf'])
+    });
+
+    await act(async () => {
+      await firstPreviewPromise;
+    });
+
+    expect(result.current.isCompiling).toBe(false);
+  });
+
   test('handleGenerateSheet with no formulas does not fetch and alerts to select at least one formula', async () => {
     const { result } = renderHook(() => useLatex(), { wrapper });
 
@@ -240,9 +357,9 @@ describe('useLatex hook', () => {
     // Mock the a element creation and click
     const mockClick = vi.fn();
     const mockElement = { click: mockClick, href: '', download: '' };
-    vi.spyOn(document, 'createElement').mockReturnValue(mockElement);
-    vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
-    vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+    const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockElement);
+    const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
 
     act(() => {
       result.current.handleDownloadTex();
@@ -250,5 +367,32 @@ describe('useLatex hook', () => {
 
     expect(mockClick).toHaveBeenCalled();
     expect(mockElement.download).toBe('FileTitle.tex');
+
+    createElementSpy.mockRestore();
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+  });
+
+  test('clearLatex revokes the existing preview object URL', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'Test content' }), { wrapper });
+
+    global.fetch.mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(['pdf'])
+    });
+
+    await act(async () => {
+      await result.current.handlePreview();
+    });
+
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+
+    act(() => {
+      result.current.clearLatex();
+    });
+
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
+    expect(result.current.pdfBlob).toBeNull();
+    expect(result.current.content).toBe('');
   });
 });
