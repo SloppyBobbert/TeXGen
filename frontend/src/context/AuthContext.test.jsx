@@ -6,7 +6,7 @@ import AuthContext, { AuthProvider } from './AuthContext';
 
 // Mock jwt-decode
 vi.mock('jwt-decode', () => ({
-  jwtDecode: vi.fn((token) => ({ username: 'testuser', exp: Date.now() / 1000 + 3600 }))
+  jwtDecode: vi.fn((_token) => ({ username: 'testuser', exp: Date.now() / 1000 + 3600 }))
 }));
 
 // Mock react-router-dom navigate

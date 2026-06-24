@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFormulas } from './formulas';
 
@@ -43,7 +43,7 @@ describe('useFormulas hook', () => {
     const { result } = renderHook(() => useFormulas());
 
     // Wait for the fetch to resolve and state to update
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.classesData).toEqual(mockClassesData.classes);
     });
   });
@@ -51,7 +51,7 @@ describe('useFormulas hook', () => {
   it('toggles a full class selection', async () => {
     const { result } = renderHook(() => useFormulas());
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.classesData.length).toBeGreaterThan(0);
     });
 
@@ -82,7 +82,7 @@ describe('useFormulas hook', () => {
   it('toggles an individual category', async () => {
     const { result } = renderHook(() => useFormulas());
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.classesData.length).toBeGreaterThan(0);
     });
 
@@ -101,7 +101,7 @@ describe('useFormulas hook', () => {
   it('handles reordering formulas within a class', async () => {
     const { result } = renderHook(() => useFormulas());
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.classesData.length).toBeGreaterThan(0);
     });
 
@@ -110,7 +110,7 @@ describe('useFormulas hook', () => {
     });
 
     const initialOrder = result.current.groupedFormulas[0].formulas.map(f => f.name);
-    // initialOrder = ['Slope Formula', 'Intercept Form', 'Quadratic Formula']
+    expect(initialOrder).toEqual(['Slope Formula', 'Intercept Form', 'Quadratic Formula']);
 
     act(() => {
       // Move 'Quadratic Formula' (index 2) to 'Slope Formula' (index 0)
@@ -126,7 +126,7 @@ describe('useFormulas hook', () => {
   it('calculates selected formula count', async () => {
     const { result } = renderHook(() => useFormulas());
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(result.current.classesData.length).toBeGreaterThan(0);
     });
 

@@ -19,9 +19,11 @@ export default [
         console: 'readonly',
         window: 'readonly',
         document: 'readonly',
+        navigator: 'readonly',
         URL: 'readonly',
         fetch: 'readonly',
         alert: 'readonly',
+        confirm: 'readonly',
         localStorage: 'readonly',
         Blob: 'readonly',
         setTimeout: 'readonly',
@@ -50,6 +52,21 @@ export default [
     languageOptions: {
       globals: {
         process: 'readonly'
+      }
+    }
+  },
+  {
+    files: ['src/**/*.test.{js,jsx}', 'src/setupTests.js'],
+    languageOptions: {
+      globals: {
+        afterEach: 'readonly',
+        beforeEach: 'readonly',
+        describe: 'readonly',
+        expect: 'readonly',
+        global: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        vi: 'readonly'
       }
     }
   }

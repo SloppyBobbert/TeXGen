@@ -503,22 +503,6 @@ const PdfPreview = ({ pdfBlob, compileError }) => {
   );
 };
 
-const ActionToolbar = ({ handleDownloadTex, handleDownloadPDF, isLoading, isSaving, content, handleClear }) => (
-  <div className="actions">
-    <button type="submit" className="btn primary" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Progress'}</button>
-    <button type="button" onClick={handleDownloadTex} className="btn download">Download .tex</button>
-    <button
-      type="button"
-      onClick={handleDownloadPDF}
-      className="btn download"
-      disabled={isLoading || !content}
-    >
-      {isLoading ? 'Compiling...' : 'Download PDF'}
-    </button>
-    <button type="button" onClick={handleClear} className="btn clear">Clear</button>
-  </div>
-);
-
 const FONT_SIZE_PRESETS = ['8pt', '9pt', '10pt', '11pt', '12pt'];
 const SPACING_PRESETS = ['tiny', 'small', 'medium', 'large'];
 
@@ -651,7 +635,6 @@ const CreateCheatSheet = ({ onSave, onReset, initialData, isSaving = false }) =>
     pdfBlob,
     isGenerating,
     isCompiling,
-    isLoading,
     compileError,
     canGoBack,
     canGoForward,

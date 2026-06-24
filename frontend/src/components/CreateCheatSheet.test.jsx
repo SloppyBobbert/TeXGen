@@ -149,4 +149,39 @@ describe('CreateCheatSheet Component', () => {
     expect(mockClearSelections).toHaveBeenCalled();
     expect(mockReset).toHaveBeenCalled();
   });
+
+  it('saves current editor content and selected formulas', async () => {
+    const onSave = vi.fn().mockResolvedValue({});
+    const selectedFormulas = [
+      { class: 'ALGEBRA I', category: 'Linear Equations', name: 'Slope Formula' }
+    ];
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      title: 'Generated Sheet',
+      content: '\\begin{document}Generated content\\end{document}',
+      columns: 3,
+      fontSize: '8pt',
+      spacing: 'tiny',
+      margins: '0.5in',
+    });
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+    });
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+
+    expect(onSave).toHaveBeenCalledWith({
+      title: 'Generated Sheet',
+      content: '\\begin{document}Generated content\\end{document}',
+      columns: 3,
+      fontSize: '8pt',
+      spacing: 'tiny',
+      margins: '0.5in',
+      selectedFormulas,
+    });
+  });
 });

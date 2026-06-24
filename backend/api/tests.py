@@ -4,9 +4,12 @@ Run with: pytest  (from the backend/ directory)
 """
 
 import pytest
+import os
+import subprocess
 from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
+from unittest.mock import patch
 from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 
@@ -476,6 +479,38 @@ class TestHealthEndpoint:
         resp = api_client.get("/api/health/")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
+
+
+@pytest.mark.django_db
+class TestClassesEndpoint:
+    def test_classes_returns_normal_class_category_formula_shape(self, api_client):
+        resp = api_client.get("/api/classes/")
+
+        assert resp.status_code == 200
+        classes = resp.json()["classes"]
+        algebra = next(item for item in classes if item["name"] == "ALGEBRA I")
+
+        assert "categories" in algebra
+        assert algebra.get("is_special") is None
+        linear_equations = next(
+            category for category in algebra["categories"] if category["name"] == "Linear Equations"
+        )
+        assert any(formula["name"] == "Slope Formula" for formula in linear_equations["formulas"])
+
+    def test_classes_returns_special_class_as_single_pseudo_category(self, api_client):
+        resp = api_client.get("/api/classes/")
+
+        assert resp.status_code == 200
+        classes = resp.json()["classes"]
+        unit_circle = next(item for item in classes if item["name"] == "UNIT CIRCLE")
+        formula = unit_circle["categories"][0]["formulas"][0]
+
+        assert unit_circle["is_special"] is True
+        assert len(unit_circle["categories"]) == 1
+        assert unit_circle["categories"][0]["name"] == "UNIT CIRCLE"
+        assert formula["name"] == "Unit Circle (Key Angles)"
+        assert "\\begin{tabular}" in formula["latex"]
+        assert "$330^\\circ$" in formula["latex"]
 
 
 @pytest.mark.django_db
@@ -1122,6 +1157,57 @@ class TestCompileEndpoint:
             format="json",
         )
         assert resp.status_code == 404
+
+    def test_compile_with_cheat_sheet_id_returns_pdf_response(self, auth_client, sample_sheet):
+        compiled_tex = {}
+
+        def write_pdf(_command, cwd, **_kwargs):
+            with open(os.path.join(cwd, "document.tex"), encoding="utf-8") as tex_file:
+                compiled_tex["content"] = tex_file.read()
+            with open(os.path.join(cwd, "document.pdf"), "wb") as pdf_file:
+                pdf_file.write(b"%PDF-1.7\nmock pdf\n")
+
+        with patch("api.views.subprocess.run", side_effect=write_pdf) as mock_run:
+            resp = auth_client.post(
+                "/api/compile/",
+                {"cheat_sheet_id": sample_sheet.id},
+                format="json",
+            )
+
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/pdf"
+        assert resp["Content-Disposition"] == 'inline; filename="document.pdf"'
+        assert b"%PDF-1.7" in b"".join(resp.streaming_content)
+        assert "Some content here" in compiled_tex["content"]
+        mock_run.assert_called_once()
+
+    def test_compile_returns_400_when_tectonic_fails(self, api_client):
+        error = subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["tectonic", "document.tex"],
+            stderr="LaTeX failed",
+        )
+
+        with patch("api.views.subprocess.run", side_effect=error):
+            resp = api_client.post(
+                "/api/compile/",
+                {"content": "Body line"},
+                format="json",
+            )
+
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "Failed to compile LaTeX", "details": "LaTeX failed"}
+
+    def test_compile_returns_500_when_pdf_is_missing_after_successful_run(self, api_client):
+        with patch("api.views.subprocess.run"):
+            resp = api_client.post(
+                "/api/compile/",
+                {"content": "Body line"},
+                format="json",
+            )
+
+        assert resp.status_code == 500
+        assert resp.json() == {"error": "PDF not generated"}
 
     def test_compile_normalize_only_returns_updated_tex_code(self, api_client):
         raw = (

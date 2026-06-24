@@ -1222,7 +1222,7 @@ THREE COLUMN LAYOUT
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  flex-shrinkL 0;
+  flex-shrink: 0;
   box-shadow: var(--shadow-md);
 }
 

@@ -63,10 +63,6 @@ function App() {
   
   const { user, authTokens, logoutUser } = useContext(AuthContext);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  };
-
   const handleReset = () => {
     setCheatSheet(DEFAULT_SHEET);
     setEditorSessionKey((prev) => prev + 1);
