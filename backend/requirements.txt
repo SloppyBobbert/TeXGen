@@ -4,6 +4,8 @@ djangorestframework>=3.15
 djangorestframework-simplejwt>=5.3.1
 django-cors-headers>=4.4
 python-dotenv>=1.0,<2.0
+gunicorn==23.0.0
+whitenoise==6.11.0
 
 # Database / environment parsing
 dj-database-url>=2.1

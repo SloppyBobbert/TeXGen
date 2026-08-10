@@ -1,8 +1,15 @@
 venv/
 .venv/
+.cache/
 __pycache__/
 *.pyc
 *.pyo
 db.sqlite3
-.env
+.env*
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+api/tests.py
+api/test_*.py
 .git

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { apiUrl } from '../api';
 
 const YOUTUBE_TOPIC_LIMIT = 6;
 const REQUEST_DEBOUNCE_MS = 350;
@@ -29,7 +30,7 @@ export function useYouTubeResources(searchRequest) {
       setResources([]);
 
       try {
-        const response = await fetch('/api/youtube-resources/', {
+        const response = await fetch(apiUrl('/api/youtube-resources/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,

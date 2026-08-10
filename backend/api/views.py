@@ -1,27 +1,49 @@
-from rest_framework.decorators import api_view, action, permission_classes
-from rest_framework.response import Response
-from rest_framework import status, viewsets
-from django.http import FileResponse
-from django.contrib.auth.models import User
-from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.shortcuts import get_object_or_404
-import subprocess
-import tempfile
-import os
 import json
+import os
 import re
+import tempfile
 import time
 from html import unescape
+from io import BytesIO
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
-from urllib.error import HTTPError, URLError
 
-from .models import Template, CheatSheet, PracticeProblem
-from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.generics import CreateAPIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
+
+from .compiler import (
+    CompilationCapacityExceeded,
+    CompilationFailure,
+    CompilationRateLimited,
+    CompilationTimedOut,
+    acquire_compile_slot,
+    compile_tex,
+    rate_limit_peer_key,
+)
+from .formula_data import (
+    get_classes_with_details,
+    get_formula_data,
+    get_special_class_formula,
+    is_special_class,
+)
 from .latex_utils import build_latex_for_formulas, normalize_latex_layout
+from .models import CheatSheet, PracticeProblem, Template
+from .serializers import (
+    CheatSheetSerializer,
+    CustomTokenObtainPairSerializer,
+    PracticeProblemSerializer,
+    TemplateSerializer,
+    UserSerializer,
+)
 
 YOUTUBE_MAX_TOPICS = 6
 YOUTUBE_SEARCH_RESULT_LIMIT = 5
@@ -60,6 +82,22 @@ def is_truthy(value):
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
+
+
+def latex_error(details, status_code=status.HTTP_400_BAD_REQUEST):
+    return Response(
+        {"error": "Failed to compile LaTeX", "details": details}, status=status_code
+    )
+
+
+def exceeds_latex_request_limit(request):
+    try:
+        return (
+            int(request.META.get("CONTENT_LENGTH") or 0)
+            > settings.LATEX_MAX_REQUEST_BYTES
+        )
+    except ValueError:
+        return True
 
 def validate_layout_params(columns, font_size, margins, spacing, orientation="portrait"):
     try:
@@ -355,6 +393,9 @@ def compile_latex(request):
     """
     POST /api/compile/
     """
+    if exceeds_latex_request_limit(request):
+        return Response({"error": "LaTeX request exceeds maximum size"}, status=413)
+
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
     normalize_only = is_truthy(request.data.get("normalize_only"))
@@ -378,6 +419,12 @@ def compile_latex(request):
     if not content:
         return Response({"error": "No LaTeX content provided"}, status=400)
 
+    if not isinstance(content, str):
+        return Response({"error": "LaTeX content must be a string"}, status=400)
+
+    if len(content.encode("utf-8")) > settings.LATEX_MAX_INPUT_BYTES:
+        return Response({"error": "LaTeX content exceeds maximum size"}, status=413)
+
     content = normalize_latex_layout(content, columns, font_size, margins, spacing, orientation)
 
     if normalize_only:
@@ -394,47 +441,51 @@ def compile_latex(request):
             "layout": layout_response,
         })
     
-    with tempfile.TemporaryDirectory() as tempdir:
-        tex_file_path = os.path.join(tempdir, "document.tex")
-        with open(tex_file_path, "w", encoding="utf-8") as f:
-            f.write(content)
+    try:
+        slot = acquire_compile_slot(rate_limit_peer_key(request.META.get("REMOTE_ADDR")))
+    except CompilationRateLimited:
+        return Response({"error": "Too many compilation requests"}, status=429)
+    except CompilationCapacityExceeded:
+        return Response({"error": "Compiler is busy"}, status=429)
+
+    try:
+        with tempfile.TemporaryDirectory() as tempdir:
+            tex_file_path = os.path.join(tempdir, "document.tex")
+            with open(tex_file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            output_dir = os.path.join(tempdir, "output")
+            os.mkdir(output_dir)
+            diagnostic_path = os.path.join(tempdir, "tectonic.log")
+            try:
+                compile_tex(tex_file_path, output_dir, diagnostic_path)
+            except FileNotFoundError:
+                return Response(
+                    {"error": "Tectonic is not installed on the backend."},
+                    status=500,
+                )
+            except CompilationTimedOut as exc:
+                return latex_error(str(exc))
+            except CompilationFailure as exc:
+                return latex_error(str(exc))
+            except Exception as exc:
+                return latex_error(str(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-        try:
-            subprocess.run(
-                ["tectonic", tex_file_path],
-                cwd=tempdir,
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        except FileNotFoundError:
-            return Response(
-                {"error": "Tectonic is not installed on the backend."},
-                status=500,
-            )
-        except subprocess.CalledProcessError as e:
-            return Response(
-                {
-                    "error": "Failed to compile LaTeX",
-                    "details": e.stderr or e.stdout or "LaTeX compilation failed without additional output.",
-                },
-                status=400,
-            )
-        except Exception as e:
-            return Response(
-                {"error": "Failed to compile LaTeX", "details": str(e)},
-                status=500,
-            )
-        
-        pdf_file_path = os.path.join(tempdir, "document.pdf")
-        if os.path.exists(pdf_file_path):
-            response = FileResponse(
-                open(pdf_file_path, "rb"), content_type="application/pdf"
-            )
-            response["Content-Disposition"] = 'inline; filename="document.pdf"'
-            return response
-        else:
+            pdf_file_path = os.path.join(output_dir, "document.pdf")
+            if os.path.exists(pdf_file_path):
+                if os.path.getsize(pdf_file_path) > settings.LATEX_MAX_OUTPUT_BYTES:
+                    return Response(
+                        {"error": "Generated PDF exceeds maximum size"}, status=413
+                    )
+                with open(pdf_file_path, "rb") as pdf_file:
+                    response = FileResponse(
+                        BytesIO(pdf_file.read()), content_type="application/pdf"
+                    )
+                response["Content-Disposition"] = 'inline; filename="document.pdf"'
+                return response
             return Response({"error": "PDF not generated"}, status=500)
+    finally:
+        slot.release()
 
 
 @api_view(["POST"])

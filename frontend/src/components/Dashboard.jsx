@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import { apiUrl } from '../api';
 import '../styles/Dashboard.css';
 
 const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
@@ -17,7 +18,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
         return;
       }
       try {
-        const response = await fetch('/api/cheatsheets/', {
+        const response = await fetch(apiUrl('/api/cheatsheets/'), {
           headers: {
             'Authorization': `Bearer ${authTokens.access}`,
           },
@@ -49,7 +50,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
     if (!authTokens?.access) return;
 
     try {
-      const response = await fetch(`/api/cheatsheets/${id}/`, {
+      const response = await fetch(apiUrl(`/api/cheatsheets/${id}/`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${authTokens.access}`,
@@ -69,7 +70,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
   const handleDownload = async (sheet) => {
     if (!authTokens?.access) return;
     try {
-      const response = await fetch('/api/compile/', {
+      const response = await fetch(apiUrl('/api/compile/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

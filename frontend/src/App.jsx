@@ -6,6 +6,7 @@ import AuthContext from './context/AuthContext';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import Dashboard from './components/Dashboard';
+import { apiUrl } from './api';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 
@@ -254,7 +255,7 @@ function App() {
         }
       }
 
-      const requestPromise = fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
+      const requestPromise = fetch(apiUrl(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/'), {
         method: sheetId ? 'PATCH' : 'POST',
         headers: { 
           'Content-Type': 'application/json',

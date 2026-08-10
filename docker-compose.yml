@@ -12,6 +12,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
   backend:
     build: ./backend
+    command: >-
+      sh -c "until pg_isready -h db -U cheatsheet_user; do sleep 2; done &&
+      python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     env_file:
@@ -22,7 +25,6 @@ services:
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
     volumes:
       - ./backend:/app
-      - tectonic_cache:/root/.cache/Tectonic
     depends_on:
       - db
     healthcheck:
@@ -36,7 +38,7 @@ services:
       - "5173:5173"
     environment:
       # Vite uses this from inside the container to proxy browser /api calls to Django.
-      - VITE_API_URL=http://backend:8000
+      - VITE_PROXY_TARGET=http://backend:8000
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
@@ -46,4 +48,3 @@ services:
 volumes:
   postgres_data:
   frontend_node_modules:
-  tectonic_cache:

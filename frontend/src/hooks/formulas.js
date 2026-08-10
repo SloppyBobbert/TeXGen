@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiUrl } from '../api';
 
 const STORAGE_KEY = 'cheatSheetData';
 
@@ -92,7 +93,7 @@ export function useFormulas(initialData) {
   const skipNextPersist = useRef(false);
 
   useEffect(() => {
-    fetch('/api/classes/')
+    fetch(apiUrl('/api/classes/'))
       .then((res) => res.json())
       .then((data) => {
         const classes = data.classes || [];

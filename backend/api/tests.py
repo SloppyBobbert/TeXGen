@@ -3,16 +3,58 @@ Backend tests using pytest-django.
 Run with: pytest  (from the backend/ directory)
 """
 
-import pytest
+import os
+from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
-from io import BytesIO
+
+import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
-from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
-from api.models import Template, CheatSheet, PracticeProblem
-from api.views import YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
+
+from api.compiler import (
+    CompilationCapacityExceeded,
+    CompilationRateLimited,
+    CompilationTimedOut,
+)
+from api.latex_utils import (
+    LATEX_HEADER,
+    build_dynamic_header,
+    build_latex_for_formulas,
+    normalize_latex_layout,
+)
+from api.models import CheatSheet, PracticeProblem, Template
+from api.views import (
+    YOUTUBE_RESOURCE_CACHE,
+    fetch_top_youtube_video,
+    get_youtube_http_error_message,
+)
+
+
+class TestProductionSettings:
+    def test_environment_flags_accept_explicit_local_overrides(self, monkeypatch):
+        from cheat_sheet.settings import env_bool
+
+        monkeypatch.setenv("TEST_SECURITY_FLAG", "false")
+
+        assert env_bool("TEST_SECURITY_FLAG", True) is False
+
+    def test_static_and_security_settings_are_configured(self):
+        assert settings.STATIC_ROOT.name == "staticfiles"
+        assert "whitenoise.middleware.WhiteNoiseMiddleware" in settings.MIDDLEWARE
+        assert settings.STORAGES["staticfiles"]["BACKEND"] == (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+        assert isinstance(settings.SECURE_SSL_REDIRECT, bool)
+        assert isinstance(settings.SESSION_COOKIE_SECURE, bool)
+        assert isinstance(settings.CSRF_COOKIE_SECURE, bool)
+
+    def test_tectonic_cache_default_is_outside_bind_mounted_app(self):
+        from cheat_sheet.settings import DEFAULT_TECTONIC_CACHE_SEED_DIR
+
+        assert DEFAULT_TECTONIC_CACHE_SEED_DIR == "/var/cache/tectonic"
 
 
 @pytest.fixture
@@ -1406,6 +1448,76 @@ class TestCompileEndpoint:
         assert "% @cheatsheet-layout spacing: tiny | change layout options up top to update spacing" in tex
         assert "% @cheatsheet-layout margins: 0.25in | change layout options up top to update margins" in tex
         assert "orientation: portrait" in tex 
+
+    @override_settings(LATEX_MAX_REQUEST_BYTES=10000, LATEX_MAX_INPUT_BYTES=10)
+    def test_compile_rejects_content_over_input_limit(self, api_client):
+        response = api_client.post(
+            "/api/compile/",
+            {"content": "x" * 11},
+            format="json",
+        )
+
+        assert response.status_code == 413
+        assert response.json() == {"error": "LaTeX content exceeds maximum size"}
+
+    @patch("api.views.compile_tex")
+    def test_compile_reports_timeout_with_existing_error_shape(
+        self, mock_run, api_client
+    ):
+        mock_run.side_effect = CompilationTimedOut("LaTeX compilation timed out.")
+
+        response = api_client.post(
+            "/api/compile/",
+            {"content": "\\begin{document}Hello\\end{document}"},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": "Failed to compile LaTeX",
+            "details": "LaTeX compilation timed out.",
+        }
+        mock_run.assert_called_once()
+
+    @override_settings(LATEX_MAX_OUTPUT_BYTES=3)
+    @patch("api.views.compile_tex")
+    def test_compile_rejects_pdf_over_output_limit(self, mock_run, api_client):
+        def write_large_pdf(_tex_path, output_dir, _diagnostic_path):
+            with open(os.path.join(output_dir, "document.pdf"), "wb") as pdf_file:
+                pdf_file.write(b"more than three bytes")
+
+        mock_run.side_effect = write_large_pdf
+
+        response = api_client.post(
+            "/api/compile/",
+            {"content": "\\begin{document}Hello\\end{document}"},
+            format="json",
+        )
+
+        assert response.status_code == 413
+        assert response.json() == {"error": "Generated PDF exceeds maximum size"}
+
+    @patch("api.views.acquire_compile_slot", side_effect=CompilationRateLimited)
+    def test_compile_throttle_returns_429(self, _mock_slot, api_client):
+        response = api_client.post(
+            "/api/compile/",
+            {"content": "\\begin{document}Hello\\end{document}"},
+            format="json",
+        )
+
+        assert response.status_code == 429
+        assert response.json() == {"error": "Too many compilation requests"}
+
+    @patch("api.views.acquire_compile_slot", side_effect=CompilationCapacityExceeded)
+    def test_compile_concurrency_cap_returns_429(self, _mock_slot, api_client):
+        response = api_client.post(
+            "/api/compile/",
+            {"content": "\\begin{document}Hello\\end{document}"},
+            format="json",
+        )
+
+        assert response.status_code == 429
+        assert response.json() == {"error": "Compiler is busy"}
 
 
 # ── Auth Endpoint Tests ──────────────────────────────────────────────

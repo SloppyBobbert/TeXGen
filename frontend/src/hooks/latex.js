@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useContext } from 'react';
 import AuthContext from '../context/AuthContext';
+import { apiUrl } from '../api';
 
 const STORAGE_KEY = 'cheatSheetLatex';
 const SAVE_DEBOUNCE_MS = 500;
@@ -223,7 +224,7 @@ export function useLatex(initialData) {
   }, [title, content, contentSource, columns, fontSize, spacing, margins, orientation]);
 
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
-    const response = await fetch('/api/compile/', {
+    const response = await fetch(apiUrl('/api/compile/'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -246,7 +247,7 @@ export function useLatex(initialData) {
   }, [authTokens]);
 
   const generateLatexContent = useCallback(async (selectedList) => {
-    const response = await fetch('/api/generate-sheet/', {
+    const response = await fetch(apiUrl('/api/generate-sheet/'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -269,7 +270,7 @@ export function useLatex(initialData) {
   }, [columns, fontSize, spacing, margins, orientation]);
 
   const normalizeLatexContent = useCallback(async (latexContent) => {
-    const response = await fetch('/api/compile/', {
+    const response = await fetch(apiUrl('/api/compile/'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -376,7 +377,7 @@ export function useLatex(initialData) {
     
     if (regenerateOptions) {
       try {
-        const response = await fetch('/api/generate-sheet/', {
+        const response = await fetch(apiUrl('/api/generate-sheet/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -474,7 +475,7 @@ export function useLatex(initialData) {
         setContent(normalizedContent);
       }
 
-      const response = await fetch('/api/compile/', {
+      const response = await fetch(apiUrl('/api/compile/'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
