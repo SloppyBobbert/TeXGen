@@ -13,6 +13,17 @@ const CURRENT_SHEET_STORAGE_KEY = 'currentCheatSheet';
 const UNTITLED_COUNTER_STORAGE_KEY = 'untitledSheetCounter';
 const COMPILE_HISTORY_STORAGE_PREFIX = 'cheatSheetCompileHistory';
 const CONTENT_SOURCE_STORAGE_PREFIX = 'cheatSheetContentSource';
+const createDraftId = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const withDraftIdentity = (sheet) => sheet?.id || sheet?.draftId ? sheet : { ...sheet, draftId: createDraftId() };
+const stripTransientPdfBlobs = (value) => {
+  if (Array.isArray(value)) return value.map(stripTransientPdfBlobs);
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key !== 'pdfBlob')
+    .map(([key, item]) => [key, stripTransientPdfBlobs(item)]));
+};
+const sanitizeSheet = (sheet) => stripTransientPdfBlobs(sheet) || {};
 
 const getNextUntitledTitle = () => {
   const currentValue = Number(localStorage.getItem(UNTITLED_COUNTER_STORAGE_KEY) || '0');
@@ -29,6 +40,7 @@ const createDefaultSheet = () => ({
   fontSize: '9pt',
   spacing: 'small',
   margins: '0.15in',
+  orientation: 'portrait',
   selectedFormulas: [],
   compileHistory: [],
 });
@@ -38,7 +50,16 @@ const inferContentSource = ({ content = '' } = {}) => {
   return 'manual';
 };
 
-const sameFormulas = (left = [], right = []) => JSON.stringify(left) === JSON.stringify(right);
+const sameFormulas = (left, right) => (
+  Array.isArray(left)
+  && Array.isArray(right)
+  && left.length === right.length
+  && left.every((formula, index) => (
+    formula?.class === right[index]?.class
+    && formula?.category === right[index]?.category
+    && formula?.name === right[index]?.name
+  ))
+);
 
 const sameSnapshot = (left, right) => {
   if (!left || !right) return false;
@@ -51,11 +72,12 @@ const sameSnapshot = (left, right) => {
     && left.fontSize === right.fontSize
     && left.spacing === right.spacing
     && left.margins === right.margins
+    && left.orientation === right.orientation
     && sameFormulas(left.selectedFormulas, right.selectedFormulas)
   );
 };
 
-const buildRestoredSheet = (baseSheet, snapshot) => ({
+const buildRestoredSheet = (baseSheet, snapshot) => sanitizeSheet({
   ...baseSheet,
   title: snapshot.title ?? baseSheet.title,
   content: snapshot.content ?? '',
@@ -64,8 +86,9 @@ const buildRestoredSheet = (baseSheet, snapshot) => ({
   fontSize: snapshot.fontSize ?? baseSheet.fontSize,
   spacing: snapshot.spacing ?? baseSheet.spacing,
   margins: snapshot.margins ?? baseSheet.margins,
+  orientation: snapshot.orientation ?? baseSheet.orientation,
   selectedFormulas: snapshot.selectedFormulas ?? [],
-  compileHistory: Array.isArray(baseSheet.compileHistory) ? baseSheet.compileHistory : [],
+  compileHistory: Array.isArray(baseSheet.compileHistory) ? stripTransientPdfBlobs(baseSheet.compileHistory) : [],
 });
 
 const loadStoredSheet = () => {
@@ -73,7 +96,7 @@ const loadStoredSheet = () => {
   if (!saved) return null;
 
   try {
-    return JSON.parse(saved);
+    return withDraftIdentity(sanitizeSheet(JSON.parse(saved)));
   } catch (e) {
     console.error('Failed to parse sheet', e);
     return null;
@@ -90,7 +113,7 @@ const getStoredCompileHistory = (sheetId) => {
   if (savedHistory) {
     try {
       const parsedHistory = JSON.parse(savedHistory);
-      if (Array.isArray(parsedHistory)) return parsedHistory;
+      if (Array.isArray(parsedHistory)) return stripTransientPdfBlobs(parsedHistory);
     } catch (e) {
       console.error('Failed to parse compile history', e);
     }
@@ -101,12 +124,12 @@ const getStoredCompileHistory = (sheetId) => {
     return [];
   }
 
-  return Array.isArray(storedSheet.compileHistory) ? storedSheet.compileHistory : [];
+  return Array.isArray(storedSheet.compileHistory) ? stripTransientPdfBlobs(storedSheet.compileHistory) : [];
 };
 
 const saveStoredCompileHistory = (sheetId, compileHistory = []) => {
   if (!sheetId) return;
-  localStorage.setItem(getCompileHistoryStorageKey(sheetId), JSON.stringify(compileHistory));
+  localStorage.setItem(getCompileHistoryStorageKey(sheetId), JSON.stringify(stripTransientPdfBlobs(compileHistory)));
 };
 
 const getStoredContentSource = (sheetId) => {
@@ -161,18 +184,24 @@ function App() {
     const saved = localStorage.getItem(CURRENT_SHEET_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const sheet = withDraftIdentity(sanitizeSheet(JSON.parse(saved)));
+        localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sheet));
+        return sheet;
       } catch (e) {
         console.error("Failed to parse sheet", e);
       }
     }
-    return createDefaultSheet();
+    const sheet = withDraftIdentity(createDefaultSheet());
+    localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sheet));
+    return sheet;
   });
 
   const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const cheatSheetRef = useRef(cheatSheet);
   const pendingCreatePromiseRef = useRef(null);
+  const saveEpochRef = useRef(0);
+  const saveControllerRef = useRef(null);
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     return normalizeTheme(saved);
@@ -187,11 +216,22 @@ function App() {
     cheatSheetRef.current = cheatSheet;
   }, [cheatSheet]);
 
+  useEffect(() => () => {
+    saveEpochRef.current += 1;
+    saveControllerRef.current?.abort();
+    saveControllerRef.current = null;
+    pendingCreatePromiseRef.current = null;
+  }, []);
+
   
   const { user, authTokens, logoutUser } = useContext(AuthContext);
 
   const handleReset = () => {
-    const nextSheet = createDefaultSheet();
+    saveEpochRef.current += 1;
+    saveControllerRef.current?.abort();
+    pendingCreatePromiseRef.current = null;
+    setIsSaving(false);
+    const nextSheet = withDraftIdentity(createDefaultSheet());
     setCheatSheet(nextSheet);
     setEditorSessionKey((prev) => prev + 1);
     localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(nextSheet));
@@ -207,23 +247,27 @@ function App() {
   }, []);
 
   const handleSave = async (data, showFeedback = true) => {
-    const currentSheet = cheatSheetRef.current;
-    const nextContentSource = data.contentSource ?? currentSheet.contentSource ?? inferContentSource(data);
-    const previousHistory = Array.isArray(currentSheet.compileHistory) ? currentSheet.compileHistory : [];
+    const saveEpoch = showFeedback ? ++saveEpochRef.current : saveEpochRef.current;
+    const sanitizedData = sanitizeSheet(data);
+    const currentSheet = sanitizeSheet(cheatSheetRef.current);
+    const nextContentSource = sanitizedData.contentSource ?? currentSheet.contentSource ?? inferContentSource(sanitizedData);
+    const previousHistory = Array.isArray(currentSheet.compileHistory) ? stripTransientPdfBlobs(currentSheet.compileHistory) : [];
     const latestSnapshot = previousHistory[previousHistory.length - 1];
-    const nextHistory = data.compileSnapshot
-      ? (sameSnapshot(latestSnapshot, data.compileSnapshot)
+    const nextSnapshot = sanitizedData.compileSnapshot;
+    const nextHistory = nextSnapshot
+      ? (sameSnapshot(latestSnapshot, nextSnapshot)
           ? previousHistory
-          : [...previousHistory, data.compileSnapshot])
+          : [...previousHistory, nextSnapshot])
       : previousHistory;
     const nextSheet = {
       ...currentSheet,
-      ...data,
+      ...sanitizedData,
       contentSource: nextContentSource,
-      selectedFormulas: data.selectedFormulas ?? currentSheet.selectedFormulas ?? [],
+      selectedFormulas: sanitizedData.selectedFormulas ?? currentSheet.selectedFormulas ?? [],
       compileHistory: nextHistory,
     };
     delete nextSheet.compileSnapshot;
+    const submittedSelectedFormulas = stripTransientPdfBlobs(nextSheet.selectedFormulas ?? []);
 
     cheatSheetRef.current = nextSheet;
     setCheatSheet(nextSheet);
@@ -243,12 +287,15 @@ function App() {
     }
 
     setIsSaving(true);
+    const controller = new globalThis.AbortController();
+    saveControllerRef.current?.abort();
+    saveControllerRef.current = controller;
 
     try {
       let sheetId = nextSheet.id;
 
       if (!sheetId && pendingCreatePromiseRef.current) {
-        const pendingSheet = await pendingCreatePromiseRef.current.catch(() => null);
+        const pendingSheet = await pendingCreatePromiseRef.current.promise.catch(() => null);
         if (pendingSheet?.id) {
           sheetId = pendingSheet.id;
         }
@@ -260,6 +307,7 @@ function App() {
           'Content-Type': 'application/json',
           ...(authTokens?.access ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
         },
+        signal: controller.signal,
         body: JSON.stringify({
           title: nextSheet.title,
           latex_content: nextSheet.content,
@@ -268,12 +316,13 @@ function App() {
           margins: nextSheet.margins,
           font_size: nextSheet.fontSize,
           spacing: nextSheet.spacing,
-          selected_formulas: nextSheet.selectedFormulas,
+          orientation: nextSheet.orientation,
+          selected_formulas: submittedSelectedFormulas,
         }),
       });
 
       if (!sheetId) {
-        pendingCreatePromiseRef.current = requestPromise
+        pendingCreatePromiseRef.current = { epoch: saveEpoch, promise: requestPromise
           .then(async (response) => {
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}));
@@ -288,8 +337,8 @@ function App() {
             contentSource: savedSheet.content_source ?? nextSheet.contentSource,
             fontSize: savedSheet.font_size ?? nextSheet.fontSize,
             spacing: savedSheet.spacing ?? nextSheet.spacing,
-            selectedFormulas: savedSheet.selected_formulas ?? nextSheet.selectedFormulas,
-          }));
+            selectedFormulas: stripTransientPdfBlobs(savedSheet.selected_formulas) ?? nextSheet.selectedFormulas,
+          })) };
       }
       const response = await requestPromise;
 
@@ -298,39 +347,62 @@ function App() {
         throw new Error(errorData.detail || errorData.error || 'Failed to save cheat sheet');
       }
 
-      const savedSheet = await response.json();
-      const persistedSheet = {
-        ...nextSheet,
-        id: savedSheet.id,
-        content: savedSheet.latex_content ?? nextSheet.content,
-        contentSource: savedSheet.content_source ?? nextSheet.contentSource,
-        fontSize: savedSheet.font_size ?? nextSheet.fontSize,
-        spacing: savedSheet.spacing ?? nextSheet.spacing,
-        selectedFormulas: savedSheet.selected_formulas ?? nextSheet.selectedFormulas,
-      };
-
-      cheatSheetRef.current = persistedSheet;
-      setCheatSheet(persistedSheet);
-      localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(persistedSheet));
+      const savedSheet = sanitizeSheet(await response.json());
+      if (saveEpoch !== saveEpochRef.current) return nextSheet;
+      let persistedSheet;
+      setCheatSheet((currentSheet) => {
+        const sanitizedCurrentSheet = sanitizeSheet(currentSheet);
+        if (sanitizedCurrentSheet.draftId !== nextSheet.draftId) return sanitizedCurrentSheet;
+        const serverFields = {
+          id: savedSheet.id,
+          title: savedSheet.title,
+          content: savedSheet.latex_content,
+          contentSource: savedSheet.content_source,
+          columns: savedSheet.columns,
+          margins: savedSheet.margins,
+          fontSize: savedSheet.font_size,
+          spacing: savedSheet.spacing,
+          orientation: savedSheet.orientation,
+        };
+        persistedSheet = { ...sanitizedCurrentSheet, id: savedSheet.id ?? sanitizedCurrentSheet.id };
+        Object.entries(serverFields).forEach(([field, value]) => {
+          if (value !== undefined && sanitizedCurrentSheet[field] === nextSheet[field]) persistedSheet[field] = value;
+        });
+        if (Array.isArray(savedSheet.selected_formulas)
+          && sameFormulas(sanitizedCurrentSheet.selectedFormulas, submittedSelectedFormulas)) {
+          persistedSheet.selectedFormulas = stripTransientPdfBlobs(savedSheet.selected_formulas);
+        }
+        persistedSheet = sanitizeSheet(persistedSheet);
+        cheatSheetRef.current = persistedSheet;
+        localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(persistedSheet));
+        return persistedSheet;
+      });
+      if (!persistedSheet) return nextSheet;
       saveStoredCompileHistory(persistedSheet.id, persistedSheet.compileHistory);
       saveStoredContentSource(persistedSheet.id, persistedSheet.contentSource);
       alert('Progress saved!');
       return persistedSheet;
     } catch (error) {
+      if (saveEpoch !== saveEpochRef.current) return nextSheet;
       console.error('Failed to save cheat sheet', error);
       alert(`Failed to save progress: ${error.message}`);
       throw error;
     } finally {
-      if (pendingCreatePromiseRef.current) {
+      if (pendingCreatePromiseRef.current?.epoch === saveEpoch) {
         pendingCreatePromiseRef.current = null;
       }
-      setIsSaving(false);
+      if (saveEpoch === saveEpochRef.current) setIsSaving(false);
+      if (saveControllerRef.current === controller) saveControllerRef.current = null;
     }
   };
 
   const handleEditSheet = (sheet) => {
-    const selectedFormulas = sheet.selected_formulas || [];
-    const editSheet = {
+    saveEpochRef.current += 1;
+    saveControllerRef.current?.abort();
+    pendingCreatePromiseRef.current = null;
+    setIsSaving(false);
+    const selectedFormulas = stripTransientPdfBlobs(sheet.selected_formulas || []);
+    const editSheet = sanitizeSheet({
       id: sheet.id,
       title: sheet.title,
       content: sheet.latex_content,
@@ -342,9 +414,11 @@ function App() {
       margins: sheet.margins,
       fontSize: sheet.font_size,
       spacing: sheet.spacing,
+      orientation: sheet.orientation,
       selectedFormulas,
       compileHistory: getStoredCompileHistory(sheet.id),
-    };
+      draftId: `sheet-${sheet.id}`,
+    });
     setCheatSheet(editSheet);
     setEditorSessionKey((prev) => prev + 1);
     localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(editSheet));
@@ -432,8 +506,9 @@ function App() {
         <Routes>
           <Route path="/" element={
             <CreateCheatSheet 
-              key={`${cheatSheet.id ?? 'new'}-${editorSessionKey}`}
+              key={`${cheatSheet.draftId ?? `sheet-${cheatSheet.id ?? 'new'}`}-${editorSessionKey}`}
               initialData={cheatSheet} 
+              draftIdentity={cheatSheet.draftId ?? cheatSheet.id}
               onSave={handleSave} 
               onReset={handleReset}
               onRestoreSnapshot={handleRestoreSnapshot}

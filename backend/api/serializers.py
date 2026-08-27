@@ -48,6 +48,7 @@ class TemplateSerializer(serializers.ModelSerializer):
             "latex_content",
             "default_margins",
             "default_columns",
+            "selected_formulas",
             "created_at",
             "updated_at",
         ]
@@ -55,6 +56,15 @@ class TemplateSerializer(serializers.ModelSerializer):
 
 
 class PracticeProblemSerializer(serializers.ModelSerializer):
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            fields["cheat_sheet"].queryset = CheatSheet.objects.filter(user=request.user)
+        else:
+            fields["cheat_sheet"].queryset = CheatSheet.objects.none()
+        return fields
+
     class Meta:
         model = PracticeProblem
         fields = [
@@ -109,17 +119,3 @@ class CheatSheetSerializer(serializers.ModelSerializer):
         else:
             attrs["content_source"] = "manual"
         return attrs
-
-
-class CompileRequestSerializer(serializers.Serializer):
-    """Accepts either raw content OR a cheat_sheet id to compile."""
-
-    content = serializers.CharField(required=False, default="")
-    cheat_sheet_id = serializers.IntegerField(required=False, default=None)
-
-    def validate(self, data):
-        if not data.get("content") and not data.get("cheat_sheet_id"):
-            raise serializers.ValidationError(
-                "Provide either 'content' or 'cheat_sheet_id'."
-            )
-        return data

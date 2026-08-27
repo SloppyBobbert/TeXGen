@@ -1,10 +1,13 @@
-from rest_framework.decorators import api_view, action, permission_classes
+from rest_framework.decorators import api_view, action, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status, viewsets
 from django.http import FileResponse
+from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework.generics import CreateAPIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 import subprocess
 import tempfile
@@ -22,6 +25,7 @@ from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProbl
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
 from .latex_utils import build_latex_for_formulas, normalize_latex_layout
+from .compiler import validate_cheat_sheet_id, validate_source_text
 
 YOUTUBE_MAX_TOPICS = 6
 YOUTUBE_SEARCH_RESULT_LIMIT = 5
@@ -60,6 +64,20 @@ def is_truthy(value):
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
+
+
+class CompileAnonThrottle(AnonRateThrottle):
+    scope = "compile_anon"
+
+    def get_rate(self):
+        return settings.COMPILER_ANON_RATE
+
+
+class CompileUserThrottle(UserRateThrottle):
+    scope = "compile_user"
+
+    def get_rate(self):
+        return settings.COMPILER_USER_RATE
 
 def validate_layout_params(columns, font_size, margins, spacing, orientation="portrait"):
     try:
@@ -351,6 +369,7 @@ def generate_sheet(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([CompileAnonThrottle, CompileUserThrottle])
 def compile_latex(request):
     """
     POST /api/compile/
@@ -366,7 +385,12 @@ def compile_latex(request):
     
     columns, font_size, margins, spacing, orientation = validate_layout_params(columns, font_size, margins, spacing, orientation)
     
-    if cheat_sheet_id:
+    if cheat_sheet_id is not None:
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        cheat_sheet_id = validate_cheat_sheet_id(cheat_sheet_id)
+        if cheat_sheet_id is None:
+            return Response({"error": "cheat_sheet_id must be a positive integer"}, status=400)
         cheatsheet = get_object_or_404(CheatSheet, pk=cheat_sheet_id, user=request.user)
         columns = cheatsheet.columns
         font_size = cheatsheet.font_size
@@ -374,7 +398,13 @@ def compile_latex(request):
         spacing = cheatsheet.spacing
         orientation = getattr(cheatsheet, "orientation", None) or "portrait"
         content = cheatsheet.build_full_latex()
-    
+
+    source_error = validate_source_text(content)
+    if source_error:
+        return Response(
+            {"error": source_error},
+            status=413 if source_error == "LaTeX content exceeds the maximum allowed size" else 400,
+        )
     if not content:
         return Response({"error": "No LaTeX content provided"}, status=400)
 
@@ -403,28 +433,19 @@ def compile_latex(request):
             subprocess.run(
                 ["tectonic", tex_file_path],
                 cwd=tempdir,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 check=True,
+                timeout=settings.COMPILER_TIMEOUT_SECONDS,
             )
+        except subprocess.TimeoutExpired:
+            return Response({"error": "LaTeX compilation timed out"}, status=408)
         except FileNotFoundError:
-            return Response(
-                {"error": "Tectonic is not installed on the backend."},
-                status=500,
-            )
-        except subprocess.CalledProcessError as e:
-            return Response(
-                {
-                    "error": "Failed to compile LaTeX",
-                    "details": e.stderr or e.stdout or "LaTeX compilation failed without additional output.",
-                },
-                status=400,
-            )
-        except Exception as e:
-            return Response(
-                {"error": "Failed to compile LaTeX", "details": str(e)},
-                status=500,
-            )
+            return Response({"error": "Failed to compile LaTeX"}, status=500)
+        except subprocess.CalledProcessError:
+            return Response({"error": "Failed to compile LaTeX"}, status=400)
+        except Exception:
+            return Response({"error": "Failed to compile LaTeX"}, status=500)
         
         pdf_file_path = os.path.join(tempdir, "document.pdf")
         if os.path.exists(pdf_file_path):
@@ -508,6 +529,11 @@ class TemplateViewSet(viewsets.ModelViewSet):
     queryset = Template.objects.all()
     serializer_class = TemplateSerializer
 
+    def get_permissions(self):
+        if self.action in {"list", "retrieve"}:
+            return [AllowAny()]
+        return [IsAdminUser()]
+
     def get_queryset(self):
         queryset = super().get_queryset()
         subject = self.request.query_params.get('subject')
@@ -542,8 +568,10 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
             user=request.user,
             template=template,
             latex_content=template.latex_content,
+            content_source="generated",
             margins=template.default_margins,
             columns=template.default_columns,
+            selected_formulas=template.selected_formulas,
         )
         
         serializer = self.get_serializer(cheatsheet)
@@ -553,10 +581,14 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
 class PracticeProblemViewSet(viewsets.ModelViewSet):
     queryset = PracticeProblem.objects.all()
     serializer_class = PracticeProblemSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().filter(cheat_sheet__user=self.request.user)
         cheat_sheet_id = self.request.query_params.get('cheat_sheet')
-        if cheat_sheet_id:
+        if cheat_sheet_id is not None:
+            cheat_sheet_id = validate_cheat_sheet_id(cheat_sheet_id)
+            if cheat_sheet_id is None:
+                raise ValidationError({"cheat_sheet": "Must be a canonical positive integer."})
             queryset = queryset.filter(cheat_sheet=cheat_sheet_id)
         return queryset

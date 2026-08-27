@@ -714,7 +714,7 @@ const LatexEditor = ({ content, onChange, isModified, compileError }) => {
             value={content}
             onChange={(e) => onChange(e.target.value)}
             onScroll={handleScroll}
-            placeholder='Select classes and categories above, then click "GET CHEAT SHEET" to see the LaTeX code here.'
+            placeholder='Select classes and categories above, then generate a cheat sheet to see the LaTeX code here.'
             className={`textarea-field ${isModified ? 'modified' : ''}`}
             rows={15}
             spellCheck="false"
@@ -904,14 +904,15 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
 
       <div ref={containerRef} className="pdf-preview-stage">
         <div className="pdf-preview-scroll" ref={scrollRef} onScroll={handlePdfScroll}>
-          {compileError ? (
-            <div className="compile-error-box">
-              <strong>Compilation Error:</strong>
+          {compileError && (
+            <div className="compile-error-box" role="alert">
+              <strong>Latest compile failed. Showing the last successful PDF.</strong>
               <br />
               <br />
               {compileError}
             </div>
-          ) : pdfBlob ? (
+          )}
+          {pdfBlob ? (
             <>
               <Document
                 file={pdfBlob}
@@ -1109,7 +1110,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
   );
 };
 
-const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isSaving = false }) => {
+const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity, isSaving = false }) => {
   const {
     classesData,
     selectedClasses,
@@ -1126,8 +1127,9 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     removeClassFromOrder,
     removeSingleFormula,
     selectedCount,
-    hasSelectedClasses
-  } = useFormulas(initialData);
+    hasSelectedClasses,
+    isFormulaSelectionInitialized,
+  } = useFormulas(initialData, draftIdentity);
 
   const {
     title,
@@ -1135,7 +1137,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     content,
     contentModified,
     contentSource,
-    canRegenerateFromSelections,
     hasLayoutChanges,
     handleContentChange,
     columns,
@@ -1149,17 +1150,20 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     orientation,
     setOrientation,
     pdfBlob,
+    isGenerating,
     isCompiling,
     compileError,
+    lastCompileSnapshot,
     goBack,
     goForward,
-    handlePreview,
     handleCompileOnly,
+    handlePreview,
+    handleGenerateSheet,
     handleDownloadPDF,
     handleDownloadTex,
     handlePrintPDF,
     clearLatex
-  } = useLatex(initialData);
+  } = useLatex(initialData, draftIdentity, getSelectedFormulasList() || []);
 
   const [showLatex, setShowLatex] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -1174,15 +1178,23 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   const [classesCollapseSignal, setClassesCollapseSignal] = useState(0);
   const pendingPanelLayoutRef = useRef(panelLayout);
   const hasCollapsedLeftPanelOnceRef = useRef(false);
-  const hasGeneratedFromSelectionsRef = useRef(false);
-  const lastGeneratedSelectionSignatureRef = useRef('');
   const lastAutoSavedPdfRef = useRef(null);
+  const hasRestoredPreviewRef = useRef(false);
+  const shouldRestorePreviewRef = useRef(Boolean(initialData?.content?.trim() && initialData?.compileHistory?.length));
   const lastVideoOpenerRef = useRef(null);
   const modalDialogRef = useRef(null);
   const appBodyRef = useRef(null);
   const centerPanelRef = useRef(null);
   const compileBtnRef = useRef(null);
   const snapshots = useMemo(() => [...(initialData?.compileHistory || [])].reverse(), [initialData?.compileHistory]);
+
+  useEffect(() => {
+    if (!shouldRestorePreviewRef.current || hasRestoredPreviewRef.current) return;
+    if (!isFormulaSelectionInitialized || !content?.trim()) return;
+
+    hasRestoredPreviewRef.current = true;
+    handlePreview(content);
+  }, [content, handlePreview, isFormulaSelectionInitialized]);
   const selectedClassNames = useMemo(
     () => classesData.filter((cls) => selectedClasses[cls.name]).map((cls) => cls.name),
     [classesData, selectedClasses],
@@ -1266,19 +1278,6 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
     }
     return '';
   };
-
-  useEffect(() => {
-    if (!initialData) return;
-    if (initialData.title) setTitle(initialData.title);
-    if (initialData.content) {
-      handleContentChange(initialData.content);
-    }
-    if (initialData.columns) setColumns(initialData.columns);
-    if (initialData.fontSize) setFontSize(initialData.fontSize);
-    if (initialData.spacing) setSpacing(initialData.spacing);
-    if (initialData.margins) setMargins(initialData.margins);
-    if (initialData.orientation) setOrientation(initialData.orientation);
-  }, [handleContentChange, initialData, setColumns, setFontSize, setMargins, setOrientation, setSpacing, setTitle]);
 
   useEffect(() => {
     const hasCompiledBefore = Boolean(initialData?.compileHistory?.length || pdfBlob || content.trim());
@@ -1385,35 +1384,16 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
   }, [leftPanelVisible, rightPanelVisible, showLatex]);
 
   useEffect(() => {
-    if (!pdfBlob || compileError || lastAutoSavedPdfRef.current === pdfBlob) {
+    if (!lastCompileSnapshot || compileError || lastAutoSavedPdfRef.current === lastCompileSnapshot.pdfBlob) {
       return;
     }
 
-    lastAutoSavedPdfRef.current = pdfBlob;
+    lastAutoSavedPdfRef.current = lastCompileSnapshot.pdfBlob;
     setSaveStatus('saving');
     setLastSavedAt(Date.now());
     onSave({
-      title,
-      content,
-      contentSource,
-      columns,
-      fontSize,
-      spacing,
-      margins,
-      orientation,
-      selectedFormulas: getSelectedFormulasList(),
-      compileSnapshot: {
-        title,
-        content,
-        contentSource,
-        columns,
-        fontSize,
-        spacing,
-        margins,
-        orientation,
-        selectedFormulas: getSelectedFormulasList(),
-        compiledAt: new Date().toISOString(),
-      },
+      ...lastCompileSnapshot,
+      compileSnapshot: lastCompileSnapshot,
     }, false)
       .then(() => {
         setSaveStatus('saved');
@@ -1422,7 +1402,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       console.error('Failed to autosave compiled sheet', error);
       setSaveStatus('offline');
     });
-  }, [columns, compileError, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, pdfBlob, spacing, title]);
+  }, [compileError, lastCompileSnapshot, onSave]);
 
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();
@@ -1515,13 +1495,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
       return () => clearTimeout(timer);
   }, [pdfBlob, isCompiling]);
 
-  useEffect(() => {
-    if (contentSource === 'generated') {
-      hasGeneratedFromSelectionsRef.current = true;
-    }
-  }, [contentSource]);
-
-  const handleCompileClick = useCallback(() => {
+  const prepareFirstActionLayout = useCallback(() => {
     if (!hasCollapsedLeftPanelOnceRef.current) {
       // First compile: keep controls reachable while reclaiming preview space.
       hasCollapsedLeftPanelOnceRef.current = true;
@@ -1537,29 +1511,19 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
         return nextLayout;
       });
     }
+  }, []);
 
+  const handleGenerateClick = useCallback(() => {
+    prepareFirstActionLayout();
     const selectedFormulas = getSelectedFormulasList();
-    const selectionSignature = selectedFormulas
-      .map((formula) => `${formula.class}|${formula.category}|${formula.name}`)
-      .join('||');
-    const hasSelectionChangedSinceGenerate =
-      lastGeneratedSelectionSignatureRef.current &&
-      lastGeneratedSelectionSignatureRef.current !== selectionSignature;
-    const isPreviouslyGeneratedAndUnmodified = hasGeneratedFromSelectionsRef.current && !contentModified;
-    const shouldRegenerateFromSelections = selectedFormulas.length > 0 && (
-      canRegenerateFromSelections ||
-      isPreviouslyGeneratedAndUnmodified ||
-      (!contentModified && hasSelectionChangedSinceGenerate)
-    );
+    handleGenerateSheet(selectedFormulas);
+  }, [getSelectedFormulasList, handleGenerateSheet, prepareFirstActionLayout]);
 
-    if (shouldRegenerateFromSelections) {
-      lastGeneratedSelectionSignatureRef.current = selectionSignature;
-      handlePreview(null, { formulas: selectedFormulas, columns, fontSize, spacing });
-      return;
-    }
-
+  const handleCompileClick = useCallback(() => {
+    prepareFirstActionLayout();
+    const selectedFormulas = getSelectedFormulasList();
     handleCompileOnly(selectedFormulas);
-  }, [canRegenerateFromSelections, columns, contentModified, fontSize, getSelectedFormulasList, handleCompileOnly, handlePreview, spacing]);
+  }, [getSelectedFormulasList, handleCompileOnly, prepareFirstActionLayout]);
 
   const handleSave = useCallback(async (e) => {
     e?.preventDefault?.();
@@ -1689,25 +1653,34 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, isS
             {/* Footer buttons */}
             <div className="left-panel-footer">
               <button
-                ref={compileBtnRef}
                 type="button"
-                onClick={handleCompileClick}
-                className={`btn-compile ${isCompiling ? 'is-compiling' : ''}`}
-                disabled={isCompiling}
-                aria-label="Compile PDF"
-                title="Generate LaTeX and compile to PDF. First compile will auto-generate from your current selected subjects."
+                onClick={handleGenerateClick}
+                className={`btn-compile ${isGenerating || isCompiling ? 'is-compiling' : ''}`}
+                disabled={isGenerating || isCompiling || selectedCount === 0}
+                title="Replace the editor source with a sheet from the selected formulas, then compile it."
               >
-                <span className="btn-compile-icon">{isCompiling ? '↻' : ''}</span>
+                <span className="btn-compile-icon">{isGenerating || isCompiling ? '↻' : ''}</span>
                 <span className="btn-compile-text">
-                {isCompiling ? 'Compiling…' :  (
+                {isGenerating ? 'Generating…' : isCompiling ? 'Compiling…' :  (
                   <>
-                  GET CHEAT SHEET 
-                  <span className="btn-compile-hint"> Ctrl + ↵</span>
+                   Generate / Regenerate
                   </>
-
                 )}
                 </span>
               </button>
+              <button
+                ref={compileBtnRef}
+                type="button"
+                onClick={handleCompileClick}
+                className={`btn history-btn ${isCompiling ? 'is-compiling' : ''}`}
+                disabled={isGenerating || isCompiling || (!content.trim() && selectedCount === 0)}
+                title="Compile the current editor source. If the editor is empty, generate from selected formulas first."
+              >
+                {isCompiling ? 'Compiling…' : <>Compile PDF <span className="btn-compile-hint">Ctrl + ↵</span></>}
+              </button>
+              <p className="subtle-copy">
+                Generate replaces editor source. Compile keeps it.
+              </p>
 
               <div className="button-row">
                 <button

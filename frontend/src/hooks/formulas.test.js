@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFormulas } from './formulas';
 
 // Mock the global fetch
@@ -29,14 +29,36 @@ const mockClassesData = {
     }
   ]
 };
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((done) => { resolve = done; });
+  return { promise, resolve };
+};
+
+const mockLocalStorage = (() => {
+  let store = {};
+  return {
+    getItem: (key) => store[key] ?? null,
+    setItem: (key, value) => { store[key] = String(value); },
+    removeItem: (key) => { delete store[key]; },
+    clear: () => { store = {}; },
+  };
+})();
 
 describe('useFormulas hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.localStorage.clear();
-    global.fetch = vi.fn().mockResolvedValue({
+    mockLocalStorage.clear();
+    vi.stubGlobal('localStorage', mockLocalStorage);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       json: vi.fn().mockResolvedValue(mockClassesData)
-    });
+    }));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    mockLocalStorage.clear();
   });
 
   it('fetches classes data on mount', async () => {
@@ -166,5 +188,111 @@ describe('useFormulas hook', () => {
     expect(result.current.selectedCategories).toEqual({});
     expect(result.current.groupedFormulas).toEqual([]);
     expect(result.current.selectedCount).toBe(0);
+  });
+
+  it('restores a newer matching draft over stale explicit selections', async () => {
+    mockLocalStorage.setItem('cheatSheetData:draft-a', JSON.stringify({
+      groupedFormulas: [{ class: 'Geometry', formulas: [{ class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }] }],
+    }));
+
+    const { result } = renderHook(() => useFormulas({
+      selectedFormulas: [{ class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }],
+    }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.groupedFormulas).toHaveLength(1));
+
+    expect(result.current.groupedFormulas[0].formulas[0].name).toBe('Area of Circle');
+  });
+
+  it('uses explicit empty selections when only unrelated draft storage exists', async () => {
+    mockLocalStorage.setItem('cheatSheetData:unrelated', JSON.stringify({
+      groupedFormulas: [{ class: 'Algebra', formulas: [{ class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }] }],
+    }));
+
+    const { result } = renderHook(() => useFormulas({ selectedFormulas: [] }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.classesData).toEqual(mockClassesData.classes));
+    await act(async () => { await Promise.resolve(); });
+
+    expect(result.current.groupedFormulas).toEqual([]);
+  });
+
+  it('restores only the draft matching the current draft identity', async () => {
+    mockLocalStorage.setItem('cheatSheetData:matching', JSON.stringify({
+      groupedFormulas: [{ class: 'Algebra', formulas: [{ class: 'Algebra', category: 'Quadratics', name: 'Quadratic Formula' }] }],
+    }));
+    mockLocalStorage.setItem('cheatSheetData:unrelated', JSON.stringify({
+      groupedFormulas: [{ class: 'Geometry', formulas: [{ class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }] }],
+    }));
+
+    const { result } = renderHook(() => useFormulas(undefined, 'matching'));
+    await vi.waitFor(() => expect(result.current.groupedFormulas).toHaveLength(1));
+
+    expect(result.current.groupedFormulas[0].formulas[0].name).toBe('Quadratic Formula');
+    expect(mockLocalStorage.getItem('cheatSheetData:unrelated')).toContain('Area of Circle');
+  });
+
+  it('becomes ready only after matching draft hydration, including an explicit empty draft', async () => {
+    const classes = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => classes.promise));
+    mockLocalStorage.setItem('cheatSheetData:draft-a', JSON.stringify({ groupedFormulas: [] }));
+    const { result } = renderHook(() => useFormulas({ selectedFormulas: [{ class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }] }, 'draft-a'));
+
+    expect(result.current.isFormulaSelectionInitialized).toBe(false);
+    await act(async () => classes.resolve({ json: async () => mockClassesData }));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+    expect(result.current.groupedFormulas).toEqual([]);
+  });
+
+  it('preserves raw authoritative formulas and becomes ready when class fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    const rawFormula = { class: 'Missing class', category: 'Missing category', name: 'Formula' };
+    const { result } = renderHook(() => useFormulas({ selectedFormulas: [rawFormula] }, 'draft-a'));
+
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+    expect(result.current.classesData).toEqual([]);
+    expect(result.current.groupedFormulas).toEqual([{ class: 'Missing class', formulas: [rawFormula] }]);
+  });
+
+  it('does not hydrate state after unmount', async () => {
+    const classes = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => classes.promise));
+    const { result, unmount } = renderHook(() => useFormulas({ selectedFormulas: [] }, 'draft-a'));
+    unmount();
+    await act(async () => classes.resolve({ json: async () => mockClassesData }));
+    expect(result.current.isFormulaSelectionInitialized).toBe(false);
+  });
+
+  it('removes one formula without removing its sibling category or class', async () => {
+    const { result } = renderHook(() => useFormulas());
+    await vi.waitFor(() => expect(result.current.classesData).toHaveLength(2));
+    act(() => { result.current.toggleClass('Algebra'); });
+    act(() => { result.current.removeSingleFormula('Algebra', 'Linear Equations', 'Slope Formula'); });
+
+    expect(result.current.selectedClasses.Algebra).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Linear Equations']).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Quadratics']).toBe(true);
+    expect(result.current.groupedFormulas[0].formulas.map((formula) => formula.name)).toEqual(['Intercept Form', 'Quadratic Formula']);
+  });
+
+  it('removes the empty category and class after its final formula is removed', async () => {
+    const { result } = renderHook(() => useFormulas());
+    await vi.waitFor(() => expect(result.current.classesData).toHaveLength(2));
+    act(() => { result.current.toggleCategory('Geometry', 'Shapes'); });
+    act(() => { result.current.removeSingleFormula('Geometry', 'Shapes', 'Area of Circle'); });
+
+    expect(result.current.groupedFormulas).toEqual([]);
+    expect(result.current.selectedClasses.Geometry).toBeUndefined();
+    expect(result.current.selectedCategories['Geometry:Shapes']).toBeUndefined();
+  });
+
+  it('keeps a same-class sibling category when another category is removed', async () => {
+    const { result } = renderHook(() => useFormulas());
+    await vi.waitFor(() => expect(result.current.classesData).toHaveLength(2));
+    act(() => { result.current.toggleClass('Algebra'); });
+    act(() => { result.current.removeSingleFormula('Algebra', 'Quadratics', 'Quadratic Formula'); });
+
+    expect(result.current.selectedClasses.Algebra).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Linear Equations']).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Quadratics']).toBeUndefined();
+    expect(result.current.groupedFormulas[0].formulas.map((formula) => formula.name)).toEqual(['Slope Formula', 'Intercept Form']);
   });
 });

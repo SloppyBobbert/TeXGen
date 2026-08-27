@@ -10,6 +10,7 @@ class Template(models.Model):
     latex_content = models.TextField()
     default_columns = models.IntegerField(default=2)
     default_margins = models.CharField(max_length=20, default="0.5in")
+    selected_formulas = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

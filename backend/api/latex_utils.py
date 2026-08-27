@@ -3,6 +3,8 @@ import re
 import subprocess
 import tempfile
 
+from django.conf import settings
+
 LATEX_HEADER = r"""\documentclass[fleqn]{article}
 \usepackage[margin=0.15in]{geometry}
 \usepackage{amsmath, amssymb}
@@ -330,13 +332,13 @@ def compile_latex_to_pdf(content):
             subprocess.run(
                 ["tectonic", tex_file_path],
                 cwd=tempdir,
-                capture_output=True,
-                text=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 check=True,
+                timeout=settings.COMPILER_TIMEOUT_SECONDS,
             )
-        except subprocess.CalledProcessError:
-            # Propagate the error; the temporary directory will still be cleaned up
-            raise
+        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            raise RuntimeError("Failed to compile LaTeX") from None
 
         pdf_file_path = os.path.join(tempdir, "document.pdf")
         if not os.path.exists(pdf_file_path):
