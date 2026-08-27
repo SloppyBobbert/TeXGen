@@ -2,9 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 const STORAGE_KEY = 'cheatSheetData';
 
-function loadFromStorage() {
+function storageKeyFor(initialData, draftIdentity) {
+  const identity = draftIdentity ?? initialData?.id ?? initialData?.draftId;
+  return identity == null ? STORAGE_KEY : `${STORAGE_KEY}:${identity}`;
+}
+
+function loadFromStorage(storageKey) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -14,9 +19,9 @@ function loadFromStorage() {
   return null;
 }
 
-function saveToStorage(data) {
+function saveToStorage(storageKey, data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(storageKey, JSON.stringify(data));
   } catch (e) {
     console.error('Failed to save to localStorage', e);
   }
@@ -83,55 +88,65 @@ function buildSelectionState(selectedFormulas = []) {
   };
 }
 
-export function useFormulas(initialData) {
+export function useFormulas(initialData, draftIdentity) {
+  const storageKey = storageKeyFor(initialData, draftIdentity);
   const [classesData, setClassesData] = useState([]);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [selectedCategories, setSelectedCategories] = useState({});
   const [groupedFormulas, setGroupedFormulas] = useState([]);
+  const [isFormulaSelectionInitialized, setIsFormulaSelectionInitialized] = useState(false);
   const initialLoadDone = useRef(false);
   const skipNextPersist = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const saved = storageKey !== STORAGE_KEY || initialData === undefined
+      ? loadFromStorage(storageKey)
+      : null;
+    const authoritativeFormulas = saved
+      ? flattenGroupedFormulas(saved.groupedFormulas || [])
+      : (Array.isArray(initialData?.selectedFormulas) ? initialData.selectedFormulas : []);
+
     fetch('/api/classes/')
       .then((res) => res.json())
       .then((data) => {
+        if (cancelled || initialLoadDone.current) return;
         const classes = data.classes || [];
+        const restored = buildSelectionState(normalizeSelectedFormulas(authoritativeFormulas, classes));
+        initialLoadDone.current = true;
         setClassesData(classes);
-        
-        if (!initialLoadDone.current) {
-          initialLoadDone.current = true;
-          const saved = loadFromStorage();
-          if (saved) {
-            const normalizedFormulas = normalizeSelectedFormulas(
-              flattenGroupedFormulas(saved.groupedFormulas || []),
-              classes,
-            );
-            const restored = buildSelectionState(normalizedFormulas);
-            setSelectedClasses(restored.selectedClasses);
-            setSelectedCategories(restored.selectedCategories);
-            setGroupedFormulas(restored.groupedFormulas);
-          } else if (initialData?.selectedFormulas?.length) {
-            const restored = buildSelectionState(normalizeSelectedFormulas(initialData.selectedFormulas, classes));
-            setSelectedClasses(restored.selectedClasses);
-            setSelectedCategories(restored.selectedCategories);
-            setGroupedFormulas(restored.groupedFormulas);
-          }
-        }
+        setSelectedClasses(restored.selectedClasses);
+        setSelectedCategories(restored.selectedCategories);
+        setGroupedFormulas(restored.groupedFormulas);
+        setIsFormulaSelectionInitialized(true);
       })
-      .catch((err) => console.error('Failed to fetch classes', err));
-  }, [initialData]);
+      .catch((err) => {
+        if (cancelled || initialLoadDone.current) return;
+        console.error('Failed to fetch classes', err);
+        const restored = buildSelectionState(authoritativeFormulas);
+        initialLoadDone.current = true;
+        setSelectedClasses(restored.selectedClasses);
+        setSelectedCategories(restored.selectedCategories);
+        setGroupedFormulas(restored.groupedFormulas);
+        setIsFormulaSelectionInitialized(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialData, storageKey]);
 
   useEffect(() => {
     if (!initialLoadDone.current) return;
 
     if (skipNextPersist.current) {
       skipNextPersist.current = false;
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(storageKey);
       return;
     }
 
-    saveToStorage({ selectedClasses, selectedCategories, groupedFormulas });
-  }, [selectedClasses, selectedCategories, groupedFormulas]);
+    saveToStorage(storageKey, { selectedClasses, selectedCategories, groupedFormulas });
+  }, [selectedClasses, selectedCategories, groupedFormulas, storageKey]);
 
   const addFormulasToOrder = useCallback((className, categoryName, formulas) => {
     setGroupedFormulas(prev => {
@@ -183,17 +198,16 @@ export function useFormulas(initialData) {
   }, [clearClassSelections]);
 
   const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
-    setSelectedCategories((prev) => {
-      const updated = { ...prev };
-      delete updated[`${className}:${categoryName}`];
-      return updated;
+    setGroupedFormulas(prev => {
+      const next = prev.map(g => g.class !== className ? g : {
+        ...g,
+        formulas: g.formulas.filter(f => !(f.category === categoryName && f.name === formulaName)),
+      }).filter(g => g.formulas.length > 0);
+      const derived = buildSelectionState(flattenGroupedFormulas(next));
+      setSelectedClasses(derived.selectedClasses);
+      setSelectedCategories(derived.selectedCategories);
+      return next;
     });
-
-    setGroupedFormulas(prev => prev.map(g => {
-        if (g.class !== className) return g;
-        return { ...g, formulas: g.formulas.filter(f => !(f.category === categoryName && f.name === formulaName)) };
-      }).filter(g => g.formulas.length > 0)
-    );
   }, []);
 
   const toggleClass = (className) => {
@@ -320,7 +334,7 @@ export function useFormulas(initialData) {
     setSelectedClasses({});
     setSelectedCategories({});
     setGroupedFormulas([]);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
   };
 
   const selectedCount = getSelectedFormulasList().length;
@@ -342,6 +356,7 @@ export function useFormulas(initialData) {
     selectAllClasses,
     deselectAllClasses,
     selectedCount,
-    hasSelectedClasses
+    hasSelectedClasses,
+    isFormulaSelectionInitialized,
   };
 }

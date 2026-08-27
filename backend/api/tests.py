@@ -3,16 +3,20 @@ Backend tests using pytest-django.
 Run with: pytest  (from the backend/ directory)
 """
 
+import subprocess
+
 import pytest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from io import BytesIO
 from django.contrib.auth.models import User
-from django.test import TestCase
-from rest_framework.test import APIClient
-from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
+from django.core.cache import cache
+from django.test import TestCase, override_settings
+from rest_framework.test import APIClient, APIRequestFactory
+from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, compile_latex_to_pdf, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
-from api.views import YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
+from api.compiler import validate_cheat_sheet_id
+from api.views import CompileAnonThrottle, CompileUserThrottle, YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
 
 
 @pytest.fixture
@@ -518,7 +522,7 @@ class TestTemplateAPI:
         data = resp.json()
         assert len(data) >= 1
 
-    def test_create_template(self, auth_client):
+    def test_nonstaff_cannot_create_template(self, auth_client):
         resp = auth_client.post(
             "/api/templates/",
             {
@@ -528,7 +532,7 @@ class TestTemplateAPI:
             },
             format="json",
         )
-        assert resp.status_code == 201
+        assert resp.status_code in (401, 403)
 
 
 @pytest.mark.django_db
@@ -821,6 +825,32 @@ class TestCreateFromTemplate:
         assert data["title"] == "My Copy"
         assert data["template"] == sample_template.id
         assert data["columns"] == sample_template.default_columns
+
+    def test_create_from_template_marks_copied_content_as_generated(self, auth_client):
+        formulas = [{"class": "ALGEBRA I", "name": "Slope Formula"}]
+        template = Template.objects.create(
+            name="Generated template",
+            subject="algebra",
+            latex_content="Template content",
+            default_columns=3,
+            default_margins="0.5in",
+            selected_formulas=formulas,
+        )
+
+        response = auth_client.post(
+            "/api/cheatsheets/from-template/",
+            {"template_id": template.id, "title": "Generated copy"},
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert response.json()["content_source"] == "generated"
+        sheet = CheatSheet.objects.get(pk=response.json()["id"])
+        assert sheet.content_source == "generated"
+        assert sheet.user == auth_client.handler._force_user
+        assert sheet.selected_formulas == formulas
+        assert sheet.columns == template.default_columns
+        assert sheet.margins == template.default_margins
 
     def test_create_from_template_missing_id(self, auth_client):
         resp = auth_client.post(
@@ -1497,3 +1527,137 @@ class TestTokenEndpoints:
             format="json",
         )
         assert resp.status_code == 401
+
+
+@pytest.mark.django_db
+class TestPhaseOneTransfer:
+    def test_signed_64_bit_sheet_id_boundary_is_canonical(self):
+        maximum = 9_223_372_036_854_775_807
+        assert validate_cheat_sheet_id(maximum) == maximum
+        assert validate_cheat_sheet_id(maximum + 1) is None
+
+    def test_templates_are_public_but_writes_require_staff(self, api_client, sample_template):
+        assert api_client.get("/api/templates/").status_code == 200
+        assert api_client.post(
+            "/api/templates/", {"name": "Nope", "subject": "math", "latex_content": "x"}, format="json"
+        ).status_code in (401, 403)
+        staff = User.objects.create_user(username="staff", password="testpass123", is_staff=True)
+        api_client.force_authenticate(user=staff)
+        assert api_client.post(
+            "/api/templates/", {"name": "Allowed", "subject": "math", "latex_content": "x"}, format="json"
+        ).status_code == 201
+
+    def test_template_selection_is_exposed_and_copied(self, api_client, auth_client):
+        formulas = [{"class": "ALGEBRA I", "name": "Slope Formula"}]
+        template = Template.objects.create(name="Formula template", subject="algebra", latex_content="Content", selected_formulas=formulas)
+        assert api_client.get(f"/api/templates/{template.id}/").json()["selected_formulas"] == formulas
+        response = auth_client.post("/api/cheatsheets/from-template/", {"template_id": template.id}, format="json")
+        assert response.status_code == 201
+        assert response.json()["selected_formulas"] == formulas
+
+    def test_problems_are_scoped_to_the_authenticated_sheet_owner(self, auth_client, sample_problem):
+        other = User.objects.create_user(username="other-problem-user", password="testpass123")
+        client = APIClient()
+        client.force_authenticate(user=other)
+        assert client.get("/api/problems/").json() == []
+        assert client.get(f"/api/problems/{sample_problem.id}/").status_code == 404
+        assert client.post("/api/problems/", {"cheat_sheet": sample_problem.cheat_sheet_id, "question_latex": "No"}, format="json").status_code == 400
+
+    @pytest.mark.parametrize("cheat_sheet_id", ["0", "-1", "01", "1.0", "invalid"])
+    def test_problem_sheet_filter_rejects_noncanonical_ids(self, auth_client, cheat_sheet_id):
+        response = auth_client.get(f"/api/problems/?cheat_sheet={cheat_sheet_id}")
+        assert response.status_code == 400
+
+    def test_problem_sheet_filter_keeps_owner_scope(self, auth_client, sample_problem):
+        response = auth_client.get(f"/api/problems/?cheat_sheet={sample_problem.cheat_sheet_id}")
+        assert response.status_code == 200
+        assert [problem["id"] for problem in response.json()] == [sample_problem.id]
+
+    @pytest.mark.parametrize("cheat_sheet_id", [True, 1.0, 0, -1, "01", "1.0", 9_223_372_036_854_775_808])
+    def test_compile_rejects_noncanonical_sheet_ids(self, auth_client, cheat_sheet_id):
+        assert auth_client.post("/api/compile/", {"cheat_sheet_id": cheat_sheet_id}, format="json").status_code == 400
+
+    @override_settings(COMPILER_SOURCE_MAX_BYTES=4)
+    def test_compile_enforces_utf8_source_byte_limit(self, api_client):
+        assert api_client.post("/api/compile/", {"content": "1234", "normalize_only": True}, format="json").status_code == 200
+        assert api_client.post("/api/compile/", {"content": "éé", "normalize_only": True}, format="json").status_code == 200
+        assert api_client.post("/api/compile/", {"content": "ééé", "normalize_only": True}, format="json").status_code == 413
+
+    def test_compile_rejects_json_lone_surrogate(self, api_client):
+        response = api_client.post(
+            "/api/compile/",
+            b'{"content":"\\ud800","normalize_only":true}',
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    @patch("api.views.subprocess.run")
+    @override_settings(COMPILER_TIMEOUT_SECONDS=7)
+    def test_compile_timeout_and_failure_are_generic(self, run, api_client):
+        run.side_effect = subprocess.TimeoutExpired("tectonic", 7)
+        assert api_client.post("/api/compile/", {"content": "x"}, format="json").status_code == 408
+        assert run.call_args.kwargs["timeout"] == 7
+        run.side_effect = subprocess.CalledProcessError(1, "tectonic", stderr="sensitive compiler path")
+        response = api_client.post("/api/compile/", {"content": "x"}, format="json")
+        assert response.json() == {"error": "Failed to compile LaTeX"}
+        assert run.call_args.kwargs["stdout"] is subprocess.DEVNULL
+        assert run.call_args.kwargs["stderr"] is subprocess.DEVNULL
+
+    @patch("api.views.subprocess.run", side_effect=FileNotFoundError("sensitive executable path"))
+    def test_compile_missing_executable_is_generic(self, _run, api_client):
+        response = api_client.post("/api/compile/", {"content": "x"}, format="json")
+        assert response.status_code == 500
+        assert response.json() == {"error": "Failed to compile LaTeX"}
+
+    @patch("api.latex_utils.subprocess.run")
+    def test_compile_helper_discards_compiler_diagnostics(self, run):
+        run.side_effect = subprocess.CalledProcessError(1, "tectonic", stderr="sensitive compiler path")
+        with pytest.raises(RuntimeError, match="Failed to compile LaTeX"):
+            compile_latex_to_pdf("content")
+        assert run.call_args.kwargs["stdout"] is subprocess.DEVNULL
+        assert run.call_args.kwargs["stderr"] is subprocess.DEVNULL
+
+    @patch("api.latex_utils.subprocess.run", side_effect=FileNotFoundError("sensitive executable path"))
+    def test_compile_helper_missing_executable_is_generic(self, _run):
+        with pytest.raises(RuntimeError, match="Failed to compile LaTeX"):
+            compile_latex_to_pdf("content")
+
+    def test_compile_throttles_use_configured_rates(self):
+        cache.clear()
+        anonymous = APIRequestFactory().post("/api/compile/", {"content": "x"}, format="json", REMOTE_ADDR="198.51.100.1")
+        anonymous.user = type("Anonymous", (), {"is_authenticated": False})()
+        with override_settings(COMPILER_ANON_RATE="1/hour"):
+            throttle = CompileAnonThrottle()
+            throttle.rate = throttle.get_rate()
+            throttle.num_requests, throttle.duration = throttle.parse_rate(throttle.rate)
+            assert throttle.allow_request(anonymous, None)
+            assert not throttle.allow_request(anonymous, None)
+        cache.clear()
+        authenticated = APIRequestFactory().post("/api/compile/", {"content": "x"}, format="json")
+        authenticated.user = User(id=999, username="rate-limited")
+        with override_settings(COMPILER_USER_RATE="1/hour"):
+            throttle = CompileUserThrottle()
+            throttle.rate = throttle.get_rate()
+            throttle.num_requests, throttle.duration = throttle.parse_rate(throttle.rate)
+            assert throttle.allow_request(authenticated, None)
+            assert not throttle.allow_request(authenticated, None)
+
+    def test_compile_endpoint_enforces_anonymous_throttle(self, api_client):
+        cache.clear()
+        with override_settings(COMPILER_ANON_RATE="1/hour"):
+            assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 200
+            assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 429
+
+    def test_compile_endpoint_enforces_authenticated_throttle(self, auth_client):
+        cache.clear()
+        with override_settings(COMPILER_USER_RATE="1/hour"):
+            assert auth_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 200
+            assert auth_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 429
+
+    def test_compile_endpoint_registers_both_throttle_classes(self):
+        from api.views import compile_latex
+
+        assert compile_latex.cls.throttle_classes == [CompileAnonThrottle, CompileUserThrottle]
+
+    def test_anonymous_sheet_compile_requires_authentication(self, api_client, sample_sheet):
+        assert api_client.post("/api/compile/", {"cheat_sheet_id": sample_sheet.id}, format="json").status_code == 401

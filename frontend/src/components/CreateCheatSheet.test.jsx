@@ -64,6 +64,7 @@ describe('CreateCheatSheet Component', () => {
     orientation: 'portrait',
     setOrientation: vi.fn(),
     pdfBlob: null,
+    lastCompileSnapshot: null,
     isGenerating: false,
     isCompiling: false,
     isLoading: false,
@@ -104,11 +105,11 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByText(/Compile will generate the first draft if the editor is still empty/i)).toBeInTheDocument();
   });
 
-  it('regenerates selected formulas from the main compile action', () => {
-    const handlePreviewMock = vi.fn();
+  it('generates selected formulas from the explicit generate action', () => {
+    const handleGenerateSheetMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
-    useLatex.mockReturnValue({ ...mockUseLatex, handlePreview: handlePreviewMock });
+    useLatex.mockReturnValue({ ...mockUseLatex, handleGenerateSheet: handleGenerateSheetMock });
     useFormulas.mockReturnValue({ 
       ...mockUseFormulas, 
       selectedCount: 1, 
@@ -117,16 +118,16 @@ describe('CreateCheatSheet Component', () => {
 
     render(<CreateCheatSheet onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Generate \/ Regenerate/i }));
 
-    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleGenerateSheetMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
   it('shrinks the subject panel on first compile without hiding the compile controls', () => {
-    const handlePreviewMock = vi.fn();
+    const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
-    useLatex.mockReturnValue({ ...mockUseLatex, handlePreview: handlePreviewMock });
+    useLatex.mockReturnValue({ ...mockUseLatex, handleCompileOnly: handleCompileOnlyMock });
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
       selectedCount: 1,
@@ -139,7 +140,7 @@ describe('CreateCheatSheet Component', () => {
 
     expect(document.querySelector('.app-body')).toHaveStyle('--app-body-columns: 220px 10px minmax(0, 1fr) 10px 300px');
     expect(screen.getByRole('button', { name: /Compile PDF/i })).toBeInTheDocument();
-    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
   it('keeps the LaTeX editor closed when compiled content exists', () => {
@@ -155,34 +156,98 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.queryByLabelText(/Generated LaTeX Code:/i)).not.toBeInTheDocument();
   });
 
-  it('restores saved orientation from initial data', () => {
+  it('passes explicit initial data to useLatex without treating later props as manual edits', () => {
     const setOrientation = vi.fn();
+    const handleContentChange = vi.fn();
 
     useLatex.mockReturnValue({
       ...mockUseLatex,
       setOrientation,
+      handleContentChange,
     });
 
-    render(
+    const { rerender } = render(
       <CreateCheatSheet
         onSave={vi.fn().mockResolvedValue(undefined)}
         onReset={vi.fn()}
-        initialData={{ orientation: 'landscape' }}
+        initialData={{ content: 'saved source', orientation: 'landscape' }}
       />,
     );
 
-    expect(setOrientation).toHaveBeenCalledWith('landscape');
+    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'saved source', orientation: 'landscape' }), undefined, []);
+    expect(setOrientation).not.toHaveBeenCalled();
+    expect(handleContentChange).not.toHaveBeenCalled();
+
+    rerender(
+      <CreateCheatSheet
+        onSave={vi.fn().mockResolvedValue(undefined)}
+        onReset={vi.fn()}
+        initialData={{ content: 'new server source', orientation: 'portrait' }}
+      />,
+    );
+
+    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'new server source', orientation: 'portrait' }), undefined, []);
+    expect(handleContentChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps a successful PDF visible alongside a compile error', () => {
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      pdfBlob: new Blob(['pdf'], { type: 'application/pdf' }),
+      compileError: 'document.tex:7: error: missing brace',
+    });
+
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/Latest compile failed\. Showing the last successful PDF/i);
+    expect(screen.getByText(/missing brace/i)).toBeInTheDocument();
+    expect(screen.getByTestId('mock-document')).toBeInTheDocument();
+  });
+
+  it('autosaves the exact successful compile snapshot from the hook', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const snapshot = {
+      title: 'Compiled title',
+      content: '\\documentclass{article}\nCompiled source',
+      contentSource: 'generated',
+      columns: 2,
+      fontSize: '11pt',
+      spacing: 'large',
+      margins: '0.5in',
+      orientation: 'landscape',
+      selectedFormulas: [{ class: 'Physics', category: 'Motion', name: 'Velocity' }],
+      history: [{ content: 'Earlier source', timestamp: 1 }],
+      compiledAt: 123456789,
+      pdfBlob: 'blob:successful-compile',
+    };
+
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      title: 'Current title should not be saved',
+      content: 'Current source should not be saved',
+      pdfBlob: snapshot.pdfBlob,
+      lastCompileSnapshot: snapshot,
+    });
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({
+      ...snapshot,
+      compileSnapshot: snapshot,
+    }, false));
   });
 
   it('compiles existing manual content without regenerating', () => {
     const handleCompileOnlyMock = vi.fn();
+    const handleGenerateSheetMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
     useLatex.mockReturnValue({
       ...mockUseLatex,
+      content: '\\documentclass{article}\n% manual source',
       contentModified: true,
-      canRegenerateFromSelections: false,
       handleCompileOnly: handleCompileOnlyMock,
+      handleGenerateSheet: handleGenerateSheetMock,
     });
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
@@ -195,9 +260,10 @@ describe('CreateCheatSheet Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
     expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
+    expect(handleGenerateSheetMock).not.toHaveBeenCalled();
   });
 
-  it('regenerates from selections when source is generated even if contentModified is true', () => {
+  it('compiles generated source without regenerating it', () => {
     const handleCompileOnlyMock = vi.fn();
     const handlePreviewMock = vi.fn();
     const selectedFormulas = [{ name: 'updated-formula' }];
@@ -219,11 +285,11 @@ describe('CreateCheatSheet Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
-    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
-    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+    expect(handlePreviewMock).not.toHaveBeenCalled();
+    expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
-  it('regenerates after class changes when sheet was generated previously in session', () => {
+  it('compiles current source after class changes instead of regenerating it', () => {
     const handleCompileOnlyMock = vi.fn();
     const handlePreviewMock = vi.fn();
     const selectedFormulas = [{ class: 'Math 101', category: 'Algebra', name: 'updated-formula' }];
@@ -246,51 +312,34 @@ describe('CreateCheatSheet Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
-    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
-    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+    expect(handlePreviewMock).not.toHaveBeenCalled();
+    expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
-  it('regenerates when selections change after initial empty-source compile', () => {
+  it('uses the compile fallback when the source is empty', () => {
     const handleCompileOnlyMock = vi.fn();
     const handlePreviewMock = vi.fn();
     const firstSelection = [{ class: 'Math 101', category: 'Algebra', name: 'first-formula' }];
-    const secondSelection = [{ class: 'Math 102', category: 'Geometry', name: 'second-formula' }];
 
-    useLatex
-      .mockReturnValueOnce({
-        ...mockUseLatex,
-        contentSource: 'empty',
-        canRegenerateFromSelections: true,
-        contentModified: false,
-        handleCompileOnly: handleCompileOnlyMock,
-        handlePreview: handlePreviewMock,
-      })
-      .mockReturnValue({
-        ...mockUseLatex,
-        contentSource: 'manual',
-        canRegenerateFromSelections: false,
-        contentModified: false,
-        handleCompileOnly: handleCompileOnlyMock,
-        handlePreview: handlePreviewMock,
-      });
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      contentSource: 'empty',
+      handleCompileOnly: handleCompileOnlyMock,
+      handlePreview: handlePreviewMock,
+    });
 
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
       selectedCount: 1,
-      getSelectedFormulasList: vi.fn().mockReturnValueOnce(firstSelection).mockReturnValueOnce(secondSelection),
+      getSelectedFormulasList: vi.fn().mockReturnValue(firstSelection),
     });
 
-    const { rerender } = render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
 
-    rerender(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
-
-    expect(handlePreviewMock).toHaveBeenCalledTimes(2);
-    expect(handlePreviewMock).toHaveBeenNthCalledWith(2, null, expect.objectContaining({ formulas: secondSelection }));
-    expect(handleCompileOnlyMock).not.toHaveBeenCalled();
+    expect(handleCompileOnlyMock).toHaveBeenCalledWith(firstSelection);
+    expect(handlePreviewMock).not.toHaveBeenCalled();
   });
 
   it('does not overwrite compiled manual LaTeX on later compile clicks', () => {
@@ -321,10 +370,10 @@ describe('CreateCheatSheet Component', () => {
   });
 
   it('compiles on Ctrl+Enter and prevents the browser default action', () => {
-    const handlePreviewMock = vi.fn();
+    const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
 
-    useLatex.mockReturnValue({ ...mockUseLatex, handlePreview: handlePreviewMock });
+    useLatex.mockReturnValue({ ...mockUseLatex, handleCompileOnly: handleCompileOnlyMock });
     useFormulas.mockReturnValue({
       ...mockUseFormulas,
       selectedCount: 1,
@@ -343,7 +392,7 @@ describe('CreateCheatSheet Component', () => {
     window.dispatchEvent(shortcutEvent);
 
     expect(shortcutEvent.defaultPrevented).toBe(true);
-    expect(handlePreviewMock).toHaveBeenCalledWith(null, expect.objectContaining({ formulas: selectedFormulas }));
+    expect(handleCompileOnlyMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
   it('saves on Ctrl+S and prevents the browser default action', async () => {

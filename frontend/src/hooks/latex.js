@@ -22,9 +22,14 @@ function getInitialContentSource(data) {
   return 'manual';
 }
 
-function loadLatexStorage() {
+function storageKeyFor(initialData, draftIdentity) {
+  const identity = draftIdentity ?? initialData?.id ?? initialData?.draftId;
+  return identity == null ? STORAGE_KEY : `${STORAGE_KEY}:${identity}`;
+}
+
+function loadLatexStorage(storageKey) {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       return JSON.parse(saved);
     }
@@ -34,9 +39,9 @@ function loadLatexStorage() {
   return null;
 }
 
-function saveLatexStorage(data) {
+function saveLatexStorage(storageKey, data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(storageKey, JSON.stringify(data));
   } catch (e) {
     console.error('Failed to save latex storage', e);
   }
@@ -75,7 +80,8 @@ async function readErrorResponse(response) {
   }
 }
 
-export function useLatex(initialData) {
+export function useLatex(initialData, draftIdentity, currentSelectedFormulas = []) {
+  const storageKey = storageKeyFor(initialData, draftIdentity);
   const { authTokens } = useContext(AuthContext);
   const [title, setTitle] = useState(initialData?.title ?? '');
   const [content, setContent] = useState(initialData?.content ?? '');
@@ -91,6 +97,7 @@ export function useLatex(initialData) {
   const [isCompiling, setIsCompiling] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [compileError, setCompileError] = useState(null);
+  const [lastCompileSnapshot, setLastCompileSnapshot] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   
@@ -99,7 +106,11 @@ export function useLatex(initialData) {
   const initialLoaded = useRef(false);
   const pdfBlobUrlRef = useRef(null);
   const autoCompileTimerRef = useRef(null);
-  const hasRestoredPreviewRef = useRef(false);
+  const operationEpochRef = useRef(0);
+  const controllersRef = useRef(new Set());
+  const contentRevisionRef = useRef(0);
+  const currentSelectedFormulasRef = useRef(currentSelectedFormulas);
+  currentSelectedFormulasRef.current = currentSelectedFormulas;
   const lastCompiledLayoutRef = useRef({
     columns: initialData?.columns ?? DEFAULT_LAYOUT.columns,
     fontSize: initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize,
@@ -110,7 +121,12 @@ export function useLatex(initialData) {
 
   // Revoke the object URL when the component unmounts to prevent memory leaks
   useEffect(() => {
+    const controllers = controllersRef.current;
     return () => {
+      operationEpochRef.current += 1;
+      controllers.forEach((controller) => controller.abort());
+      clearTimeout(autoCompileTimerRef.current);
+      clearTimeout(saveTimerRef.current);
       if (pdfBlobUrlRef.current) {
         URL.revokeObjectURL(pdfBlobUrlRef.current);
       }
@@ -127,27 +143,68 @@ export function useLatex(initialData) {
     }
   }, []);
 
+  const beginOperation = useCallback(() => {
+    operationEpochRef.current += 1;
+    controllersRef.current.forEach((controller) => controller.abort());
+    controllersRef.current.clear();
+    isCompilingRef.current = false;
+    isGeneratingRef.current = false;
+    setIsCompiling(false);
+    setIsGenerating(false);
+    setIsLoading(false);
+    return operationEpochRef.current;
+  }, []);
+
+  const updateLayout = useCallback((setter, value) => {
+    clearAutoCompileTimer();
+    beginOperation();
+    setter(value);
+  }, [beginOperation, clearAutoCompileTimer]);
+
+  const handleSetColumns = useCallback((value) => updateLayout(setColumns, value), [updateLayout]);
+  const handleSetFontSize = useCallback((value) => updateLayout(setFontSize, value), [updateLayout]);
+  const handleSetSpacing = useCallback((value) => updateLayout(setSpacing, value), [updateLayout]);
+  const handleSetMargins = useCallback((value) => updateLayout(setMargins, value), [updateLayout]);
+  const handleSetOrientation = useCallback((value) => updateLayout(setOrientation, value), [updateLayout]);
+
+  const request = useCallback(async (url, options, epoch) => {
+    const controller = new globalThis.AbortController();
+    controllersRef.current.add(controller);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      return epoch === operationEpochRef.current ? response : null;
+    } finally {
+      controllersRef.current.delete(controller);
+    }
+  }, []);
+
   const goBack = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
+      clearAutoCompileTimer();
+      beginOperation();
+      contentRevisionRef.current += 1;
       setHistoryIndex(newIndex);
       setContent(history[newIndex]?.content || '');
       setContentSource('manual');
       setCompileError(null);
       setContentModified(true);
     }
-  }, [historyIndex, history]);
+  }, [beginOperation, clearAutoCompileTimer, historyIndex, history]);
 
   const goForward = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
+      clearAutoCompileTimer();
+      beginOperation();
+      contentRevisionRef.current += 1;
       setHistoryIndex(newIndex);
       setContent(history[newIndex]?.content || '');
       setContentSource('manual');
       setCompileError(null);
       setContentModified(true);
     }
-  }, [historyIndex, history]);
+  }, [beginOperation, clearAutoCompileTimer, historyIndex, history]);
 
   const saveToHistory = useCallback((newContent) => {
     setHistory((previousHistory) => {
@@ -165,8 +222,8 @@ export function useLatex(initialData) {
   useEffect(() => {
     if (initialLoaded.current) return;
 
-    const saved = loadLatexStorage();
-    if (saved && initialData?.content == null) {
+    const saved = storageKey !== STORAGE_KEY || initialData === undefined ? loadLatexStorage(storageKey) : null;
+    if (saved) {
       initialLoaded.current = true;
       setTitle(saved.title ?? '');
       setContent(saved.content ?? '');
@@ -201,36 +258,40 @@ export function useLatex(initialData) {
         orientation: initialData.orientation ?? DEFAULT_LAYOUT.orientation,
       };
     }
-  }, [initialData]);
+  }, [initialData, storageKey]);
 
   const handleContentChange = useCallback((newContent) => {
+    clearAutoCompileTimer();
+    beginOperation();
+    contentRevisionRef.current += 1;
     setContent(newContent);
     setContentSource(newContent.trim() ? 'manual' : 'empty');
     setCompileError(null);
     setContentModified(true);
-  }, []);
+  }, [beginOperation, clearAutoCompileTimer]);
 
   const saveTimerRef = useRef(null);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      saveLatexStorage({ title, content, contentSource, columns, fontSize, spacing, margins, orientation });
+      saveLatexStorage(storageKey, { title, content, contentSource, columns, fontSize, spacing, margins, orientation });
     }, SAVE_DEBOUNCE_MS);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [title, content, contentSource, columns, fontSize, spacing, margins, orientation]);
+  }, [title, content, contentSource, columns, fontSize, spacing, margins, orientation, storageKey]);
 
-  const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}) => {
-    const response = await fetch('/api/compile/', {
+  const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}, epoch) => {
+    const response = await request('/api/compile/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
       },
       body: JSON.stringify({ content: latexContent, ...layoutOptions }),
-    });
+    }, epoch);
+    if (!response) return null;
 
     if (!response.ok) {
       const errorData = await readErrorResponse(response);
@@ -238,15 +299,26 @@ export function useLatex(initialData) {
     }
 
     const blob = await response.blob();
+    if (epoch !== operationEpochRef.current) return null;
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
     }
     pdfBlobUrlRef.current = URL.createObjectURL(blob);
     setPdfBlob(pdfBlobUrlRef.current);
-  }, [authTokens]);
+    return { pdfBlob: pdfBlobUrlRef.current };
+  }, [authTokens, request]);
 
-  const generateLatexContent = useCallback(async (selectedList) => {
-    const response = await fetch('/api/generate-sheet/', {
+  const publishCompileSnapshot = useCallback((compiled, snapshot) => {
+    if (!compiled) return;
+    setLastCompileSnapshot({
+      ...snapshot,
+      compiledAt: Date.now(),
+      pdfBlob: compiled.pdfBlob,
+    });
+  }, []);
+
+  const generateLatexContent = useCallback(async (selectedList, epoch) => {
+    const response = await request('/api/generate-sheet/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -257,7 +329,8 @@ export function useLatex(initialData) {
         margins,
         orientation,
       }),
-    });
+    }, epoch);
+    if (!response) return null;
 
     if (!response.ok) {
       const errorData = await readErrorResponse(response);
@@ -265,11 +338,12 @@ export function useLatex(initialData) {
     }
 
     const data = await response.json();
+    if (epoch !== operationEpochRef.current) return null;
     return data.tex_code;
-  }, [columns, fontSize, spacing, margins, orientation]);
+  }, [columns, fontSize, spacing, margins, orientation, request]);
 
-  const normalizeLatexContent = useCallback(async (latexContent) => {
-    const response = await fetch('/api/compile/', {
+  const normalizeLatexContent = useCallback(async (latexContent, epoch) => {
+    const response = await request('/api/compile/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -284,7 +358,8 @@ export function useLatex(initialData) {
         orientation,
         normalize_only: true,
       }),
-    });
+    }, epoch);
+    if (!response) return null;
 
     if (!response.ok) {
       const errorData = await readErrorResponse(response);
@@ -292,8 +367,9 @@ export function useLatex(initialData) {
     }
 
     const data = await response.json();
+    if (epoch !== operationEpochRef.current) return null;
     return data.tex_code || latexContent;
-  }, [authTokens, columns, fontSize, margins, spacing, orientation]);
+  }, [authTokens, columns, fontSize, margins, spacing, orientation, request]);
 
   const hasLayoutChanges =
     lastCompiledLayoutRef.current.columns !== columns ||
@@ -304,12 +380,26 @@ export function useLatex(initialData) {
     
   const canRegenerateFromSelections = !content.trim() || contentSource === 'generated';
 
-  const handleCompileOnly = useCallback(async (selectedList = []) => {
+  const handleCompileOnly = useCallback(async (selectedList) => {
     clearAutoCompileTimer();
-    if (isCompilingRef.current) return;
-
+    const epoch = beginOperation();
+    const revision = contentRevisionRef.current;
     const hasContent = content.trim().length > 0;
-    if (!hasContent && selectedList.length === 0) {
+    const operationSelectedFormulas = selectedList === undefined
+      ? currentSelectedFormulasRef.current
+      : selectedList;
+    const operationSnapshot = {
+      title,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      orientation,
+      selectedFormulas: operationSelectedFormulas,
+      contentSource: hasContent ? contentSource : 'generated',
+    };
+
+    if (!hasContent && operationSelectedFormulas.length === 0) {
       alert('Select formulas first or generate a sheet before compiling.');
       return;
     }
@@ -322,7 +412,8 @@ export function useLatex(initialData) {
       let contentToCompile = content;
 
       if (!hasContent) {
-        const generatedContent = await generateLatexContent(selectedList);
+        const generatedContent = await generateLatexContent(operationSelectedFormulas, epoch);
+        if (!generatedContent || epoch !== operationEpochRef.current) return;
         if (content) saveToHistory(generatedContent);
         contentToCompile = generatedContent;
         setContent(generatedContent);
@@ -330,26 +421,30 @@ export function useLatex(initialData) {
       }
 
       if (hasContent && hasLayoutChanges) {
-        contentToCompile = await normalizeLatexContent(contentToCompile);
-        setContent(contentToCompile);
+        contentToCompile = await normalizeLatexContent(contentToCompile, epoch);
+        if (!contentToCompile || epoch !== operationEpochRef.current) return;
       }
 
-      await compileLatexContent(contentToCompile, {
+      const compiled = await compileLatexContent(contentToCompile, {
         columns,
         font_size: fontSize,
         spacing,
         margins,
         orientation,
-      });
+      }, epoch);
+      if (!compiled || epoch !== operationEpochRef.current) return;
       lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins, orientation };
-      setContentModified(false);
+      publishCompileSnapshot(compiled, { ...operationSnapshot, content: contentToCompile });
+      if (revision === contentRevisionRef.current) setContentModified(false);
     } catch (error) {
-      setCompileError(error.message);
+      if (epoch === operationEpochRef.current && error.name !== 'AbortError') setCompileError(error.message);
     } finally {
-      setIsCompiling(false);
-      isCompilingRef.current = false;
+      if (epoch === operationEpochRef.current) {
+        setIsCompiling(false);
+        isCompilingRef.current = false;
+      }
     }
-  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing, orientation]);
+  }, [beginOperation, clearAutoCompileTimer, columns, compileLatexContent, content, contentSource, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, publishCompileSnapshot, saveToHistory, spacing, orientation, title]);
 
   useEffect(() => {
     if (!initialLoaded.current) return;
@@ -370,34 +465,35 @@ export function useLatex(initialData) {
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
     clearAutoCompileTimer();
-    if (isCompilingRef.current) return;
+    const epoch = beginOperation();
+    const revision = contentRevisionRef.current;
+    const operationSnapshot = {
+      title,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      orientation,
+      selectedFormulas: regenerateOptions?.formulas || currentSelectedFormulasRef.current,
+      contentSource: regenerateOptions ? 'generated' : contentSource,
+    };
     
     let contentToCompile = latexContent || content;
     
     if (regenerateOptions) {
       try {
-        const response = await fetch('/api/generate-sheet/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            formulas: regenerateOptions.formulas,
-            columns: regenerateOptions.columns,
-            font_size: regenerateOptions.fontSize,
-            spacing: regenerateOptions.spacing,
-            margins: margins,
-            orientation: orientation
-          }),
-        });
-        if (response.ok) {
-          const data = await response.json();
-          contentToCompile = data.tex_code;
-          setContent(data.tex_code);
+        const data = await generateLatexContent(regenerateOptions.formulas, epoch);
+        if (data && epoch === operationEpochRef.current) {
+          contentToCompile = data;
+          setContent(data);
           setContentSource('generated');
-          if (content) saveToHistory(data.tex_code);
+          if (content) saveToHistory(data);
         }
       } catch (e) {
-        console.error('Failed to regenerate:', e);
+        if (epoch === operationEpochRef.current && e.name !== 'AbortError') setCompileError(e.message);
+        return;
       }
+      if (epoch !== operationEpochRef.current) return;
     }
     
     isCompilingRef.current = true;
@@ -405,76 +501,101 @@ export function useLatex(initialData) {
     setCompileError(null);
     try {
       if ((latexContent || content) && hasLayoutChanges) {
-        contentToCompile = await normalizeLatexContent(contentToCompile);
-        setContent(contentToCompile);
+        contentToCompile = await normalizeLatexContent(contentToCompile, epoch);
+        if (!contentToCompile || epoch !== operationEpochRef.current) return;
       }
 
-      await compileLatexContent(contentToCompile, {
+      const compiled = await compileLatexContent(contentToCompile, {
         columns,
         font_size: fontSize,
         spacing,
         margins,
         orientation,
-      });
+      }, epoch);
+      if (!compiled || epoch !== operationEpochRef.current) return;
       lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins, orientation };
-      setContentModified(false);
+      publishCompileSnapshot(compiled, { ...operationSnapshot, content: contentToCompile });
+      if (revision === contentRevisionRef.current) setContentModified(false);
     } catch (error) {
-      setCompileError(error.message);
+      if (epoch === operationEpochRef.current && error.name !== 'AbortError') setCompileError(error.message);
     } finally {
-      setIsCompiling(false);
-      isCompilingRef.current = false;
+      if (epoch === operationEpochRef.current) {
+        setIsCompiling(false);
+        isCompilingRef.current = false;
+      }
     }
-  }, [clearAutoCompileTimer, columns, compileLatexContent, content, fontSize, hasLayoutChanges, margins, normalizeLatexContent, saveToHistory, spacing, orientation]);
-
-  useEffect(() => {
-    if (!initialLoaded.current || hasRestoredPreviewRef.current) return;
-    if (!initialData?.compileHistory?.length) return;
-    if (!content?.trim()) return;
-
-    hasRestoredPreviewRef.current = true;
-    handlePreview(content);
-  }, [content, handlePreview, initialData?.compileHistory?.length]);
+  }, [beginOperation, clearAutoCompileTimer, columns, compileLatexContent, content, contentSource, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, publishCompileSnapshot, saveToHistory, spacing, orientation, title]);
 
   const handleGenerateSheet = async (selectedList) => {
     clearAutoCompileTimer();
-    if (isGeneratingRef.current) return;
     if (selectedList.length === 0) {
       alert('Please select at least one category first.');
       return;
     }
 
+    const epoch = beginOperation();
+    const operationSnapshot = {
+      title,
+      columns,
+      fontSize,
+      spacing,
+      margins,
+      orientation,
+      selectedFormulas: selectedList,
+      contentSource: 'generated',
+    };
+    let generated = false;
     isGeneratingRef.current = true;
     setIsGenerating(true);
     try {
-      const generatedContent = await generateLatexContent(selectedList);
+      const generatedContent = await generateLatexContent(selectedList, epoch);
+      if (!generatedContent || epoch !== operationEpochRef.current) return;
       if (content) saveToHistory(generatedContent);
       setContent(generatedContent);
       setContentSource('generated');
       setContentModified(false);
-      setPdfBlob(null);
-      handlePreview(generatedContent, null);
-    } catch (error) {
-      console.error('Error generating sheet:', error);
-      alert('Failed to generate LaTeX. Is the backend running?');
-    } finally {
-      setIsGenerating(false);
+      generated = true;
       isGeneratingRef.current = false;
+      setIsGenerating(false);
+      isCompilingRef.current = true;
+      setIsCompiling(true);
+      setCompileError(null);
+      const compiled = await compileLatexContent(generatedContent, {
+        columns, font_size: fontSize, spacing, margins, orientation,
+      }, epoch);
+      if (compiled && epoch === operationEpochRef.current) {
+        lastCompiledLayoutRef.current = { columns, fontSize, spacing, margins, orientation };
+        publishCompileSnapshot(compiled, { ...operationSnapshot, content: generatedContent });
+      }
+    } catch (error) {
+      if (epoch === operationEpochRef.current && error.name !== 'AbortError') {
+        if (generated) setCompileError(error.message);
+        else {
+          console.error('Error generating sheet:', error);
+          alert('Failed to generate LaTeX. Is the backend running?');
+        }
+      }
+    } finally {
+      if (epoch === operationEpochRef.current) {
+        setIsGenerating(false);
+        setIsCompiling(false);
+        isGeneratingRef.current = false;
+        isCompilingRef.current = false;
+      }
     }
   };
 
   const handleDownloadPDF = async () => {
     clearAutoCompileTimer();
+    const epoch = beginOperation();
     setIsLoading(true);
     try {
       const normalizedContent = hasLayoutChanges
-        ? await normalizeLatexContent(content)
+        ? await normalizeLatexContent(content, epoch)
         : content;
+      if (!normalizedContent || epoch !== operationEpochRef.current) return;
 
-      if (hasLayoutChanges) {
-        setContent(normalizedContent);
-      }
-
-      const response = await fetch('/api/compile/', {
+      const response = await request('/api/compile/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -488,12 +609,14 @@ export function useLatex(initialData) {
           margins,
           orientation,
         }),
-      });
+      }, epoch);
+      if (!response || epoch !== operationEpochRef.current) return;
       if (!response.ok) {
         const errorData = await readErrorResponse(response);
         throw new Error(formatCompileError(errorData));
       }
       const blob = await response.blob();
+      if (epoch !== operationEpochRef.current) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -503,10 +626,12 @@ export function useLatex(initialData) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Check console for details.');
+      if (epoch === operationEpochRef.current && error.name !== 'AbortError') {
+        console.error('Error generating PDF:', error);
+        alert('Failed to generate PDF. Check console for details.');
+      }
     } finally {
-      setIsLoading(false);
+      if (epoch === operationEpochRef.current) setIsLoading(false);
     }
   };
 
@@ -516,14 +641,13 @@ export function useLatex(initialData) {
       return;
     }
 
+    const epoch = beginOperation();
     try {
       const normalizedContent = hasLayoutChanges
-        ? await normalizeLatexContent(content)
+        ? await normalizeLatexContent(content, epoch)
         : content;
+      if (!normalizedContent || epoch !== operationEpochRef.current) return;
 
-      if (hasLayoutChanges) {
-        setContent(normalizedContent);
-      }
       const blob = new Blob([normalizedContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -534,8 +658,10 @@ export function useLatex(initialData) {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error generating TeX:', error);
-      alert('Failed to prepare TeX download. Check console for details.');
+      if (epoch === operationEpochRef.current && error.name !== 'AbortError') {
+        console.error('Error generating TeX:', error);
+        alert('Failed to prepare TeX download. Check console for details.');
+      }
     }
   };
 
@@ -567,6 +693,7 @@ export function useLatex(initialData) {
 
   const clearLatex = () => {
     clearAutoCompileTimer();
+    beginOperation();
     setTitle(initialData?.title ?? '');
     setContent('');
     setContentSource('empty');
@@ -590,8 +717,9 @@ export function useLatex(initialData) {
       pdfBlobUrlRef.current = null;
     }
     setPdfBlob(null);
+    setLastCompileSnapshot(null);
     setCompileError(null);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey);
   };
 
   return {
@@ -605,20 +733,21 @@ export function useLatex(initialData) {
     hasLayoutChanges,
     handleContentChange,
     columns,
-    setColumns,
+    setColumns: handleSetColumns,
     fontSize,
-    setFontSize,
+    setFontSize: handleSetFontSize,
     spacing,
-    setSpacing,
+    setSpacing: handleSetSpacing,
     margins,
-    setMargins,
+    setMargins: handleSetMargins,
     orientation,
-    setOrientation,
+    setOrientation: handleSetOrientation,
     pdfBlob,
     isGenerating,
     isCompiling,
     isLoading,
     compileError,
+    lastCompileSnapshot,
     canGoBack,
     canGoForward,
     goBack,

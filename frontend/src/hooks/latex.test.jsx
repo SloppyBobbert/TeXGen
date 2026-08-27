@@ -1,32 +1,40 @@
 import { renderHook, act } from '@testing-library/react';
 import { useLatex } from './latex';
 import AuthContext from '../context/AuthContext';
-import { vi } from 'vitest';
+import { vi, afterEach } from 'vitest';
 
 // Mock localStorage
 const mockLocalStorage = (() => {
   let store = {};
   return {
-    getItem: (key) => store[key] || null,
+    getItem: (key) => store[key] ?? null,
     setItem: (key, value) => { store[key] = value.toString(); },
+    removeItem: (key) => { delete store[key]; },
     clear: () => { store = {}; }
   };
 })();
-Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
-
-// Mock global URL
-global.URL.createObjectURL = vi.fn(() => 'blob:test-url');
-global.URL.revokeObjectURL = vi.fn();
-
-// Mock fetch
-global.fetch = vi.fn();
-
-// Mock alert for jsdom
-window.alert = vi.fn();
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((nextResolve) => { resolve = nextResolve; });
+  return { promise, resolve };
+};
 
 describe('useLatex hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocalStorage.clear();
+    vi.stubGlobal('localStorage', mockLocalStorage);
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:test-url'),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.stubGlobal('fetch', vi.fn());
+    vi.stubGlobal('alert', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     mockLocalStorage.clear();
   });
 
@@ -244,5 +252,310 @@ describe('useLatex hook', () => {
 
     expect(mockClick).toHaveBeenCalled();
     expect(mockElement.download).toBe('FileTitle.tex');
+  });
+
+  test('keeps manual source and the existing PDF when normalized compilation fails', async () => {
+    const { result } = renderHook(() => useLatex({
+      content: 'manual source',
+      contentSource: 'manual',
+    }), { wrapper });
+
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['old pdf']) });
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+
+    act(() => { result.current.setColumns(3); });
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'normalized source' }) })
+      .mockResolvedValueOnce({ ok: false, text: async () => 'Compile failed' });
+
+    await act(async () => { await result.current.handleCompileOnly(); });
+
+    expect(result.current.content).toBe('manual source');
+    expect(result.current.contentSource).toBe('manual');
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.compileError).toBe('Compile failed');
+  });
+
+  test('keeps the latest generated source and preview when an earlier preview blob resolves late', async () => {
+    const firstBlob = deferred();
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'first source' }) })
+      .mockResolvedValueOnce({ ok: true, blob: () => firstBlob.promise })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'second source' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['second pdf']) });
+
+    let firstGenerate;
+    await act(async () => {
+      firstGenerate = result.current.handleGenerateSheet(['first']);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.content).toBe('first source');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => { await result.current.handleGenerateSheet(['second']); });
+    await act(async () => {
+      firstBlob.resolve(new Blob(['first pdf']));
+      await firstGenerate;
+    });
+
+    expect(result.current.content).toBe('second source');
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.isGenerating).toBe(false);
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('does not compile or change loading state after an aborted regeneration resolves', async () => {
+    const response = deferred();
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    global.fetch.mockImplementationOnce(() => response.promise);
+
+    let regeneration;
+    await act(async () => {
+      regeneration = result.current.handleGenerateSheet(['formula']);
+      await Promise.resolve();
+    });
+    const signal = global.fetch.mock.calls[0][1].signal;
+
+    act(() => { result.current.clearLatex(); });
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      response.resolve({ ok: true, json: async () => ({ tex_code: 'stale source' }) });
+      await regeneration;
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.content).toBe('');
+    expect(result.current.isGenerating).toBe(false);
+    expect(result.current.isCompiling).toBe(false);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  test('does not download a PDF when Clear occurs before the deferred response blob resolves', async () => {
+    const pdfBlob = deferred();
+    const mockClick = vi.fn();
+    const { result } = renderHook(() => useLatex({ content: 'source', title: 'sheet' }), { wrapper });
+    vi.spyOn(document, 'createElement').mockReturnValue({ click: mockClick });
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: () => pdfBlob.promise });
+
+    let download;
+    await act(async () => {
+      download = result.current.handleDownloadPDF();
+      await Promise.resolve();
+    });
+    act(() => { result.current.clearLatex(); });
+    await act(async () => {
+      pdfBlob.resolve(new Blob(['pdf']));
+      await download;
+    });
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(mockClick).not.toHaveBeenCalled();
+  });
+
+  test('keeps history-restored source marked modified when a pending compile resolves', async () => {
+    const pendingCompile = deferred();
+    const { result } = renderHook(() => useLatex({ content: 'original' }), { wrapper });
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'first history entry' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['first']) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'second history entry' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['second']) })
+      .mockResolvedValueOnce({ ok: true, blob: () => pendingCompile.promise });
+
+    await act(async () => { await result.current.handleGenerateSheet(['one']); });
+    await act(async () => { await result.current.handleGenerateSheet(['two']); });
+
+    let compile;
+    await act(async () => {
+      compile = result.current.handleCompileOnly();
+      await Promise.resolve();
+    });
+    act(() => { result.current.goBack(); });
+    await act(async () => {
+      pendingCompile.resolve(new Blob(['late compile']));
+      await compile;
+    });
+
+    expect(result.current.content).toBe('first history entry');
+    expect(result.current.contentSource).toBe('manual');
+    expect(result.current.contentModified).toBe(true);
+  });
+
+  test('does not publish a pending compile PDF or snapshot after a manual edit', async () => {
+    const pendingBlob = deferred();
+    const { result } = renderHook(() => useLatex({ content: 'original', contentSource: 'manual' }), { wrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: () => pendingBlob.promise });
+
+    let compile;
+    await act(async () => {
+      compile = result.current.handleCompileOnly();
+      await Promise.resolve();
+    });
+    act(() => { result.current.handleContentChange('edited source'); });
+    await act(async () => {
+      pendingBlob.resolve(new Blob(['stale pdf']));
+      await compile;
+    });
+
+    expect(result.current.content).toBe('edited source');
+    expect(result.current.pdfBlob).toBeNull();
+    expect(result.current.lastCompileSnapshot).toBeNull();
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('ignores a generated source when a manual edit occurs before its response body resolves', async () => {
+    const generated = deferred();
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: () => generated.promise });
+
+    let operation;
+    await act(async () => {
+      operation = result.current.handleGenerateSheet(['formula']);
+      await Promise.resolve();
+    });
+    act(() => { result.current.handleContentChange('manual source'); });
+    await act(async () => {
+      generated.resolve({ tex_code: 'stale generated source' });
+      await operation;
+    });
+
+    expect(result.current.content).toBe('manual source');
+    expect(result.current.pdfBlob).toBeNull();
+    expect(result.current.isGenerating).toBe(false);
+  });
+
+  test('does not compile normalized content after a manual edit during the normalize response body', async () => {
+    const normalized = deferred();
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper });
+    act(() => { result.current.setColumns(3); });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: () => normalized.promise });
+
+    let operation;
+    await act(async () => {
+      operation = result.current.handleCompileOnly();
+      await Promise.resolve();
+    });
+    act(() => { result.current.handleContentChange('manual source'); });
+    await act(async () => {
+      normalized.resolve({ tex_code: 'normalized source' });
+      await operation;
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.content).toBe('manual source');
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('does not publish a PDF when unmounted after compile headers and before the blob resolves', async () => {
+    const pendingBlob = deferred();
+    const { result, unmount } = renderHook(() => useLatex({ content: 'source' }), { wrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: () => pendingBlob.promise });
+
+    let compile;
+    await act(async () => {
+      compile = result.current.handleCompileOnly();
+      await Promise.resolve();
+    });
+    unmount();
+    await act(async () => {
+      pendingBlob.resolve(new Blob(['stale pdf']));
+      await compile;
+    });
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  test('uses current selections for automatic and restored preview snapshots', async () => {
+    const selectedFormulas = [{ class: 'Algebra', category: 'Linear', name: 'Slope Formula' }];
+    const { result } = renderHook(() => useLatex({ content: 'source', contentSource: 'manual' }, undefined, selectedFormulas), { wrapper });
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['auto']) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['preview']) });
+
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.lastCompileSnapshot.selectedFormulas).toEqual(selectedFormulas);
+
+    await act(async () => { await result.current.handlePreview('restored source'); });
+    expect(result.current.lastCompileSnapshot.selectedFormulas).toEqual(selectedFormulas);
+  });
+
+  test('does not start restored preview compilation without component orchestration', async () => {
+    const selectedFormulas = [{ class: 'Physics', category: 'Motion', name: 'Velocity' }];
+    const { result } = renderHook(() => useLatex({
+      content: 'restored source',
+      contentSource: 'manual',
+      compileHistory: [{ content: 'older source' }],
+    }, undefined, selectedFormulas), { wrapper });
+
+    await act(async () => { await Promise.resolve(); });
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.current.lastCompileSnapshot).toBeNull();
+  });
+
+  test('debounces the newest layout after a pending compile and publishes only its snapshot', async () => {
+    const pendingBlob = deferred();
+    const selectedFormulas = [{ class: 'Geometry', category: 'Shapes', name: 'Area of Circle' }];
+    const { result } = renderHook(() => useLatex({ content: 'source' }, undefined, selectedFormulas), { wrapper });
+    vi.useFakeTimers();
+    global.fetch.mockImplementation((_url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.normalize_only) return Promise.resolve({ ok: true, json: async () => ({ tex_code: 'normalized source' }) });
+      if (body.orientation === 'landscape') return Promise.resolve({ ok: true, blob: async () => new Blob(['new pdf']) });
+      return Promise.resolve({ ok: true, blob: () => pendingBlob.promise });
+    });
+
+    let firstCompile;
+    await act(async () => {
+      firstCompile = result.current.handleCompileOnly();
+      await Promise.resolve();
+    });
+    act(() => {
+      result.current.setColumns(3);
+      result.current.setOrientation('landscape');
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(450); });
+    await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).normalize_only)).toHaveLength(1));
+    await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).orientation === 'landscape' && !JSON.parse(options.body).normalize_only)).toHaveLength(1));
+    await act(async () => {
+      pendingBlob.resolve(new Blob(['stale pdf']));
+      await firstCompile;
+    });
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.lastCompileSnapshot.columns).toBe(3);
+    expect(result.current.lastCompileSnapshot.orientation).toBe('landscape');
+    expect(result.current.lastCompileSnapshot.selectedFormulas).toEqual(selectedFormulas);
+    vi.useRealTimers();
+  });
+
+  test('does not start a stale PDF download after a manual edit while its blob is pending', async () => {
+    const pendingBlob = deferred();
+    const mockClick = vi.fn();
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper });
+    vi.spyOn(document, 'createElement').mockReturnValue({ click: mockClick });
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => {});
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => {});
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: () => pendingBlob.promise });
+
+    let download;
+    await act(async () => {
+      download = result.current.handleDownloadPDF();
+      await Promise.resolve();
+    });
+    act(() => { result.current.handleContentChange('manual source'); });
+    await act(async () => {
+      pendingBlob.resolve(new Blob(['stale download']));
+      await download;
+    });
+
+    expect(result.current.content).toBe('manual source');
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(mockClick).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
   });
 });
