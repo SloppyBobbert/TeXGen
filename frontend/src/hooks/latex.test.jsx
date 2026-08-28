@@ -43,6 +43,11 @@ describe('useLatex hook', () => {
       {children}
     </AuthContext.Provider>
   );
+  const signedOutWrapper = ({ children }) => (
+    <AuthContext.Provider value={{ authTokens: null }}>
+      {children}
+    </AuthContext.Provider>
+  );
 
   test('initializes with default values when no storage or initial data is provided', () => {
     const { result } = renderHook(() => useLatex(), { wrapper });
@@ -234,6 +239,80 @@ describe('useLatex hook', () => {
 
     expect(result.current.compileError).toContain('Syntax error');
     expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('requires sign-in without fetching when compiling signed out', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+
+    await act(async () => { await result.current.handleCompileOnly(); });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.current.authenticationRequired).toBe(true);
+    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('requires sign-in without fetching when downloading a PDF signed out', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+
+    await act(async () => { await result.current.handleDownloadPDF(); });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(result.current.authenticationRequired).toBe(true);
+    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  test('treats a compile 401 as sign-in required without compiler diagnostics', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper });
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'compiler diagnostic' });
+
+    await act(async () => { await result.current.handleCompileOnly(); });
+
+    expect(result.current.authenticationRequired).toBe(true);
+    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+  });
+
+  test('generates source while signed out without starting compilation', async () => {
+    const { result } = renderHook(() => useLatex(), { wrapper: signedOutWrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'generated source' }) });
+
+    await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'first' }]); });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith('/api/generate-sheet/', expect.anything());
+    expect(result.current.content).toBe('generated source');
+    expect(result.current.contentSource).toBe('generated');
+    expect(result.current.authenticationRequired).toBe(true);
+    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+  });
+
+  test('sends canonical formula IDs in selected order when generating', async () => {
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'generated source' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
+
+    await act(async () => {
+      await result.current.handleGenerateSheet([{ id: 'second' }, { formula_id: 'first' }]);
+    });
+
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).formulas).toEqual([
+      { formula_id: 'second' },
+      { formula_id: 'first' },
+    ]);
+  });
+
+  test('keeps all legacy records when canonical formula IDs are unavailable', async () => {
+    const { result } = renderHook(() => useLatex(), { wrapper });
+    const formulas = [{ class: 'Algebra', name: 'Slope' }, { class: 'Geometry', name: 'Area' }];
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'generated source' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
+
+    await act(async () => { await result.current.handleGenerateSheet(formulas); });
+
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).formulas).toEqual(formulas);
   });
 
   test('handleDownloadTex works correctly', () => {

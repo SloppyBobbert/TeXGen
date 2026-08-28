@@ -4,15 +4,37 @@ from django.db import models
 from .latex_utils import get_body_font_command, get_document_class, get_spacing_values
 
 class Template(models.Model):
+    SOURCE_MODE_CHOICES = [
+        ("empty", "Empty"),
+        ("generated", "Generated"),
+        ("raw", "Raw"),
+    ]
+
     name = models.CharField(max_length=200)
     subject = models.CharField(max_length=100)
     description = models.TextField(blank=True, default="")
     latex_content = models.TextField()
-    default_columns = models.IntegerField(default=2)
-    default_margins = models.CharField(max_length=20, default="0.5in")
+    default_columns = models.IntegerField(default=4)
+    default_margins = models.CharField(max_length=20, default="0.15in")
     selected_formulas = models.JSONField(default=list, blank=True)
+    schema_version = models.PositiveIntegerField(default=1)
+    revision = models.PositiveBigIntegerField(default=1)
+    source_mode = models.CharField(max_length=20, choices=SOURCE_MODE_CHOICES, default="empty")
+    formula_selections = models.JSONField(default=list, blank=True)
+    default_font_size = models.CharField(max_length=10, default="9pt")
+    default_spacing = models.CharField(max_length=10, default="small")
+    default_orientation = models.CharField(max_length=20, default="portrait")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(schema_version=1), name="template_schema_version_is_1"),
+            models.CheckConstraint(condition=models.Q(revision__gte=1), name="template_revision_gte_1"),
+            models.CheckConstraint(condition=models.Q(source_mode__in=["empty", "generated", "raw"]), name="template_source_mode_valid"),
+            models.CheckConstraint(condition=models.Q(default_columns__range=(1, 5)), name="template_default_columns_1_to_5"),
+            models.CheckConstraint(condition=models.Q(default_orientation__in=["portrait", "landscape"]), name="template_default_orientation_valid"),
+        ]
 
     def __str__(self):
         return self.name
@@ -23,6 +45,11 @@ class CheatSheet(models.Model):
         ("empty", "Empty"),
         ("generated", "Generated"),
         ("manual", "Manual"),
+    ]
+    SOURCE_MODE_CHOICES = [
+        ("empty", "Empty"),
+        ("generated", "Generated"),
+        ("raw", "Raw"),
     ]
 
     title = models.CharField(max_length=200)
@@ -43,8 +70,21 @@ class CheatSheet(models.Model):
     orientation = models.CharField(max_length=20, default="portrait")
     # Stores selected formulas with user-defined order: [{"class": "...", "category": "...", "name": "..."}]
     selected_formulas = models.JSONField(default=list, blank=True)
+    schema_version = models.PositiveIntegerField(default=1)
+    revision = models.PositiveBigIntegerField(default=1)
+    source_mode = models.CharField(max_length=20, choices=SOURCE_MODE_CHOICES, default="empty")
+    formula_selections = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(schema_version=1), name="cheatsheet_schema_version_is_1"),
+            models.CheckConstraint(condition=models.Q(revision__gte=1), name="cheatsheet_revision_gte_1"),
+            models.CheckConstraint(condition=models.Q(source_mode__in=["empty", "generated", "raw"]), name="cheatsheet_source_mode_valid"),
+            models.CheckConstraint(condition=models.Q(columns__range=(1, 5)), name="cheatsheet_columns_1_to_5"),
+            models.CheckConstraint(condition=models.Q(orientation__in=["portrait", "landscape"]), name="cheatsheet_orientation_valid"),
+        ]
 
     def __str__(self):
         return self.title

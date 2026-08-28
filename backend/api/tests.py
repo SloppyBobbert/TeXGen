@@ -16,7 +16,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, compile_latex_to_pdf, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 from api.compiler import validate_cheat_sheet_id
-from api.views import CompileAnonThrottle, CompileUserThrottle, YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
+from api.views import CompileUserThrottle, YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
 
 
 @pytest.fixture
@@ -40,6 +40,7 @@ def sample_template(db):
         subject="algebra",
         description="A test template",
         latex_content="\\section*{Test}\nHello World",
+        source_mode="generated",
         default_margins="0.5in",
         default_columns=2,
     )
@@ -53,6 +54,7 @@ def sample_sheet(db, sample_template, auth_client):
         user=auth_client.handler._force_user,  # the user force_authenticate() set
         latex_content="Some content here",
         content_source="manual",
+        source_mode="raw",
         margins="0.75in",
         columns=2,
         font_size="10pt",
@@ -707,7 +709,7 @@ class TestCheatSheetAPI:
             {
                 "title": "Generated Sheet",
                 "latex_content": "Generated LaTeX",
-                "selected_formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope"}],
+                "selected_formulas": [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}],
             },
             format="json",
         )
@@ -724,7 +726,7 @@ class TestCheatSheetAPI:
     def test_update_cheatsheet(self, auth_client, sample_sheet):
         resp = auth_client.patch(
             f"/api/cheatsheets/{sample_sheet.id}/",
-            {"margins": "0.25in", "columns": 3, "spacing": "small", "content_source": "generated"},
+            {"revision": sample_sheet.revision, "margins": "0.25in", "columns": 3, "spacing": "small", "content_source": "generated"},
             format="json",
         )
         assert resp.status_code == 200
@@ -827,14 +829,16 @@ class TestCreateFromTemplate:
         assert data["columns"] == sample_template.default_columns
 
     def test_create_from_template_marks_copied_content_as_generated(self, auth_client):
-        formulas = [{"class": "ALGEBRA I", "name": "Slope Formula"}]
+        formulas = [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}]
         template = Template.objects.create(
             name="Generated template",
             subject="algebra",
             latex_content="Template content",
+            source_mode="generated",
             default_columns=3,
             default_margins="0.5in",
             selected_formulas=formulas,
+            formula_selections=[{"formula_id": "algebra-i.slope-formula"}],
         )
 
         response = auth_client.post(
@@ -1342,7 +1346,7 @@ class TestCompileEndpoint:
 
     def test_compile_requires_content_or_id_for_anonymous_users(self, api_client):
         resp = api_client.post("/api/compile/", {}, format="json")
-        assert resp.status_code == 400
+        assert resp.status_code == 401
 
     def test_compile_with_nonexistent_sheet(self, auth_client):
         resp = auth_client.post(
@@ -1352,7 +1356,7 @@ class TestCompileEndpoint:
         )
         assert resp.status_code == 404
 
-    def test_compile_normalize_only_returns_updated_tex_code(self, api_client):
+    def test_compile_normalize_only_returns_updated_tex_code(self, auth_client):
         raw = (
             "\\documentclass{article}\n"
             "\\begin{document}\n"
@@ -1368,7 +1372,7 @@ class TestCompileEndpoint:
             "\\end{document}"
         )
 
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/compile/",
             {
                 "content": raw,
@@ -1390,7 +1394,7 @@ class TestCompileEndpoint:
         assert "\\vspace{0.6pt}" in tex
         assert "\\vspace{1.2pt}" not in tex
 
-    def test_compile_normalize_only_refreshes_layout_comments_from_request_values(self, api_client):
+    def test_compile_normalize_only_refreshes_layout_comments_from_request_values(self, auth_client):
         raw = (
             "\\documentclass{article}\n"
             "\\begin{document}\n"
@@ -1404,7 +1408,7 @@ class TestCompileEndpoint:
             "\\end{document}"
         )
 
-        resp = api_client.post(
+        resp = auth_client.post(
             "/api/compile/",
             {
                 "content": raw,
@@ -1548,8 +1552,15 @@ class TestPhaseOneTransfer:
         ).status_code == 201
 
     def test_template_selection_is_exposed_and_copied(self, api_client, auth_client):
-        formulas = [{"class": "ALGEBRA I", "name": "Slope Formula"}]
-        template = Template.objects.create(name="Formula template", subject="algebra", latex_content="Content", selected_formulas=formulas)
+        formulas = [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}]
+        template = Template.objects.create(
+            name="Formula template",
+            subject="algebra",
+            latex_content="Content",
+            source_mode="generated",
+            selected_formulas=formulas,
+            formula_selections=[{"formula_id": "algebra-i.slope-formula"}],
+        )
         assert api_client.get(f"/api/templates/{template.id}/").json()["selected_formulas"] == formulas
         response = auth_client.post("/api/cheatsheets/from-template/", {"template_id": template.id}, format="json")
         assert response.status_code == 201
@@ -1578,13 +1589,13 @@ class TestPhaseOneTransfer:
         assert auth_client.post("/api/compile/", {"cheat_sheet_id": cheat_sheet_id}, format="json").status_code == 400
 
     @override_settings(COMPILER_SOURCE_MAX_BYTES=4)
-    def test_compile_enforces_utf8_source_byte_limit(self, api_client):
-        assert api_client.post("/api/compile/", {"content": "1234", "normalize_only": True}, format="json").status_code == 200
-        assert api_client.post("/api/compile/", {"content": "éé", "normalize_only": True}, format="json").status_code == 200
-        assert api_client.post("/api/compile/", {"content": "ééé", "normalize_only": True}, format="json").status_code == 413
+    def test_compile_enforces_utf8_source_byte_limit(self, auth_client):
+        assert auth_client.post("/api/compile/", {"content": "1234", "normalize_only": True}, format="json").status_code == 200
+        assert auth_client.post("/api/compile/", {"content": "éé", "normalize_only": True}, format="json").status_code == 200
+        assert auth_client.post("/api/compile/", {"content": "ééé", "normalize_only": True}, format="json").status_code == 413
 
-    def test_compile_rejects_json_lone_surrogate(self, api_client):
-        response = api_client.post(
+    def test_compile_rejects_json_lone_surrogate(self, auth_client):
+        response = auth_client.post(
             "/api/compile/",
             b'{"content":"\\ud800","normalize_only":true}',
             content_type="application/json",
@@ -1593,19 +1604,19 @@ class TestPhaseOneTransfer:
 
     @patch("api.views.subprocess.run")
     @override_settings(COMPILER_TIMEOUT_SECONDS=7)
-    def test_compile_timeout_and_failure_are_generic(self, run, api_client):
+    def test_compile_timeout_and_failure_are_generic(self, run, auth_client):
         run.side_effect = subprocess.TimeoutExpired("tectonic", 7)
-        assert api_client.post("/api/compile/", {"content": "x"}, format="json").status_code == 408
+        assert auth_client.post("/api/compile/", {"content": "x"}, format="json").status_code == 408
         assert run.call_args.kwargs["timeout"] == 7
         run.side_effect = subprocess.CalledProcessError(1, "tectonic", stderr="sensitive compiler path")
-        response = api_client.post("/api/compile/", {"content": "x"}, format="json")
+        response = auth_client.post("/api/compile/", {"content": "x"}, format="json")
         assert response.json() == {"error": "Failed to compile LaTeX"}
         assert run.call_args.kwargs["stdout"] is subprocess.DEVNULL
         assert run.call_args.kwargs["stderr"] is subprocess.DEVNULL
 
     @patch("api.views.subprocess.run", side_effect=FileNotFoundError("sensitive executable path"))
-    def test_compile_missing_executable_is_generic(self, _run, api_client):
-        response = api_client.post("/api/compile/", {"content": "x"}, format="json")
+    def test_compile_missing_executable_is_generic(self, _run, auth_client):
+        response = auth_client.post("/api/compile/", {"content": "x"}, format="json")
         assert response.status_code == 500
         assert response.json() == {"error": "Failed to compile LaTeX"}
 
@@ -1624,15 +1635,6 @@ class TestPhaseOneTransfer:
 
     def test_compile_throttles_use_configured_rates(self):
         cache.clear()
-        anonymous = APIRequestFactory().post("/api/compile/", {"content": "x"}, format="json", REMOTE_ADDR="198.51.100.1")
-        anonymous.user = type("Anonymous", (), {"is_authenticated": False})()
-        with override_settings(COMPILER_ANON_RATE="1/hour"):
-            throttle = CompileAnonThrottle()
-            throttle.rate = throttle.get_rate()
-            throttle.num_requests, throttle.duration = throttle.parse_rate(throttle.rate)
-            assert throttle.allow_request(anonymous, None)
-            assert not throttle.allow_request(anonymous, None)
-        cache.clear()
         authenticated = APIRequestFactory().post("/api/compile/", {"content": "x"}, format="json")
         authenticated.user = User(id=999, username="rate-limited")
         with override_settings(COMPILER_USER_RATE="1/hour"):
@@ -1644,9 +1646,7 @@ class TestPhaseOneTransfer:
 
     def test_compile_endpoint_enforces_anonymous_throttle(self, api_client):
         cache.clear()
-        with override_settings(COMPILER_ANON_RATE="1/hour"):
-            assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 200
-            assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 429
+        assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 401
 
     def test_compile_endpoint_enforces_authenticated_throttle(self, auth_client):
         cache.clear()
@@ -1654,10 +1654,10 @@ class TestPhaseOneTransfer:
             assert auth_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 200
             assert auth_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 429
 
-    def test_compile_endpoint_registers_both_throttle_classes(self):
+    def test_compile_endpoint_registers_authenticated_throttle_class(self):
         from api.views import compile_latex
 
-        assert compile_latex.cls.throttle_classes == [CompileAnonThrottle, CompileUserThrottle]
+        assert compile_latex.cls.throttle_classes == [CompileUserThrottle]
 
     def test_anonymous_sheet_compile_requires_authentication(self, api_client, sample_sheet):
         assert api_client.post("/api/compile/", {"cheat_sheet_id": sample_sheet.id}, format="json").status_code == 401

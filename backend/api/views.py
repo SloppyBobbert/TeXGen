@@ -6,9 +6,11 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django.http import Http404
+from django.db import transaction
 import subprocess
 import tempfile
 import os
@@ -23,7 +25,9 @@ from urllib.error import HTTPError, URLError
 from .models import Template, CheatSheet, PracticeProblem
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .formula_data import get_formula_data, get_classes_with_details, get_special_class_formula, is_special_class
+from .formula_data import get_classes_with_details
+from .formula_catalog import get_formula_by_id, get_formula_by_legacy_alias
+from .document_contract import canonical_selections, legacy_selections
 from .latex_utils import build_latex_for_formulas, normalize_latex_layout
 from .compiler import validate_cheat_sheet_id, validate_source_text
 
@@ -64,13 +68,6 @@ def is_truthy(value):
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
-
-
-class CompileAnonThrottle(AnonRateThrottle):
-    scope = "compile_anon"
-
-    def get_rate(self):
-        return settings.COMPILER_ANON_RATE
 
 
 class CompileUserThrottle(UserRateThrottle):
@@ -295,6 +292,13 @@ def get_classes(request):
     Used by frontend to build 3-level selection UI.
     """
     classes_with_details = get_classes_with_details()
+    # Keep the established nested response while making stable catalog IDs visible.
+    for class_data in classes_with_details:
+        for category in class_data.get("categories", []):
+            for formula in category.get("formulas", []):
+                record = get_formula_by_legacy_alias(class_data.get("name"), category.get("name"), formula.get("name"))
+                if record:
+                    formula["id"] = record["id"]
     return Response({"classes": classes_with_details})
 
 
@@ -306,7 +310,8 @@ def generate_sheet(request):
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
     """
-    selected = request.data.get("formulas", [])
+    canonical = request.data.get("formula_selections", [])
+    legacy = request.data.get("formulas", [])
     columns = request.data.get("columns", DEFAULT_COLUMNS)
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
     margins = request.data.get("margins", DEFAULT_MARGINS)
@@ -315,61 +320,25 @@ def generate_sheet(request):
     
     columns, font_size, margins, spacing, orientation = validate_layout_params(columns, font_size, margins, spacing, orientation)
     
-    if not selected:
-        tex_code = build_latex_for_formulas([], columns, font_size, margins, spacing, orientation)
-        return Response({"tex_code": tex_code})
-    
-    formula_data = get_formula_data()
-    selected_formulas = []
-    
-    for sel in selected:
-        class_name = sel.get("class") or sel.get("class_name")
-        category = sel.get("category")
-        name = sel.get("name")
-        
-        if is_special_class(class_name):
-            formula = get_special_class_formula(class_name)
-            if formula:
-                selected_formulas.append({
-                    "class_name": class_name,
-                    "category": class_name,
-                    "name": formula["name"],
-                    "latex": formula["latex"]
-                })
-        elif class_name in formula_data:
-            categories = formula_data[class_name]
-            if category in categories:
-                formulas = categories[category]
-                for f in formulas:
-                    if f.get("name") == name:
-                        selected_formulas.append({
-                            "class_name": class_name,
-                            "category": category,
-                            "name": f["name"],
-                            "latex": f["latex"]
-                        })
-            else:
-                for current_category, formulas in categories.items():
-                    match = next((f for f in formulas if f.get("name") == name), None)
-                    if match:
-                        selected_formulas.append({
-                            "class_name": class_name,
-                            "category": current_category,
-                            "name": match["name"],
-                            "latex": match["latex"]
-                        })
-                        break
-    
-    if not selected_formulas:
-        return Response({"error": "No valid formulas found"}, status=400)
+    try:
+        selections = canonical_selections(canonical) + legacy_selections(legacy)
+    except ValidationError as exc:
+        return Response(exc.detail, status=400)
+    if len(selections) > 1000 or len({selection["formula_id"] for selection in selections}) != len(selections):
+        return Response({"formula_selections": "Duplicate formula selection or too many selections."}, status=400)
+    selected_formulas = [
+        {"class_name": record["class"], "category": record["category"], "name": record["name"], "latex": record["latex"]}
+        for selection in selections
+        if (record := get_formula_by_id(selection["formula_id"]))
+    ]
     
     tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins, spacing, orientation)
     return Response({"tex_code": tex_code})
 
 
 @api_view(["POST"])
-@permission_classes([AllowAny])
-@throttle_classes([CompileAnonThrottle, CompileUserThrottle])
+@permission_classes([IsAuthenticated])
+@throttle_classes([CompileUserThrottle])
 def compile_latex(request):
     """
     POST /api/compile/
@@ -386,8 +355,6 @@ def compile_latex(request):
     columns, font_size, margins, spacing, orientation = validate_layout_params(columns, font_size, margins, spacing, orientation)
     
     if cheat_sheet_id is not None:
-        if not request.user.is_authenticated:
-            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
         cheat_sheet_id = validate_cheat_sheet_id(cheat_sheet_id)
         if cheat_sheet_id is None:
             return Response({"error": "cheat_sheet_id must be a positive integer"}, status=400)
@@ -541,6 +508,33 @@ class TemplateViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(subject=subject)
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        if "revision" in request.data:
+            return Response({"revision": ["Revision is assigned by the server."]}, status=400)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        return self._revision_update(request, *args, **kwargs)
+
+    def _revision_update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            try:
+                instance = self.get_queryset().select_for_update().get(pk=kwargs["pk"])
+            except self.queryset.model.DoesNotExist:
+                raise Http404
+            revision = request.data.get("revision", None)
+            if revision is None:
+                return Response({"code": "revision_required", "detail": "revision is required"}, status=428)
+            if type(revision) is not int or revision < 1:
+                return Response({"revision": ["Must be a positive integer."]}, status=400)
+            if revision != instance.revision:
+                current = self.get_serializer(instance).data
+                return Response({"code": "revision_conflict", "detail": "The document has been updated.", "current": current, "document": current}, status=409)
+            serializer = self.get_serializer(instance, data=request.data, partial=kwargs.pop("partial", False))
+            serializer.is_valid(raise_exception=True)
+            serializer.save(revision=instance.revision + 1)
+        return Response(serializer.data)
+
 
 class CheatSheetViewSet(viewsets.ModelViewSet):
     queryset = CheatSheet.objects.all()
@@ -553,6 +547,30 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        if "revision" in request.data:
+            return Response({"revision": ["Revision is assigned by the server."]}, status=400)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        with transaction.atomic():
+            try:
+                instance = self.get_queryset().select_for_update().get(pk=kwargs["pk"])
+            except CheatSheet.DoesNotExist:
+                raise Http404
+            revision = request.data.get("revision", None)
+            if revision is None:
+                return Response({"code": "revision_required", "detail": "revision is required"}, status=428)
+            if type(revision) is not int or revision < 1:
+                return Response({"revision": ["Must be a positive integer."]}, status=400)
+            if revision != instance.revision:
+                current = self.get_serializer(instance).data
+                return Response({"code": "revision_conflict", "detail": "The document has been updated.", "current": current, "document": current}, status=409)
+            serializer = self.get_serializer(instance, data=request.data, partial=kwargs.pop("partial", False))
+            serializer.is_valid(raise_exception=True)
+            serializer.save(revision=instance.revision + 1)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='from-template')
     def from_template(self, request):
         template_id = request.data.get("template_id")
@@ -562,19 +580,28 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
             return Response({"error": "template_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         template = get_object_or_404(Template, pk=template_id)
-        
-        cheatsheet = CheatSheet.objects.create(
-            title=title,
-            user=request.user,
-            template=template,
-            latex_content=template.latex_content,
-            content_source="generated",
-            margins=template.default_margins,
-            columns=template.default_columns,
-            selected_formulas=template.selected_formulas,
-        )
-        
-        serializer = self.get_serializer(cheatsheet)
+        selections = template.formula_selections
+        if selections is None:
+            try:
+                selections = legacy_selections(template.selected_formulas)
+            except ValidationError as exc:
+                return Response({"formula_selections": exc.detail}, status=400)
+        serializer = self.get_serializer(data={
+            "title": title,
+            "template_id": template.pk,
+            "source_latex": template.latex_content,
+            "source_mode": template.source_mode,
+            "layout": {
+                "columns": template.default_columns,
+                "font_size": template.default_font_size,
+                "spacing": template.default_spacing,
+                "margins": template.default_margins,
+                "orientation": template.default_orientation,
+            },
+            "formula_selections": selections,
+        })
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

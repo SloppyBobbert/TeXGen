@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import CreateCheatSheet from './CreateCheatSheet';
 import { useFormulas } from '../hooks/formulas';
 import { useLatex } from '../hooks/latex';
@@ -35,6 +36,8 @@ describe('CreateCheatSheet Component', () => {
     deselectAllClasses: vi.fn(),
     toggleCategory: vi.fn(),
     getSelectedFormulasList: vi.fn(),
+    formulaSelections: [],
+    getFormulaSelectionsList: vi.fn().mockReturnValue([]),
     clearSelections: vi.fn(),
     reorderClass: vi.fn(),
     reorderFormula: vi.fn(),
@@ -69,6 +72,7 @@ describe('CreateCheatSheet Component', () => {
     isCompiling: false,
     isLoading: false,
     compileError: null,
+    authenticationRequired: false,
     canGoBack: false,
     canGoForward: false,
     goBack: vi.fn(),
@@ -204,8 +208,29 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByTestId('mock-document')).toBeInTheDocument();
   });
 
+  it('shows one sign-in notice and retains the prior PDF when compilation requires authentication', () => {
+    useLatex.mockReturnValue({
+      ...mockUseLatex,
+      pdfBlob: new Blob(['pdf'], { type: 'application/pdf' }),
+      authenticationRequired: true,
+      compileError: 'Sign in to compile or download PDFs.',
+    });
+
+    render(
+      <MemoryRouter>
+        <CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign in to compile or download PDFs.');
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    expect(screen.getAllByText('Sign in to compile or download PDFs.')).toHaveLength(1);
+    expect(screen.getByTestId('mock-document')).toBeInTheDocument();
+  });
+
   it('autosaves the exact successful compile snapshot from the hook', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
+    const formulaSelections = [{ formula_id: 'physics.motion.velocity' }];
     const snapshot = {
       title: 'Compiled title',
       content: '\\documentclass{article}\nCompiled source',
@@ -221,6 +246,11 @@ describe('CreateCheatSheet Component', () => {
       pdfBlob: 'blob:successful-compile',
     };
 
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      formulaSelections,
+      getFormulaSelectionsList: vi.fn().mockReturnValue(formulaSelections),
+    });
     useLatex.mockReturnValue({
       ...mockUseLatex,
       title: 'Current title should not be saved',
@@ -233,8 +263,31 @@ describe('CreateCheatSheet Component', () => {
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({
       ...snapshot,
+      formulaSelections,
       compileSnapshot: snapshot,
     }, false));
+  });
+
+  it('saves canonical formula selections alongside legacy display records', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const selectedFormulas = [{ id: 'calculus.derivatives.chain-rule', class: 'Calculus', category: 'Derivatives', name: 'Chain Rule' }];
+    const formulaSelections = [{ formula_id: 'calculus.derivatives.chain-rule' }];
+    useFormulas.mockReturnValue({
+      ...mockUseFormulas,
+      selectedCount: 1,
+      getSelectedFormulasList: vi.fn().mockReturnValue(selectedFormulas),
+      formulaSelections,
+      getFormulaSelectionsList: vi.fn().mockReturnValue(formulaSelections),
+    });
+
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      selectedFormulas,
+      formulaSelections,
+    })));
   });
 
   it('compiles existing manual content without regenerating', () => {

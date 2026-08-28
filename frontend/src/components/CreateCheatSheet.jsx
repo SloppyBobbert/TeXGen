@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
+import { Link } from 'react-router-dom';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -31,6 +32,7 @@ const MIN_CENTER_WIDTH = 360;
 const MIN_PREVIEW_WIDTH = 260;
 const DEFAULT_PDF_ZOOM = 0.85;
 const MIN_SPLIT_CENTER_WIDTH = LATEX_PANEL_MIN_WIDTH + RESIZER_WIDTH + MIN_PREVIEW_WIDTH;
+const AUTHENTICATION_REQUIRED_MESSAGE = 'Sign in to compile or download PDFs.';
 
 function loadPanelLayout() {
   try {
@@ -1116,11 +1118,13 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     selectedClasses,
     selectedCategories,
     groupedFormulas,
+    formulaSelections,
     toggleClass,
     selectAllClasses,
     deselectAllClasses,
     toggleCategory,
     getSelectedFormulasList,
+    getFormulaSelectionsList,
     clearSelections,
     reorderClass,
     reorderFormula,
@@ -1152,7 +1156,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     pdfBlob,
     isGenerating,
     isCompiling,
-    compileError,
+    compileError: rawCompileError,
+    authenticationRequired,
     lastCompileSnapshot,
     goBack,
     goForward,
@@ -1164,6 +1169,10 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     handlePrintPDF,
     clearLatex
   } = useLatex(initialData, draftIdentity, getSelectedFormulasList() || []);
+
+  const isAuthenticationCompileError = authenticationRequired
+    && rawCompileError?.includes(AUTHENTICATION_REQUIRED_MESSAGE);
+  const compileError = isAuthenticationCompileError ? null : rawCompileError;
 
   const [showLatex, setShowLatex] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -1393,6 +1402,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     setLastSavedAt(Date.now());
     onSave({
       ...lastCompileSnapshot,
+      formulaSelections,
       compileSnapshot: lastCompileSnapshot,
     }, false)
       .then(() => {
@@ -1402,7 +1412,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
       console.error('Failed to autosave compiled sheet', error);
       setSaveStatus('offline');
     });
-  }, [compileError, lastCompileSnapshot, onSave]);
+  }, [compileError, formulaSelections, lastCompileSnapshot, onSave]);
 
   const startResize = useCallback((panel) => (event) => {
     event.preventDefault();
@@ -1539,6 +1549,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
         margins,
         orientation,
         selectedFormulas: getSelectedFormulasList(),
+        formulaSelections: getFormulaSelectionsList(),
       });
       setSaveStatus('saved');
       setLastSavedAt(Date.now());
@@ -1547,7 +1558,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
       setSaveStatus('offline');
       showToast('Failed to save. Please try again.', 'error');
     }
-  }, [columns, content, contentSource, fontSize, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
+  }, [columns, content, contentSource, fontSize, getFormulaSelectionsList, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -1810,6 +1821,11 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
               />
             )}
 
+             {authenticationRequired && (
+               <div className="compile-error-box authentication-notice" role="alert">
+                 {AUTHENTICATION_REQUIRED_MESSAGE} <Link to="/login">Sign in</Link>
+               </div>
+             )}
              <div className="pdf-container">
                {showLatex ? (
                  <div className="workspace-split" style={{ '--workspace-split-columns': workspaceSplitTemplate }}>
