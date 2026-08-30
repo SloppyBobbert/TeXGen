@@ -152,6 +152,18 @@ const renderApp = () => render(
   </BrowserRouter>,
 );
 
+const renderSignedOutApp = () => render(
+  <BrowserRouter>
+    <AuthContext.Provider value={{
+      user: null,
+      authTokens: null,
+      logoutUser: vi.fn(),
+    }}>
+      <App />
+    </AuthContext.Provider>
+  </BrowserRouter>,
+);
+
 const storedSheet = () => JSON.parse(localStorage.getItem('currentCheatSheet'));
 const containsTransientBlob = (value) => {
   if (Array.isArray(value)) return value.some(containsTransientBlob);
@@ -204,6 +216,31 @@ describe('App save lifecycle regressions', () => {
 
     expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({ title: 'Recover me', selectedFormulas: [{ name: 'display only' }] }));
     expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toEqual(legacy);
+  });
+
+  it('restores a fresh signed-out local draft after remounting', async () => {
+    const firstRender = renderSignedOutApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Saved to this browser. Sign in if you want this sheet synced to your account.'));
+    const activeSheet = storedSheet();
+    const draftKey = `cheatSheetDraft:v1:string:${encodeURIComponent(activeSheet.draftId)}`;
+    const canonicalDraft = JSON.parse(localStorage.getItem(draftKey));
+    expect(canonicalDraft).toEqual(expect.objectContaining({
+      schema_version: 1,
+      draft_identity: activeSheet.draftId,
+      title: activeSheet.title,
+      source_latex: activeSheet.content,
+    }));
+
+    firstRender.unmount();
+    renderSignedOutApp();
+
+    expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({
+      draftId: activeSheet.draftId,
+      title: activeSheet.title,
+      content: activeSheet.content,
+    }));
   });
 
   it('surfaces a canonical draft persistence failure instead of reporting a save', async () => {
