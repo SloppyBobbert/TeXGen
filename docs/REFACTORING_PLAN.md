@@ -161,7 +161,7 @@ One CI pipeline proves the complete supported workflow, and production images ru
 - [ ] Clear/reset cannot be reversed by stale responses.
 - [ ] Selection controls always match generated payloads.
 - [ ] Content, formulas, and layout survive save and reload.
-- [ ] Anonymous compilation is isolated, bounded, and rate-limited.
+- [ ] Authenticated compilation is isolated, bounded, and rate-limited; production sandbox enforcement remains deferred to PR2.
 - [ ] Cross-user resource access is prevented.
 - [ ] Mobile and keyboard workflows pass.
 - [ ] One CI pipeline validates the production workflow.

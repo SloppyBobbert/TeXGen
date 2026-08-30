@@ -177,4 +177,107 @@ describe('draftStore', () => {
     expect(migrated).toMatchObject({ ok: true, migrated: true });
     expect(migrated.draft.formula_selections).toEqual([]);
   });
+
+  it('resolves each missing LaTeX layout field from the exact current sheet', () => {
+    const storage = createStorage();
+    storage.setItem('cheatSheetLatex:draft-a', JSON.stringify({ columns: 2, spacing: 'compact' }));
+    storage.setItem('currentCheatSheet', JSON.stringify({
+      draftId: 'draft-a',
+      fontSize: '8pt',
+      margins: '0.2in',
+      orientation: 'landscape',
+    }));
+
+    const migrated = migrateLegacyDraft(storage, 'draft-a');
+    expect(migrated.draft.layout).toEqual({
+      columns: 2,
+      font_size: '8pt',
+      spacing: 'compact',
+      margins: '0.2in',
+      orientation: 'landscape',
+    });
+  });
+
+  it('supports snake_case legacy layout fields', () => {
+    const storage = createStorage();
+    storage.setItem('cheatSheetLatex:draft-a', JSON.stringify({
+      columns: 3,
+      font_size: '10pt',
+      spacing: 'tight',
+      margins: '0.1in',
+      orientation: 'landscape',
+    }));
+
+    expect(migrateLegacyDraft(storage, 'draft-a').draft.layout).toEqual({
+      columns: 3,
+      font_size: '10pt',
+      spacing: 'tight',
+      margins: '0.1in',
+      orientation: 'landscape',
+    });
+  });
+
+  it('does not use layout values from an unrelated current sheet', () => {
+    const storage = createStorage();
+    storage.setItem('cheatSheetLatex:draft-a', JSON.stringify({ columns: 2 }));
+    storage.setItem('currentCheatSheet', JSON.stringify({
+      draftId: 'another-draft',
+      fontSize: '7pt',
+      spacing: 'tight',
+      margins: '1in',
+      orientation: 'landscape',
+    }));
+
+    expect(migrateLegacyDraft(storage, 'draft-a').draft.layout).toEqual({
+      columns: 2,
+      font_size: '9pt',
+      spacing: 'small',
+      margins: '0.15in',
+      orientation: 'portrait',
+    });
+  });
+
+  it('uses all LaTeX layout values over matching current-sheet values and writes idempotently', () => {
+    const storage = createStorage();
+    storage.setItem('cheatSheetLatex:draft-a', JSON.stringify({
+      columns: 2,
+      fontSize: '8pt',
+      spacing: 'compact',
+      margins: '0.2in',
+      orientation: 'landscape',
+    }));
+    storage.setItem('currentCheatSheet', JSON.stringify({
+      draftId: 'draft-a',
+      columns: 6,
+      font_size: '12pt',
+      spacing: 'wide',
+      margins: '1in',
+      orientation: 'portrait',
+    }));
+
+    const migrated = migrateLegacyDraft(storage, 'draft-a');
+    expect(migrated).toMatchObject({ ok: true, migrated: true });
+    expect(migrated.draft.layout).toEqual({
+      columns: 2,
+      font_size: '8pt',
+      spacing: 'compact',
+      margins: '0.2in',
+      orientation: 'landscape',
+    });
+    expect(readDraft(storage, 'draft-a').draft).toEqual(migrated.draft);
+    expect(migrateLegacyDraft(storage, 'draft-a')).toMatchObject({ ok: true, migrated: false, draft: migrated.draft });
+  });
+
+  it('uses layout defaults when neither matching legacy record provides a field', () => {
+    const storage = createStorage();
+    storage.setItem('cheatSheetLatex:draft-a', JSON.stringify({ content: 'legacy' }));
+
+    expect(migrateLegacyDraft(storage, 'draft-a').draft.layout).toEqual({
+      columns: 4,
+      font_size: '9pt',
+      spacing: 'small',
+      margins: '0.15in',
+      orientation: 'portrait',
+    });
+  });
 });

@@ -1644,7 +1644,7 @@ class TestPhaseOneTransfer:
             assert throttle.allow_request(authenticated, None)
             assert not throttle.allow_request(authenticated, None)
 
-    def test_compile_endpoint_enforces_anonymous_throttle(self, api_client):
+    def test_compile_endpoint_rejects_anonymous_requests(self, api_client):
         cache.clear()
         assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 401
 

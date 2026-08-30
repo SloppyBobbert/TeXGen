@@ -26,6 +26,21 @@ const stripTransientPdfBlobs = (value) => {
     .map(([key, item]) => [key, stripTransientPdfBlobs(item)]));
 };
 const sanitizeSheet = (sheet) => stripTransientPdfBlobs(sheet) || {};
+const deriveFormulaSelections = (selectedFormulas) => Array.isArray(selectedFormulas)
+  ? selectedFormulas
+    .map((formula) => formula?.formula_id ?? formula?.id)
+    .filter((formulaId) => typeof formulaId === 'string' && formulaId.length > 0)
+    .map((formula_id) => ({ formula_id }))
+  : [];
+const snapshotFormulaSelections = (snapshot = {}) => (
+  Array.isArray(snapshot.formulaSelections)
+    ? snapshot.formulaSelections
+    : deriveFormulaSelections(snapshot.selectedFormulas)
+);
+const normalizeCompileSnapshot = (snapshot) => ({
+  ...snapshot,
+  formulaSelections: snapshotFormulaSelections(snapshot),
+});
 const storageFailure = (error) => ({ ok: false, error });
 const safeStorageRemove = (key) => {
   try {
@@ -140,6 +155,12 @@ const sameFormulas = (left, right) => (
         && formula?.name === right[index]?.name)
   ))
 );
+const sameFormulaSelections = (left, right) => (
+  Array.isArray(left)
+  && Array.isArray(right)
+  && left.length === right.length
+  && left.every((formula, index) => formula?.formula_id === right[index]?.formula_id)
+);
 
 const sameSnapshot = (left, right) => {
   if (!left || !right) return false;
@@ -154,10 +175,13 @@ const sameSnapshot = (left, right) => {
     && left.margins === right.margins
     && left.orientation === right.orientation
     && sameFormulas(left.selectedFormulas, right.selectedFormulas)
+    && sameFormulaSelections(snapshotFormulaSelections(left), snapshotFormulaSelections(right))
   );
 };
 
-const buildRestoredSheet = (baseSheet, snapshot) => sanitizeSheet({
+const buildRestoredSheet = (baseSheet, snapshot) => {
+  const formulaSelections = snapshotFormulaSelections(snapshot);
+  return sanitizeSheet({
   ...baseSheet,
   title: snapshot.title ?? baseSheet.title,
   content: snapshot.content ?? '',
@@ -167,9 +191,11 @@ const buildRestoredSheet = (baseSheet, snapshot) => sanitizeSheet({
   spacing: snapshot.spacing ?? baseSheet.spacing,
   margins: snapshot.margins ?? baseSheet.margins,
   orientation: snapshot.orientation ?? baseSheet.orientation,
-  selectedFormulas: snapshot.selectedFormulas ?? [],
+  selectedFormulas: snapshot.selectedFormulas ?? formulaSelections,
+  formulaSelections,
   compileHistory: Array.isArray(baseSheet.compileHistory) ? stripTransientPdfBlobs(baseSheet.compileHistory) : [],
-});
+  });
+};
 
 const loadStoredSheet = () => {
   try {
@@ -379,7 +405,7 @@ function App() {
     const nextContentSource = sanitizedData.contentSource ?? currentSheet.contentSource ?? inferContentSource(sanitizedData);
     const previousHistory = Array.isArray(currentSheet.compileHistory) ? stripTransientPdfBlobs(currentSheet.compileHistory) : [];
     const latestSnapshot = previousHistory[previousHistory.length - 1];
-    const nextSnapshot = sanitizedData.compileSnapshot;
+    const nextSnapshot = sanitizedData.compileSnapshot && normalizeCompileSnapshot(sanitizedData.compileSnapshot);
     const nextHistory = nextSnapshot
       ? (sameSnapshot(latestSnapshot, nextSnapshot)
           ? previousHistory

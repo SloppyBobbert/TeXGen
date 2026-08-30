@@ -8,6 +8,20 @@ const LEGACY_SOURCE_PREFIX = 'cheatSheetContentSource';
 const LEGACY_CURRENT_SHEET_KEY = 'currentCheatSheet';
 const SOURCE_MODES = new Set(['empty', 'generated', 'raw']);
 const LAYOUT_KEYS = ['columns', 'font_size', 'spacing', 'margins', 'orientation'];
+const DEFAULT_LAYOUT = {
+  columns: 4,
+  font_size: '9pt',
+  spacing: 'small',
+  margins: '0.15in',
+  orientation: 'portrait',
+};
+const LEGACY_LAYOUT_NAMES = {
+  columns: ['columns'],
+  font_size: ['font_size', 'fontSize'],
+  spacing: ['spacing'],
+  margins: ['margins'],
+  orientation: ['orientation'],
+};
 
 function resultError(code, message, details = {}) {
   return { ok: false, error: { code, message, ...details } };
@@ -199,6 +213,19 @@ function resolveFormulaSelection(formula, resolveFormulaId, identity) {
   return validFormulaId(formulaId) ? { formula_id: formulaId } : null;
 }
 
+function legacyLayoutValue(layout, key) {
+  if (!layout || typeof layout !== 'object') return undefined;
+  const name = LEGACY_LAYOUT_NAMES[key].find((candidate) => layout[candidate] !== undefined && layout[candidate] !== null);
+  return name === undefined ? undefined : layout[name];
+}
+
+function migrateLegacyLayout(latex, currentSheet) {
+  return Object.fromEntries(LAYOUT_KEYS.map((key) => [
+    key,
+    legacyLayoutValue(latex, key) ?? legacyLayoutValue(currentSheet, key) ?? DEFAULT_LAYOUT[key],
+  ]));
+}
+
 export function migrateLegacyDraft(storage, identity, { resolveFormulaId } = {}) {
   const existing = readDraft(storage, identity);
   if (!existing.ok || existing.draft) return { ...existing, migrated: false };
@@ -240,7 +267,6 @@ export function migrateLegacyDraft(storage, identity, { resolveFormulaId } = {})
   const latex = latexResult.value || {};
   const sourceLatex = typeof latex.content === 'string' ? latex.content : (typeof matchingCurrentSheet?.content === 'string' ? matchingCurrentSheet.content : '');
   const legacySource = latex.contentSource ?? matchingCurrentSheet?.contentSource ?? sourceResult.value;
-  const layoutSource = latexResult.value || matchingCurrentSheet || {};
   const history = historyResult.value ?? matchingCurrentSheet?.compileHistory ?? [];
   const draft = {
     schema_version: DRAFT_SCHEMA_VERSION,
@@ -250,13 +276,7 @@ export function migrateLegacyDraft(storage, identity, { resolveFormulaId } = {})
     source_mode: sourceMode(legacySource, sourceLatex),
     source_latex: sourceLatex,
     formula_selections: selections,
-    layout: {
-      columns: layoutSource.columns ?? 4,
-      font_size: layoutSource.fontSize ?? '9pt',
-      spacing: layoutSource.spacing ?? 'small',
-      margins: layoutSource.margins ?? '0.15in',
-      orientation: layoutSource.orientation ?? 'portrait',
-    },
+    layout: migrateLegacyLayout(latexResult.value, matchingCurrentSheet),
     title: typeof latex.title === 'string' ? latex.title : (typeof matchingCurrentSheet?.title === 'string' ? matchingCurrentSheet.title : ''),
     history: Array.isArray(history) ? history : [],
   };

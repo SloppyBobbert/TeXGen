@@ -86,6 +86,10 @@ vi.mock('./components/CreateCheatSheet', () => ({
           selectedFormulas: [{ formula_id: 'formula-c', class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }],
         }, false)}>Save formula C locally</button>
         <button onClick={() => onRestoreSnapshot({ orientation: 'landscape' })}>Restore orientation</button>
+        <button onClick={() => onRestoreSnapshot({ formulaSelections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }] })}>Restore canonical formulas</button>
+        <button onClick={() => onRestoreSnapshot({ selectedFormulas: [{ id: 'legacy-first' }, { formula_id: 'legacy-second' }] })}>Restore legacy formulas</button>
+        <button onClick={() => onRestoreSnapshot({ formulaSelections: [{ formula_id: 'canonical-wins' }], selectedFormulas: [{ formula_id: 'legacy-loses' }] })}>Restore conflicting formulas</button>
+        <button onClick={() => onSave({})}>Save restored formulas</button>
         <button onClick={onReset}>Reset sheet</button>
         <Link to="/dashboard" aria-label="Open test dashboard">Dashboard</Link>
       </section>
@@ -317,7 +321,7 @@ describe('App save lifecycle regressions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save snapshot' }));
     await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
       contentSource: 'generated', orientation: 'portrait', selectedFormulas: [{ formula_id: 'snapshot-formula', name: 'snapshot formula' }],
-      compileHistory: [expect.objectContaining({ title: 'snapshot title' })],
+      compileHistory: [expect.objectContaining({ title: 'snapshot title', formulaSelections: [{ formula_id: 'snapshot-formula' }] })],
     })));
     firstRender.unmount();
     renderApp();
@@ -328,6 +332,44 @@ describe('App save lifecycle regressions', () => {
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore orientation' }));
     await waitFor(() => expect(storedSheet().orientation).toBe('landscape'));
+  });
+
+  it('restores canonical-only snapshot selections in order', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore canonical formulas' }));
+
+    await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
+      formulaSelections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }],
+      selectedFormulas: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }],
+    })));
+  });
+
+  it('derives canonical snapshot selections from legacy formula records', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore legacy formulas' }));
+
+    await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
+      formulaSelections: [{ formula_id: 'legacy-first' }, { formula_id: 'legacy-second' }],
+      selectedFormulas: [{ id: 'legacy-first' }, { formula_id: 'legacy-second' }],
+    })));
+  });
+
+  it('uses canonical snapshot selections over conflicting legacy records', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore conflicting formulas' }));
+
+    await waitFor(() => expect(storedSheet().formulaSelections).toEqual([{ formula_id: 'canonical-wins' }]));
+  });
+
+  it('sends restored canonical selection IDs on the next save', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(response({ id: 8, schema_version: 1, revision: 1, source_mode: 'empty', source_latex: '', layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, formula_selections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }] }))));
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore canonical formulas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save restored formulas' }));
+
+    await waitFor(() => expect(JSON.parse(fetch.mock.calls[0][1].body).formula_selections).toEqual([
+      { formula_id: 'canonical-first' }, { formula_id: 'canonical-second' },
+    ]));
   });
 
   it('strips transient blob URLs from saved sheets and compile history', async () => {

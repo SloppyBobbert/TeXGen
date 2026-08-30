@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useFormulas } from './formulas';
@@ -340,14 +341,112 @@ describe('useFormulas hook', () => {
     expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'slope' }]);
   });
 
-  it('keeps unknown canonical input intact without creating a partial display selection', async () => {
+  it('rejects a complete v1 envelope whose identity disagrees with its storage key', async () => {
+    mockLocalStorage.setItem('cheatSheetDraft:v1:string:draft-a', JSON.stringify({
+      schema_version: 1, draft_identity: 'other-draft', base_revision: null, source_mode: 'empty', source_latex: '',
+      formula_selections: [{ formula_id: 'circle' }],
+      layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, title: '', history: [],
+    }));
+    const { result } = renderHook(() => useFormulas({ formulaSelections: [{ formula_id: 'slope' }] }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'slope' }]);
+    expect(result.current.formulaSelectionError.code).toBe('draft_identity_mismatch');
+  });
+
+  it('keeps unknown canonical input intact without displaying unknown records', async () => {
     const { result } = renderHook(() => useFormulas({
       formulaSelections: [{ formula_id: 'slope' }, { formula_id: 'gone' }],
     }, 'draft-a'));
     await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
-    expect(result.current.getSelectedFormulasList()).toEqual([]);
+    expect(result.current.getSelectedFormulasList().map((formula) => formula.id)).toEqual(['slope']);
     expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'slope' }, { formula_id: 'gone' }]);
     expect(result.current.formulaSelectionError.code).toBe('unresolved_formula_selection');
+  });
+
+  it('projects known canonical formulas while retaining unknown IDs durably', async () => {
+    const { result } = renderHook(() => useFormulas({
+      formulaSelections: [{ formula_id: 'gone' }, { formula_id: 'slope' }],
+    }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    expect(result.current.getSelectedFormulasList().map((formula) => formula.id)).toEqual(['slope']);
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'gone' }, { formula_id: 'slope' }]);
+  });
+
+  it('preserves unknown IDs while adding, removing, and reordering known formulas', async () => {
+    const { result } = renderHook(() => useFormulas({
+      formulaSelections: [{ formula_id: 'gone' }, { formula_id: 'slope' }],
+    }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    act(() => { result.current.toggleCategory('Algebra', 'Quadratics'); });
+    expect(result.current.getFormulaSelectionsList()).toEqual([
+      { formula_id: 'gone' }, { formula_id: 'slope' }, { formula_id: 'quadratic' },
+    ]);
+
+    act(() => { result.current.removeSingleFormula('Algebra', 'Linear Equations', 'Slope Formula'); });
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'gone' }, { formula_id: 'quadratic' }]);
+
+    act(() => { result.current.toggleCategory('Algebra', 'Linear Equations'); });
+    act(() => { result.current.reorderFormula('Algebra', 1, 0); });
+    expect(result.current.getFormulaSelectionsList()).toEqual([
+      { formula_id: 'gone' }, { formula_id: 'slope' }, { formula_id: 'quadratic' }, { formula_id: 'intercept' },
+    ]);
+  });
+
+  it('retains unknown IDs during select-all and removes them only on explicit clear', async () => {
+    const { result } = renderHook(() => useFormulas({ formulaSelections: [{ formula_id: 'gone' }] }, 'draft-a'));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    act(() => { result.current.selectAllClasses(); });
+    expect(result.current.getFormulaSelectionsList().map((selection) => selection.formula_id)).toEqual([
+      'gone', 'slope', 'intercept', 'quadratic', 'circle',
+    ]);
+    act(() => { result.current.deselectAllClasses(); });
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'gone' }]);
+    act(() => { result.current.clearSelections(); });
+    expect(result.current.getFormulaSelectionsList()).toEqual([]);
+  });
+
+  it('does not refetch classes after hydration when parent rerenders with new input', async () => {
+    const { result, rerender } = renderHook(({ initialData }) => useFormulas(initialData, 'draft-a'), {
+      initialProps: { initialData: { formulaSelections: [{ formula_id: 'slope' }] } },
+    });
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+    rerender({ initialData: { formulaSelections: [{ formula_id: 'circle' }] } });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'slope' }]);
+  });
+
+  it('reuses the pending classes request and hydrates the newest rerendered input', async () => {
+    const classes = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => classes.promise));
+    const { result, rerender } = renderHook(({ initialData }) => useFormulas(initialData, 'draft-a'), {
+      initialProps: { initialData: { formulaSelections: [{ formula_id: 'slope' }] } },
+    });
+
+    rerender({ initialData: { formulaSelections: [{ formula_id: 'circle' }] } });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => classes.resolve({ json: async () => mockClassesData }));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'circle' }]);
+  });
+
+  it('uses one pending classes request and hydrates in StrictMode', async () => {
+    const classes = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => classes.promise));
+    const { result } = renderHook(() => useFormulas({ formulaSelections: [{ formula_id: 'slope' }] }, 'draft-a'), {
+      wrapper: StrictMode,
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => classes.resolve({ json: async () => mockClassesData }));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+
+    expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'slope' }]);
   });
 
   it('preserves unresolved legacy records without emitting a partial canonical selection', async () => {

@@ -1,5 +1,7 @@
+from importlib import import_module
+
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
@@ -84,8 +86,6 @@ class DocumentPersistenceMigrationTests(TransactionTestCase):
         self.assertEqual(sheet.orientation, "landscape")
 
     def test_backfill_infers_empty_generated_and_raw_modes_with_empty_selections(self):
-        executor = MigrationExecutor(connection)
-        executor = MigrationExecutor(connection)
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
         old_apps = executor.loader.project_state(self.migrate_from).apps
@@ -252,6 +252,85 @@ class DocumentPersistenceMigrationTests(TransactionTestCase):
         apps.get_model("api", "CheatSheet").objects.filter(pk=sheet.pk).delete()
         apps.get_model("api", "Template").objects.filter(pk=template.pk).delete()
         MigrationExecutor(connection).migrate(self.migrate_to)
+
+    def test_backfill_preflights_final_batch_before_multi_batch_replay(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        CheatSheet = old_apps.get_model("api", "CheatSheet")
+        user = get_user_model().objects.create_user(username="batch-migration-user")
+        selections = [
+            {"class": "ALGEBRA I", "category": "Historical rename", "name": "Slope Formula"},
+            {"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope-Intercept Form"},
+        ]
+        sheets = CheatSheet.objects.bulk_create([
+            CheatSheet(
+                title=f"Valid {index}",
+                user_id=user.pk,
+                latex_content="content",
+                content_source="generated" if index == 0 else "manual",
+                selected_formulas=selections if index == 0 else [],
+            )
+            for index in range(100)
+        ])
+        invalid_sheet = CheatSheet.objects.create(
+            title="Unsupported margin",
+            user_id=user.pk,
+            latex_content="content",
+            margins="0.3in",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            rf"CheatSheet id={invalid_sheet.pk} field=margins value='0\.3in'",
+        ):
+            MigrationExecutor(connection).migrate(self.migrate_to)
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("api", "0010_expand_document_persistence")])
+        apps = executor.loader.project_state([("api", "0010_expand_document_persistence")]).apps
+        CheatSheet = apps.get_model("api", "CheatSheet")
+        self.assertEqual(
+            CheatSheet.objects.filter(
+                pk__in=[sheet.pk for sheet in sheets],
+                schema_version__isnull=True,
+            ).count(),
+            100,
+        )
+
+        CheatSheet.objects.filter(pk=invalid_sheet.pk).update(margins="0.25in")
+        MigrationExecutor(connection).migrate(self.migrate_to)
+        apps = MigrationExecutor(connection).loader.project_state(self.migrate_to).apps
+        CheatSheet = apps.get_model("api", "CheatSheet")
+        sheet_pks = [sheet.pk for sheet in sheets] + [invalid_sheet.pk]
+        self.assertEqual(CheatSheet.objects.filter(pk__in=sheet_pks, schema_version=1).count(), 101)
+        self.assertEqual(CheatSheet.objects.filter(pk__in=sheet_pks, revision=1).count(), 101)
+        self.assertEqual(
+            CheatSheet.objects.get(pk=sheets[0].pk).formula_selections,
+            [
+                {"formula_id": "algebra-i.slope-formula"},
+                {"formula_id": "algebra-i.slope-intercept-form"},
+            ],
+        )
+        self.assertEqual(CheatSheet.objects.get(pk=sheets[0].pk).source_mode, "generated")
+        self.assertEqual(CheatSheet.objects.filter(pk__in=sheet_pks[1:], source_mode="raw").count(), 100)
+
+    def test_preflight_returns_only_model_high_water_pks(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(self.migrate_from)
+        old_apps = executor.loader.project_state(self.migrate_from).apps
+        Template = old_apps.get_model("api", "Template")
+        CheatSheet = old_apps.get_model("api", "CheatSheet")
+        user = get_user_model().objects.create_user(username="high-water-migration-user")
+        sheet = CheatSheet.objects.create(title="Sheet", user_id=user.pk)
+        template = Template.objects.create(name="Template", subject="math", latex_content="")
+
+        migration = import_module("api.migrations.0011_backfill_document_persistence")
+        with transaction.atomic():
+            high_water_pks = migration._preflight_document_persistence(CheatSheet, Template)
+
+        self.assertEqual(high_water_pks, (sheet.pk, template.pk))
+        self.assertTrue(all(value is None or isinstance(value, int) for value in high_water_pks))
 
     def test_downgrade_preserves_legacy_document_fields(self):
         executor = MigrationExecutor(connection)

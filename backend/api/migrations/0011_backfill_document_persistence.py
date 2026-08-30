@@ -1,6 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
-from django.db import migrations
+from django.db import migrations, transaction
 
 
 FROZEN_LEGACY_FORMULA_ENTRIES = ((('ALGEBRA I', 'Absolute Value', 'Definition'), 'algebra-i.definition'),
@@ -456,6 +456,7 @@ FROZEN_V1_LATEX_CONTENT_MAX_BYTES = 262144
 FROZEN_V1_FONT_SIZES = {f"{size}pt" for size in range(8, 13)}
 FROZEN_V1_SPACING_NAMES = {"tiny", "small", "medium", "large"}
 FROZEN_V1_MARGINS = {"0.15in", "0.25in", "0.5in", "0.75in", "1in", "1.5in", "2in"}
+BACKFILL_BATCH_SIZE = 100
 FROZEN_FORMULA_IDS_BY_CLASS_AND_NAME = {}
 for (_formula_class, _category, _name), _formula_id in FROZEN_LEGACY_FORMULA_ENTRIES:
     FROZEN_FORMULA_IDS_BY_CLASS_AND_NAME.setdefault((_formula_class, _name), []).append(_formula_id)
@@ -531,61 +532,100 @@ def _legacy_formula_selections(selections, row_label, errors):
 
 def _preflight_document_persistence(CheatSheet, Template):
     errors = []
-    backfill_rows = []
-    for sheet in CheatSheet.objects.order_by("pk").iterator():
-        row_label = f"CheatSheet id={sheet.pk}"
-        if not _is_integer_in_range(sheet.columns, 1, 5):
-            errors.append(f"{row_label} field=columns value={sheet.columns!r}")
-        if sheet.orientation not in {"portrait", "landscape"}:
-            errors.append(f"{row_label} field=orientation value={sheet.orientation!r}")
-        if not _valid_font_size(sheet.font_size):
-            errors.append(f"{row_label} field=font_size value={sheet.font_size!r}")
-        if not _valid_spacing(sheet.spacing):
-            errors.append(f"{row_label} field=spacing value={sheet.spacing!r}")
-        if not isinstance(sheet.margins, str) or sheet.margins not in FROZEN_V1_MARGINS:
-            errors.append(f"{row_label} field=margins value={sheet.margins!r}")
-        _validate_latex_content(sheet.latex_content, row_label, errors)
-        formula_selections = _legacy_formula_selections(sheet.selected_formulas, row_label, errors)
-        backfill_rows.append((sheet, formula_selections))
-    for template in Template.objects.order_by("pk").iterator():
-        row_label = f"Template id={template.pk}"
-        if not _is_integer_in_range(template.default_columns, 1, 5):
-            errors.append(f"{row_label} field=default_columns value={template.default_columns!r}")
-        if not isinstance(template.default_margins, str) or template.default_margins not in FROZEN_V1_MARGINS:
-            errors.append(f"{row_label} field=default_margins value={template.default_margins!r}")
-        _validate_latex_content(template.latex_content, row_label, errors)
-        formula_selections = _legacy_formula_selections(template.selected_formulas, row_label, errors)
-        backfill_rows.append((template, formula_selections))
+    sheet_max_pk = None
+    sheet_fields = ("pk", "columns", "orientation", "font_size", "spacing", "margins", "latex_content", "selected_formulas")
+    for sheet in CheatSheet.objects.select_for_update().order_by("pk").values(*sheet_fields).iterator(chunk_size=BACKFILL_BATCH_SIZE):
+        row_label = f"CheatSheet id={sheet['pk']}"
+        if not _is_integer_in_range(sheet["columns"], 1, 5):
+            errors.append(f"{row_label} field=columns value={sheet['columns']!r}")
+        if sheet["orientation"] not in {"portrait", "landscape"}:
+            errors.append(f"{row_label} field=orientation value={sheet['orientation']!r}")
+        if not _valid_font_size(sheet["font_size"]):
+            errors.append(f"{row_label} field=font_size value={sheet['font_size']!r}")
+        if not _valid_spacing(sheet["spacing"]):
+            errors.append(f"{row_label} field=spacing value={sheet['spacing']!r}")
+        if not isinstance(sheet["margins"], str) or sheet["margins"] not in FROZEN_V1_MARGINS:
+            errors.append(f"{row_label} field=margins value={sheet['margins']!r}")
+        _validate_latex_content(sheet["latex_content"], row_label, errors)
+        _legacy_formula_selections(sheet["selected_formulas"], row_label, errors)
+        sheet_max_pk = sheet["pk"]
+
+    template_max_pk = None
+    template_fields = ("pk", "default_columns", "default_margins", "latex_content", "selected_formulas")
+    for template in Template.objects.select_for_update().order_by("pk").values(*template_fields).iterator(chunk_size=BACKFILL_BATCH_SIZE):
+        row_label = f"Template id={template['pk']}"
+        if not _is_integer_in_range(template["default_columns"], 1, 5):
+            errors.append(f"{row_label} field=default_columns value={template['default_columns']!r}")
+        if not isinstance(template["default_margins"], str) or template["default_margins"] not in FROZEN_V1_MARGINS:
+            errors.append(f"{row_label} field=default_margins value={template['default_margins']!r}")
+        _validate_latex_content(template["latex_content"], row_label, errors)
+        _legacy_formula_selections(template["selected_formulas"], row_label, errors)
+        template_max_pk = template["pk"]
     if errors:
         raise ValueError("Invalid legacy document persistence values: " + "; ".join(errors))
-    return backfill_rows
+    return sheet_max_pk, template_max_pk
+
+
+def _resolve_replay_selections(instance, row_label):
+    errors = []
+    formula_selections = _legacy_formula_selections(instance.selected_formulas, row_label, errors)
+    if errors:
+        raise ValueError("Invalid legacy document persistence values: " + "; ".join(errors))
+    return formula_selections
+
+
+def _replay_cheat_sheets(CheatSheet, max_pk):
+    if max_pk is None:
+        return
+    cursor = 0
+    while cursor < max_pk:
+        sheets = list(
+            CheatSheet.objects.select_for_update().filter(pk__gt=cursor, pk__lte=max_pk).order_by("pk")[:BACKFILL_BATCH_SIZE]
+        )
+        if not sheets:
+            return
+        for sheet in sheets:
+            formula_selections = _resolve_replay_selections(sheet, f"CheatSheet id={sheet.pk}")
+            has_content = bool((sheet.latex_content or "").strip())
+            sheet.schema_version = 1
+            sheet.revision = 1
+            sheet.source_mode = "empty" if not has_content else "generated" if sheet.content_source == "generated" else "raw"
+            sheet.formula_selections = formula_selections
+        CheatSheet.objects.bulk_update(sheets, ["schema_version", "revision", "source_mode", "formula_selections"], batch_size=BACKFILL_BATCH_SIZE)
+        cursor = sheets[-1].pk
+
+
+def _replay_templates(Template, max_pk):
+    if max_pk is None:
+        return
+    cursor = 0
+    while cursor < max_pk:
+        templates = list(
+            Template.objects.select_for_update().filter(pk__gt=cursor, pk__lte=max_pk).order_by("pk")[:BACKFILL_BATCH_SIZE]
+        )
+        if not templates:
+            return
+        for template in templates:
+            formula_selections = _resolve_replay_selections(template, f"Template id={template.pk}")
+            has_content = bool((template.latex_content or "").strip())
+            template.schema_version = 1
+            template.revision = 1
+            template.source_mode = "empty" if not has_content else "generated" if formula_selections else "raw"
+            template.formula_selections = formula_selections
+            template.default_font_size = "9pt"
+            template.default_spacing = "small"
+            template.default_orientation = "portrait"
+        Template.objects.bulk_update(templates, ["schema_version", "revision", "source_mode", "formula_selections", "default_font_size", "default_spacing", "default_orientation"], batch_size=BACKFILL_BATCH_SIZE)
+        cursor = templates[-1].pk
 
 
 def backfill_document_persistence(apps, schema_editor):
     CheatSheet = apps.get_model("api", "CheatSheet")
     Template = apps.get_model("api", "Template")
-    backfill_rows = _preflight_document_persistence(CheatSheet, Template)
-    for sheet, formula_selections in backfill_rows:
-        if not isinstance(sheet, CheatSheet):
-            continue
-        has_content = bool((sheet.latex_content or "").strip())
-        sheet.schema_version = 1
-        sheet.revision = 1
-        sheet.source_mode = "empty" if not has_content else "generated" if sheet.content_source == "generated" else "raw"
-        sheet.formula_selections = formula_selections
-        sheet.save(update_fields=["schema_version", "revision", "source_mode", "formula_selections"])
-    for template, formula_selections in backfill_rows:
-        if not isinstance(template, Template):
-            continue
-        has_content = bool((template.latex_content or "").strip())
-        template.schema_version = 1
-        template.revision = 1
-        template.source_mode = "empty" if not has_content else "generated" if formula_selections else "raw"
-        template.formula_selections = formula_selections
-        template.default_font_size = "9pt"
-        template.default_spacing = "small"
-        template.default_orientation = "portrait"
-        template.save(update_fields=["schema_version", "revision", "source_mode", "formula_selections", "default_font_size", "default_spacing", "default_orientation"])
+    with transaction.atomic():
+        sheet_max_pk, template_max_pk = _preflight_document_persistence(CheatSheet, Template)
+        _replay_cheat_sheets(CheatSheet, sheet_max_pk)
+        _replay_templates(Template, template_max_pk)
 
 
 class Migration(migrations.Migration):
