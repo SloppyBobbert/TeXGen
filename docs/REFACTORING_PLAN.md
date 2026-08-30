@@ -130,6 +130,7 @@ Creator and Dashboard workflows work on mobile and desktop and are operable usin
 - [ ] Complete API permission and compiler-abuse test matrices.
 - [x] Consolidate the two CI workflows.
 - [x] Standardize Python 3.14 and Node 24 across development, CI, and production.
+- [x] Enforce 95% backend coverage as an intentional CI regression floor, not a pursuit of 100% coverage.
 - [ ] Run backend lint/tests/security checks and frontend lint/tests/build in one required pipeline.
 - [ ] Lock Python dependencies and use `npm ci` consistently.
 - [ ] Verify and checksum Tectonic assets.

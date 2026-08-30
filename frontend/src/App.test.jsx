@@ -252,6 +252,23 @@ describe('App save lifecycle regressions', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('does not overwrite the compatibility sheet when the canonical draft write fails', async () => {
+    const olderCurrentSheet = { id: 7, draftId: 'sheet-7', title: 'older current', content: 'older current content', contentSource: 'manual', columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [], compileHistory: [] };
+    const olderCanonicalDraft = { schema_version: 1, draft_identity: 'sheet-7', base_revision: null, source_mode: 'raw', source_latex: 'older canonical content', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, title: 'older canonical', history: [], template_id: null };
+    localStorage.setItem('currentCheatSheet', JSON.stringify(olderCurrentSheet));
+    localStorage.setItem('cheatSheetDraft:v1:string:sheet-7', JSON.stringify(olderCanonicalDraft));
+    vi.stubGlobal('fetch', vi.fn());
+
+    renderApp();
+    failStorageWrite((key) => key.startsWith('cheatSheetDraft:v1:'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(storedSheet()).toEqual(olderCurrentSheet);
+    expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-7'))).toEqual(olderCanonicalDraft);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('reports browser reconciliation failure after a successful server save', async () => {
     const save = deferred();
     vi.stubGlobal('fetch', vi.fn(() => save.promise));

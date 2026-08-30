@@ -69,12 +69,17 @@ const toDraftEnvelope = (sheet) => {
 const persistSheet = (sheet) => {
   try {
     const sanitized = sanitizeSheet(sheet);
-    localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sanitized));
     const identity = getDraftIdentity(sanitized);
-    if (identity === undefined || identity === null) return { ok: true, skipped: true };
+    if (identity === undefined || identity === null) {
+      localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sanitized));
+      return { ok: true, skipped: true };
+    }
     if (Array.isArray(sanitized.selectedFormulas)
       && sanitized.selectedFormulas.length > 0
-      && !sanitized.selectedFormulas.some((formula) => typeof (formula?.formula_id ?? formula?.id) === 'string')) return { ok: true, skipped: true };
+      && !sanitized.selectedFormulas.some((formula) => typeof (formula?.formula_id ?? formula?.id) === 'string')) {
+      localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sanitized));
+      return { ok: true, skipped: true };
+    }
     const existing = readDraft(localStorage, identity);
     if (!existing.ok) return existing;
     return writeDraft(localStorage, toDraftEnvelope(sanitized), {

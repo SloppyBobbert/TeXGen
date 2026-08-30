@@ -60,9 +60,7 @@ jobs:
       - name: Run tests
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/backend_db
-        run: |
-          coverage run --source=. -m pytest -v
-          coverage report -m
+        run: pytest -v --cov-fail-under=95
 
   frontend:
     runs-on: ubuntu-latest
@@ -124,18 +122,28 @@ jobs:
           wait_for_url() {
             local url="$1"
             local service="$2"
-            for attempt in {1..60}; do
-              if curl --fail --silent --show-error "$url"; then
+            # 30 attempts × (2-second request + 2-second delay) bounds each probe to about 120 seconds.
+            for attempt in {1..30}; do
+              if curl --fail --silent --show-error --connect-timeout 1 --max-time 2 "$url"; then
                 return 0
               fi
-              printf 'Waiting for %s (%d/60)...\n' "$service" "$attempt" >&2
-              sleep 2
+              printf 'Waiting for %s (%d/30)...\n' "$service" "$attempt" >&2
+              if (( attempt < 30 )); then
+                sleep 2
+              fi
             done
-            printf 'Timed out waiting for %s at %s after 120 seconds.\n' "$service" "$url" >&2
+            printf 'Timed out waiting for %s at %s after about 120 seconds.\n' "$service" "$url" >&2
             return 1
           }
-          wait_for_url http://localhost:8000/api/health/ backend
-          wait_for_url http://localhost:5173/ frontend
+          wait_for_url http://localhost:8000/api/health/ backend &
+          backend_wait_pid=$!
+          wait_for_url http://localhost:5173/ frontend &
+          frontend_wait_pid=$!
+          backend_wait_status=0
+          frontend_wait_status=0
+          wait "$backend_wait_pid" || backend_wait_status=$?
+          wait "$frontend_wait_pid" || frontend_wait_status=$?
+          (( backend_wait_status == 0 && frontend_wait_status == 0 ))
 
       - name: Run real browser journey
         working-directory: ./frontend
