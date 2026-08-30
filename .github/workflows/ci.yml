@@ -2,19 +2,42 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "tests"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "tests"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:15@sha256:9b1d34adbce1dd07ee6e94b4a2cf698884b89bd44a6c9c12f5da8f3acbfe4957
+        env:
+          POSTGRES_DB: backend_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: ./backend
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -35,7 +58,9 @@ jobs:
         run: pip-audit -r requirements.txt
 
       - name: Run tests
-        run: pytest -v
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/backend_db
+        run: pytest -v --cov-fail-under=95
 
   frontend:
     runs-on: ubuntu-latest
@@ -45,6 +70,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -59,13 +86,75 @@ jobs:
       - name: Run tests
         run: npm test -- --run
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 
-  docker-build:
+  browser-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
-      - name: Build Docker images
-        run: docker compose build
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install browser test dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and start the real stack
+        run: |
+          printf '%s\n' 'services:' '  backend:' '    environment:' '      DJANGO_SECRET_KEY: ci-only-django-secret-key-not-for-production' > /tmp/texgen-ci-compose.yml
+          docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml up -d --build
+          wait_for_url() {
+            local url="$1"
+            local service="$2"
+            # 30 attempts × (2-second request + 2-second delay) bounds each probe to about 120 seconds.
+            for attempt in {1..30}; do
+              if curl --fail --silent --show-error --connect-timeout 1 --max-time 2 "$url"; then
+                return 0
+              fi
+              printf 'Waiting for %s (%d/30)...\n' "$service" "$attempt" >&2
+              if (( attempt < 30 )); then
+                sleep 2
+              fi
+            done
+            printf 'Timed out waiting for %s at %s after about 120 seconds.\n' "$service" "$url" >&2
+            return 1
+          }
+          wait_for_url http://localhost:8000/api/health/ backend &
+          backend_wait_pid=$!
+          wait_for_url http://localhost:5173/ frontend &
+          frontend_wait_pid=$!
+          backend_wait_status=0
+          frontend_wait_status=0
+          wait "$backend_wait_pid" || backend_wait_status=$?
+          wait "$frontend_wait_pid" || frontend_wait_status=$?
+          (( backend_wait_status == 0 && frontend_wait_status == 0 ))
+
+      - name: Run real browser journey
+        working-directory: ./frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+        run: npx playwright test e2e/real-stack.spec.js
+
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml logs
+
+      - name: Tear down real stack
+        if: always()
+        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml down --volumes --remove-orphans

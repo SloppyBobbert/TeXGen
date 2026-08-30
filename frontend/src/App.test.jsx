@@ -46,7 +46,7 @@ vi.mock('./components/CreateCheatSheet', () => ({
           content: 'snapshot content',
           contentSource: 'generated',
           orientation: 'portrait',
-          selectedFormulas: [{ name: 'snapshot formula' }],
+          selectedFormulas: [{ formula_id: 'snapshot-formula', name: 'snapshot formula' }],
           compileSnapshot: {
             title: 'snapshot title',
             content: 'snapshot content',
@@ -56,7 +56,7 @@ vi.mock('./components/CreateCheatSheet', () => ({
             spacing: 'small',
             margins: '0.15in',
             orientation: 'portrait',
-            selectedFormulas: [{ name: 'snapshot formula' }],
+            selectedFormulas: [{ formula_id: 'snapshot-formula', name: 'snapshot formula' }],
           },
         }, false)}>Save snapshot</button>
         <button onClick={() => onSave({
@@ -69,23 +69,27 @@ vi.mock('./components/CreateCheatSheet', () => ({
         }, false)}>Save transient snapshot</button>
         <button onClick={() => onSave({
           title: 'blob:notes', content: 'blob:legitimate LaTeX text', contentSource: 'manual',
-          selectedFormulas: [{ name: 'blob:durable', pdfBlob: 'blob:transient', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
+          selectedFormulas: [{ formula_id: 'blob-durable', name: 'blob:durable', pdfBlob: 'blob:transient', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
           provenance: 'blob:durable provenance', pdfBlob: 'blob:top-level-pdf',
           compileSnapshot: {
             title: 'blob:notes', content: 'blob:legitimate LaTeX text', contentSource: 'manual', columns: 4,
             fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait',
-            selectedFormulas: [{ name: 'blob:durable', pdfBlob: 'blob:transient', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
+            selectedFormulas: [{ formula_id: 'blob-durable', name: 'blob:durable', pdfBlob: 'blob:transient', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
             nested: { note: 'blob:durable nested text', pdfBlob: 'blob:nested-pdf' }, pdfBlob: 'blob:snapshot-pdf',
           },
         })}>Save durable blob text</button>
         <button onClick={() => onSave({
           title: 'formula save', content: 'formula content', contentSource: 'manual',
-          selectedFormulas: [{ class: 'Math', category: 'Algebra', name: 'A', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
+          selectedFormulas: [{ formula_id: 'formula-a', class: 'Math', category: 'Algebra', name: 'A', nested: { text: 'blob:keep', pdfBlob: 'blob:drop' } }],
         })}>Save formula A</button>
         <button onClick={() => onSave({
-          selectedFormulas: [{ class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }],
+          selectedFormulas: [{ formula_id: 'formula-c', class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }],
         }, false)}>Save formula C locally</button>
         <button onClick={() => onRestoreSnapshot({ orientation: 'landscape' })}>Restore orientation</button>
+        <button onClick={() => onRestoreSnapshot({ formulaSelections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }] })}>Restore canonical formulas</button>
+        <button onClick={() => onRestoreSnapshot({ selectedFormulas: [{ id: 'legacy-first' }, { formula_id: 'legacy-second' }] })}>Restore legacy formulas</button>
+        <button onClick={() => onRestoreSnapshot({ formulaSelections: [{ formula_id: 'canonical-wins' }], selectedFormulas: [{ formula_id: 'legacy-loses' }] })}>Restore conflicting formulas</button>
+        <button onClick={() => onSave({})}>Save restored formulas</button>
         <button onClick={onReset}>Reset sheet</button>
         <Link to="/dashboard" aria-label="Open test dashboard">Dashboard</Link>
       </section>
@@ -148,10 +152,29 @@ const renderApp = () => render(
   </BrowserRouter>,
 );
 
+const renderSignedOutApp = () => render(
+  <BrowserRouter>
+    <AuthContext.Provider value={{
+      user: null,
+      authTokens: null,
+      logoutUser: vi.fn(),
+    }}>
+      <App />
+    </AuthContext.Provider>
+  </BrowserRouter>,
+);
+
 const storedSheet = () => JSON.parse(localStorage.getItem('currentCheatSheet'));
 const containsTransientBlob = (value) => {
   if (Array.isArray(value)) return value.some(containsTransientBlob);
   return value && typeof value === 'object' && Object.entries(value).some(([key, item]) => key === 'pdfBlob' || containsTransientBlob(item));
+};
+const failStorageWrite = (matches) => {
+  const originalSetItem = globalThis.Storage.prototype.setItem;
+  return vi.spyOn(globalThis.Storage.prototype, 'setItem').mockImplementation(function setItem(key, value) {
+    if (matches(key)) throw new globalThis.DOMException('Storage full', 'QuotaExceededError');
+    return originalSetItem.call(this, key, value);
+  });
 };
 
 describe('App save lifecycle regressions', () => {
@@ -183,6 +206,118 @@ describe('App save lifecycle regressions', () => {
     await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({ id: 41 })));
     expect(screen.getByLabelText('child local edit')).toHaveValue('unsaved child edit');
     expect(mocks.childMount).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a matching unresolved legacy sheet on startup', () => {
+    const legacy = { draftId: 'legacy-draft', title: 'Recover me', content: 'legacy source', contentSource: 'manual', columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [{ name: 'display only' }], compileHistory: [] };
+    localStorage.setItem('currentCheatSheet', JSON.stringify(legacy));
+
+    renderApp();
+
+    expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({ title: 'Recover me', selectedFormulas: [{ name: 'display only' }] }));
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toEqual(legacy);
+  });
+
+  it('restores a fresh signed-out local draft after remounting', async () => {
+    const firstRender = renderSignedOutApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Saved to this browser. Sign in if you want this sheet synced to your account.'));
+    const activeSheet = storedSheet();
+    const draftKey = `cheatSheetDraft:v1:string:${encodeURIComponent(activeSheet.draftId)}`;
+    const canonicalDraft = JSON.parse(localStorage.getItem(draftKey));
+    expect(canonicalDraft).toEqual(expect.objectContaining({
+      schema_version: 1,
+      draft_identity: activeSheet.draftId,
+      title: activeSheet.title,
+      source_latex: activeSheet.content,
+    }));
+
+    firstRender.unmount();
+    renderSignedOutApp();
+
+    expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({
+      draftId: activeSheet.draftId,
+      title: activeSheet.title,
+      content: activeSheet.content,
+    }));
+  });
+
+  it('surfaces a canonical draft persistence failure instead of reporting a save', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 7, draftId: 'sheet-7', title: 'existing', content: '', contentSource: 'empty', columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [], compileHistory: [] }));
+    localStorage.setItem('cheatSheetDraft:v1:string:sheet-7', '{malformed');
+    vi.stubGlobal('fetch', vi.fn());
+
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not crash or fetch when current sheet storage fails', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    failStorageWrite((key) => key === 'currentCheatSheet');
+
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch when compile history sidecar storage fails', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 7, draftId: 'sheet-7', title: 'existing', content: '', contentSource: 'empty', columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [], compileHistory: [] }));
+    renderApp();
+    failStorageWrite((key) => key.startsWith('cheatSheetCompileHistory:'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch when canonical draft storage fails', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    renderApp();
+    failStorageWrite((key) => key.startsWith('cheatSheetDraft:v1:'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite the compatibility sheet when the canonical draft write fails', async () => {
+    const olderCurrentSheet = { id: 7, draftId: 'sheet-7', title: 'older current', content: 'older current content', contentSource: 'manual', columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [], compileHistory: [] };
+    const olderCanonicalDraft = { schema_version: 1, draft_identity: 'sheet-7', base_revision: null, source_mode: 'raw', source_latex: 'older canonical content', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, title: 'older canonical', history: [], template_id: null };
+    localStorage.setItem('currentCheatSheet', JSON.stringify(olderCurrentSheet));
+    localStorage.setItem('cheatSheetDraft:v1:string:sheet-7', JSON.stringify(olderCanonicalDraft));
+    vi.stubGlobal('fetch', vi.fn());
+
+    renderApp();
+    failStorageWrite((key) => key.startsWith('cheatSheetDraft:v1:'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
+    expect(storedSheet()).toEqual(olderCurrentSheet);
+    expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-7'))).toEqual(olderCanonicalDraft);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('reports browser reconciliation failure after a successful server save', async () => {
+    const save = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => save.promise));
+    renderApp();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    failStorageWrite((key) => key === 'currentCheatSheet');
+    await act(async () => save.resolve(response({ id: 12, schema_version: 1, revision: 1, source_mode: 'raw', source_latex: 'formula content', layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, formula_selections: [{ formula_id: 'formula-a' }] })));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Saved to server, but failed to update this browser draft.'));
+    expect(alert).not.toHaveBeenCalledWith('Progress saved!');
   });
 
   it.each([
@@ -239,18 +374,56 @@ describe('App save lifecycle regressions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save snapshot' }));
     await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
-      contentSource: 'generated', orientation: 'portrait', selectedFormulas: [{ name: 'snapshot formula' }],
-      compileHistory: [expect.objectContaining({ title: 'snapshot title' })],
+      contentSource: 'generated', orientation: 'portrait', selectedFormulas: [{ formula_id: 'snapshot-formula', name: 'snapshot formula' }],
+      compileHistory: [expect.objectContaining({ title: 'snapshot title', formulaSelections: [{ formula_id: 'snapshot-formula' }] })],
     })));
     firstRender.unmount();
     renderApp();
 
     expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({
-      contentSource: 'generated', orientation: 'portrait', selectedFormulas: [{ name: 'snapshot formula' }],
+      contentSource: 'generated', orientation: 'portrait', selectedFormulas: [{ formula_id: 'snapshot-formula' }],
       compileHistory: [expect.objectContaining({ title: 'snapshot title' })],
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore orientation' }));
     await waitFor(() => expect(storedSheet().orientation).toBe('landscape'));
+  });
+
+  it('restores canonical-only snapshot selections in order', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore canonical formulas' }));
+
+    await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
+      formulaSelections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }],
+      selectedFormulas: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }],
+    })));
+  });
+
+  it('derives canonical snapshot selections from legacy formula records', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore legacy formulas' }));
+
+    await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
+      formulaSelections: [{ formula_id: 'legacy-first' }, { formula_id: 'legacy-second' }],
+      selectedFormulas: [{ id: 'legacy-first' }, { formula_id: 'legacy-second' }],
+    })));
+  });
+
+  it('uses canonical snapshot selections over conflicting legacy records', async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore conflicting formulas' }));
+
+    await waitFor(() => expect(storedSheet().formulaSelections).toEqual([{ formula_id: 'canonical-wins' }]));
+  });
+
+  it('sends restored canonical selection IDs on the next save', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(response({ id: 8, schema_version: 1, revision: 1, source_mode: 'empty', source_latex: '', layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, formula_selections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }] }))));
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore canonical formulas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save restored formulas' }));
+
+    await waitFor(() => expect(JSON.parse(fetch.mock.calls[0][1].body).formula_selections).toEqual([
+      { formula_id: 'canonical-first' }, { formula_id: 'canonical-second' },
+    ]));
   });
 
   it('strips transient blob URLs from saved sheets and compile history', async () => {
@@ -284,8 +457,9 @@ describe('App save lifecycle regressions', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
     const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
     expect(requestBody).toEqual(expect.objectContaining({
-      title: 'blob:notes', latex_content: 'blob:legitimate LaTeX text',
-      selected_formulas: [{ name: 'blob:durable', nested: { text: 'blob:keep' } }],
+      title: 'blob:notes', source_latex: 'blob:legitimate LaTeX text', source_mode: 'raw',
+      formula_selections: [{ formula_id: 'blob-durable' }],
+      layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' },
     }));
     expect(containsTransientBlob(requestBody)).toBe(false);
     await waitFor(() => expect(storedSheet().compileHistory).toHaveLength(1));
@@ -297,7 +471,7 @@ describe('App save lifecycle regressions', () => {
     expect(storedHistory[0]).toEqual(expect.objectContaining({
       content: 'blob:legitimate LaTeX text', nested: { note: 'blob:durable nested text' },
     }));
-    expect(storedHistory[0].selectedFormulas).toEqual([{ name: 'blob:durable', nested: { text: 'blob:keep' } }]);
+    expect(storedHistory[0].selectedFormulas).toEqual([{ formula_id: 'blob-durable', name: 'blob:durable', nested: { text: 'blob:keep' } }]);
     expect(containsTransientBlob(storedSheet())).toBe(false);
     expect(containsTransientBlob(storedHistory)).toBe(false);
   });
@@ -316,7 +490,6 @@ describe('App save lifecycle regressions', () => {
 
   it('merges canonical server formulas only when the submitted selection remains current', async () => {
     const save = deferred();
-    const canonicalFormula = { class: 'Math', category: 'Canonical', name: 'B', nested: { text: 'blob:server', pdfBlob: 'blob:drop' }, pdfBlob: 'blob:transient' };
     localStorage.setItem('currentCheatSheet', JSON.stringify({
       draftId: 'draft-7', title: 'existing', content: '', contentSource: 'empty', columns: 4,
       fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait', selectedFormulas: [], compileHistory: [],
@@ -326,10 +499,10 @@ describe('App save lifecycle regressions', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(JSON.parse(fetch.mock.calls[0][1].body).selected_formulas).toEqual([{ class: 'Math', category: 'Algebra', name: 'A', nested: { text: 'blob:keep' } }]);
-    await act(async () => save.resolve(response({ id: 7, selected_formulas: [canonicalFormula] })));
+    expect(JSON.parse(fetch.mock.calls[0][1].body).formula_selections).toEqual([{ formula_id: 'formula-a' }]);
+    await act(async () => save.resolve(response({ id: 7, schema_version: 1, revision: 2, source_mode: 'raw', source_latex: 'formula content', layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, formula_selections: [{ formula_id: 'formula-b' }] })));
 
-    await waitFor(() => expect(storedSheet().selectedFormulas).toEqual([{ class: 'Math', category: 'Canonical', name: 'B', nested: { text: 'blob:server' } }]));
+    await waitFor(() => expect(storedSheet().selectedFormulas).toEqual([{ formula_id: 'formula-b' }]));
     expect(storedSheet().id).toBe(7);
     expect(containsTransientBlob(storedSheet())).toBe(false);
   });
@@ -348,30 +521,24 @@ describe('App save lifecycle regressions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save formula C locally' }));
     await act(async () => save.resolve(response({ id: 7, selected_formulas: null })));
 
-    await waitFor(() => expect(storedSheet().selectedFormulas).toEqual([{ class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }]));
+    await waitFor(() => expect(storedSheet().selectedFormulas).toEqual([{ formula_id: 'formula-c', class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }]));
     expect(storedSheet().id).toBe(7);
     expect(containsTransientBlob(storedSheet())).toBe(false);
   });
 
   it('retains a local formula C when canonical server formula B resolves an earlier save of A', async () => {
     const save = deferred();
-    const canonicalFormula = {
-      class: 'Math', category: 'Canonical', name: 'B', durable: 'blob:server value',
-      nested: { text: 'blob:server nested', pdfBlob: 'blob:drop' }, pdfBlob: 'blob:transient',
-    };
     vi.stubGlobal('fetch', vi.fn(() => save.promise));
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
-    expect(JSON.parse(fetch.mock.calls[0][1].body).selected_formulas).toEqual([
-      { class: 'Math', category: 'Algebra', name: 'A', nested: { text: 'blob:keep' } },
-    ]);
+    expect(JSON.parse(fetch.mock.calls[0][1].body).formula_selections).toEqual([{ formula_id: 'formula-a' }]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save formula C locally' }));
-    await act(async () => save.resolve(response({ id: 88, selected_formulas: [canonicalFormula] })));
+    await act(async () => save.resolve(response({ id: 88, schema_version: 1, revision: 2, source_mode: 'raw', source_latex: 'formula content', layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, formula_selections: [{ formula_id: 'formula-b' }] })));
 
-    const formulaC = [{ class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }];
+    const formulaC = [{ formula_id: 'formula-c', class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }];
     await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({ id: 88, selectedFormulas: formulaC })));
     expect(JSON.parse(screen.getByTestId('sheet-state').textContent)).toEqual(expect.objectContaining({ id: 88, selectedFormulas: formulaC }));
     expect(containsTransientBlob(storedSheet())).toBe(false);
@@ -404,22 +571,23 @@ describe('App recovery and remote persistence integration', () => {
   });
 
   it('saves a matching recovered draft through the API and reloads its mapped server state', async () => {
-    const recoveredFormula = { class: 'Physics 101', category: 'Forces', name: 'Newton Second Law' };
+    const recoveredFormula = { formula_id: 'newton-second-law', class: 'Physics 101', category: 'Forces', name: 'Newton Second Law' };
     const savedResponse = {
       id: 42,
       title: 'Recovered mechanics',
-      latex_content: '\\documentclass{article}\nRecovered body',
-      content_source: 'manual',
-      columns: 2,
-      margins: '0.25in',
-      font_size: '10pt',
-      spacing: 'medium',
-      orientation: 'landscape',
-      selected_formulas: [recoveredFormula],
+      schema_version: 1,
+      revision: 7,
+      source_mode: 'raw',
+      source_latex: '\\documentclass{article}\nRecovered body',
+      layout: { columns: 2, margins: '0.25in', font_size: '10pt', spacing: 'medium', orientation: 'landscape' },
+      formula_selections: [{ formula_id: 'newton-second-law' }],
+      template_id: null,
     };
     localStorage.setItem('currentCheatSheet', JSON.stringify({
       id: 42,
       draftId: 'sheet-42',
+      revision: 6,
+      base_revision: 6,
       title: 'Stale server title',
       content: 'stale server content',
       contentSource: 'generated',
@@ -428,18 +596,19 @@ describe('App recovery and remote persistence integration', () => {
       spacing: 'small',
       margins: '0.15in',
       orientation: 'portrait',
-      selectedFormulas: [{ class: 'Physics 101', category: 'Motion', name: 'Velocity' }],
+      selectedFormulas: [recoveredFormula],
+      formulaSelections: [{ formula_id: 'newton-second-law' }],
       compileHistory: [],
     }));
     localStorage.setItem('cheatSheetLatex:sheet-42', JSON.stringify({
       title: savedResponse.title,
-      content: savedResponse.latex_content,
-      contentSource: savedResponse.content_source,
-      columns: savedResponse.columns,
-      fontSize: savedResponse.font_size,
-      spacing: savedResponse.spacing,
-      margins: savedResponse.margins,
-      orientation: savedResponse.orientation,
+      content: savedResponse.source_latex,
+      contentSource: 'manual',
+      columns: savedResponse.layout.columns,
+      fontSize: savedResponse.layout.font_size,
+      spacing: savedResponse.layout.spacing,
+      margins: savedResponse.layout.margins,
+      orientation: savedResponse.layout.orientation,
     }));
     localStorage.setItem('cheatSheetData:sheet-42', JSON.stringify({
       selectedClasses: { 'Physics 101': true },
@@ -450,8 +619,8 @@ describe('App recovery and remote persistence integration', () => {
     vi.stubGlobal('fetch', vi.fn((url, _options = {}) => {
       if (url === '/api/classes/') {
         return Promise.resolve({ ok: true, json: async () => ({ classes: [{ name: 'Physics 101', categories: [
-          { name: 'Motion', formulas: [{ name: 'Velocity' }] },
-          { name: 'Forces', formulas: [{ name: 'Newton Second Law' }] },
+          { name: 'Motion', formulas: [{ id: 'velocity', name: 'Velocity' }] },
+          { name: 'Forces', formulas: [{ id: 'newton-second-law', name: 'Newton Second Law' }] },
         ] }] }) });
       }
       if (url === '/api/cheatsheets/42/') return Promise.resolve(response(savedResponse));
@@ -483,28 +652,29 @@ describe('App recovery and remote persistence integration', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/cheatsheets/42/', expect.objectContaining({
       method: 'PATCH',
       body: JSON.stringify({
+        schema_version: 1,
         title: savedResponse.title,
-        latex_content: savedResponse.latex_content,
-        content_source: 'manual',
-        columns: 2,
-        margins: '0.25in',
-        font_size: '10pt',
-        spacing: 'medium',
-        orientation: 'landscape',
-        selected_formulas: [recoveredFormula],
+        source_mode: 'raw',
+        source_latex: savedResponse.source_latex,
+        layout: { columns: 2, font_size: '10pt', spacing: 'medium', margins: '0.25in', orientation: 'landscape' },
+        formula_selections: [{ formula_id: 'newton-second-law' }],
+        template_id: null,
+        revision: 6,
       }),
     })));
     await waitFor(() => expect(storedSheet()).toEqual(expect.objectContaining({
       id: 42,
       title: savedResponse.title,
-      content: savedResponse.latex_content,
+      content: savedResponse.source_latex,
       contentSource: 'manual',
       columns: 2,
       fontSize: '10pt',
       spacing: 'medium',
       margins: '0.25in',
       orientation: 'landscape',
-      selectedFormulas: [recoveredFormula],
+      selectedFormulas: [{ formula_id: 'newton-second-law' }],
+      revision: 7,
+      baseRevision: 7,
     })));
 
     firstRender.unmount();

@@ -17,18 +17,11 @@ test.describe('Create Cheat Sheet Flow', () => {
     await page.route('**/api/classes/', async route => {
       await route.fulfill({
         status: 200,
-        body: JSON.stringify([
-          { id: 1, name: 'Algebra I', categories: [{ id: 1, name: 'Linear Equations' }] }
-        ]),
-      });
-    });
-    
-    await page.route('**/api/formulas/?category=1', async route => {
-      await route.fulfill({
-        status: 200,
-        body: JSON.stringify([
-          { id: 1, name: 'Slope-Intercept Form', latex_code: 'y = mx + b', description: 'Equation of a straight line' }
-        ]),
+        body: JSON.stringify({ classes: [
+          { name: 'Algebra I', categories: [{ name: 'Linear Equations', formulas: [
+            { id: 'algebra-i.slope-intercept-form', name: 'Slope-Intercept Form' },
+          ] }] },
+        ] }),
       });
     });
 
@@ -70,16 +63,29 @@ test.describe('Create Cheat Sheet Flow', () => {
     }
   });
 
-  // Export PDF button
-  test('export PDF button triggers action', async ({ page }) => {
-    await page.goto('/');
-    
-    // Look for Download / Export PDF button
-    const exportBtn = page.locator('button', { hasText: /PDF|Download/i }).first();
-    
-    if (await exportBtn.isVisible()) {
-        // Just verify it's clickable and exists
-        await expect(exportBtn).toBeEnabled();
-    }
+  test('compiles selected formulas with the authenticated session', async ({ page }) => {
+    let compileRequest = null;
+    await page.route('**/api/generate-sheet/', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ tex_code: '\\documentclass{article}\\begin{document}Test\\end{document}' }),
+      });
+    });
+    await page.route('**/api/compile/', async route => {
+      compileRequest = route.request();
+      await route.fulfill({ status: 200, contentType: 'application/pdf', body: 'pdf' });
+    });
+
+    await page.getByRole('checkbox', { name: 'Algebra I' }).check();
+
+    const compileButton = page.getByRole('button', { name: /Compile PDF/i });
+    await expect(compileButton).toBeEnabled();
+    await compileButton.click();
+
+    await expect.poll(() => compileRequest?.headers().authorization).toBe(
+      'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIn0.signature',
+    );
+    expect(JSON.parse(compileRequest.postData()).content).toContain('\\documentclass{article}');
   });
 });

@@ -457,6 +457,18 @@ label {
   box-sizing: border-box;
 }
 
+.compile-error-box.authentication-notice {
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel-bg) 88%, var(--primary) 12%);
+  border-color: color-mix(in srgb, var(--border) 60%, var(--primary) 40%);
+  font-family: inherit;
+}
+
+.authentication-notice a {
+  color: var(--primary);
+  font-weight: 600;
+}
+
 /* ==========================================================================
    EDITOR LAYOUT
    ========================================================================== */

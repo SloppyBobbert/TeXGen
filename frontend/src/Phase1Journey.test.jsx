@@ -16,8 +16,8 @@ vi.mock('react-pdf', () => ({
 const classes = [{
   name: 'Physics 101',
   categories: [
-    { name: 'Motion', formulas: [{ name: 'Velocity' }] },
-    { name: 'Forces', formulas: [{ name: 'Newton Second Law' }] },
+    { name: 'Motion', formulas: [{ id: 'physics-i.velocity', name: 'Velocity' }] },
+    { name: 'Forces', formulas: [{ id: 'physics-i.newton-second-law', name: 'Newton Second Law' }] },
   ],
 }];
 
@@ -43,7 +43,7 @@ const deferred = () => {
 };
 
 const renderEditor = (props) => render(
-  <AuthContext.Provider value={{ authTokens: null }}>
+  <AuthContext.Provider value={{ authTokens: { access: 'test-token' } }}>
     <CreateCheatSheet onReset={vi.fn()} {...props} />
   </AuthContext.Provider>,
 );
@@ -182,7 +182,8 @@ describe('phase 1 component persistence journey with mocked save callback', () =
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith('/api/compile/', expect.anything()));
     expect(global.fetch.mock.calls.filter(([url]) => url === '/api/compile/')).toHaveLength(1);
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      selectedFormulas: restored.selectedFormulas,
+      selectedFormulas: [expect.objectContaining(restored.selectedFormulas[0])],
+      formulaSelections: [{ formula_id: 'physics-i.velocity' }],
     }), false));
     expect(onSave.mock.calls.filter(([, showFeedback]) => showFeedback === false)).toHaveLength(1);
   });

@@ -8,7 +8,7 @@ Prepare TeXGen for a small public production launch without a full rewrite. The 
 
 ## Product decisions
 
-- Support limited anonymous PDF compilation with strict quotas and isolation.
+- Require sign-in for PDF compilation and downloads.
 - Support structured editing and an advanced raw-LaTeX mode.
 - Preserve manual edits by default; replacing source requires explicit regeneration.
 - Treat templates as staff-curated and publicly readable.
@@ -41,11 +41,11 @@ Prepare TeXGen for a small public production launch without a full rewrite. The 
 - [x] Define separate Generate and Compile behavior for structured and raw source.
 - [x] Prevent invalidated generation, normalization, compilation, download, and save work from publishing after a manual/history edit, clear, reset, or unmount.
 - [x] Require ownership for user resources and staff-only template writes.
-- [x] Add initial compiler authentication policy, anonymous quotas, timeouts, size limits, and safe diagnostics.
+- [x] Add compiler authentication, authenticated quotas, timeouts, size limits, and safe diagnostics.
 
 ### Gate
 
-The reported template workflow is deterministic and regression tests cover the repaired behavior. Anonymous compilation remains unsuitable for production until the required shared throttling, trusted client-IP handling, and isolation controls exist.
+The reported template workflow is deterministic and regression tests cover the repaired behavior. Compilation requires sign-in; production deployment remains blocked until the required shared throttling and compiler-isolation controls exist.
 
 ### Phase 1 execution status — August 26, 2026
 
@@ -63,17 +63,17 @@ Evidence recorded in `omos/phase1-correctness-pr`, rebuilt from `origin/main` at
 Phase 1 is not complete. Remaining containment work:
 
 - Configure shared/global throttle storage and trusted proxy/client-IP handling; the current in-process cache cannot enforce global quotas across workers.
-- Add process-group, container, filesystem, network, CPU, memory, process-count, and output isolation. Anonymous compilation is not production-safe until these controls and the shared throttling and client-IP controls exist.
+- Add process-group, container, filesystem, network, CPU, memory, process-count, and output isolation. Authenticated compilation is not production-safe until these controls and shared throttling exist.
 
 ## Phase 2 — Document model and backend rendering core
 
-- [ ] Define one canonical document contract containing title, source mode, source LaTeX, layout, formula selections, and timestamps.
-- [ ] Persist every layout field, including spacing.
+- [x] Define one canonical document contract containing title, source mode, source LaTeX, layout, ordered formula selections, schema version, and revision.
+- [x] Persist every layout field, including spacing.
 - [ ] Classify each field as plain text or raw LaTeX and enforce one escaping policy.
 - [ ] Represent generated sections with stable topic and formula identities.
 - [ ] Preserve custom user content separately from generated sections.
-- [ ] Make raw source authoritative in advanced mode.
-- [ ] Require an explicit, reversible regeneration action before replacing manual source.
+- [x] Make raw source authoritative in advanced mode.
+- [x] Require explicit regeneration before replacing manual source.
 - [ ] Extract layout validation, formula resolution, document assembly, and practice-problem rendering into focused services.
 - [ ] Create one compiler adapter and remove duplicate Tectonic invocation paths.
 - [ ] Keep Django models focused on persistence and views focused on HTTP orchestration.
@@ -88,8 +88,8 @@ One backend path owns document construction and compilation, and structured docu
 ## Phase 3 — Frontend state, networking, and race-condition cleanup
 
 - [ ] Replace competing document copies with one reducer-backed editor session.
-- [ ] Version and migrate the local draft format.
-- [ ] Derive checkbox state, selected counts, and generation payloads from one canonical ordered selection.
+- [x] Version and migrate the local draft format.
+- [x] Derive checkbox state, selected counts, and generation payloads from one canonical ordered selection.
 - [ ] Centralize API paths, auth headers, token refresh, payload mapping, errors, and cancellation.
 - [ ] Remove raw `fetch()` orchestration from UI components.
 - [ ] Add request IDs or editor-version tokens and ignore obsolete responses.
@@ -128,7 +128,9 @@ Creator and Dashboard workflows work on mobile and desktop and are operable usin
 - [ ] Add App/editor integration tests and a real-backend Playwright smoke journey.
 - [ ] Remove conditional and swallowed end-to-end assertions.
 - [ ] Complete API permission and compiler-abuse test matrices.
-- [ ] Consolidate the two CI workflows and standardize Python and Node versions.
+- [x] Consolidate the two CI workflows.
+- [x] Standardize Python 3.14 and Node 24 across development, CI, and production.
+- [x] Enforce 95% backend coverage as an intentional CI regression floor, not a pursuit of 100% coverage.
 - [ ] Run backend lint/tests/security checks and frontend lint/tests/build in one required pipeline.
 - [ ] Lock Python dependencies and use `npm ci` consistently.
 - [ ] Verify and checksum Tectonic assets.
@@ -160,7 +162,7 @@ One CI pipeline proves the complete supported workflow, and production images ru
 - [ ] Clear/reset cannot be reversed by stale responses.
 - [ ] Selection controls always match generated payloads.
 - [ ] Content, formulas, and layout survive save and reload.
-- [ ] Anonymous compilation is isolated, bounded, and rate-limited.
+- [ ] Authenticated compilation is isolated, bounded, and rate-limited; production sandbox enforcement remains deferred to PR2.
 - [ ] Cross-user resource access is prevented.
 - [ ] Mobile and keyboard workflows pass.
 - [ ] One CI pipeline validates the production workflow.

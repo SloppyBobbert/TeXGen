@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Template, CheatSheet, PracticeProblem
+from .document_contract import DocumentContractSerializer
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -37,7 +38,32 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-class TemplateSerializer(serializers.ModelSerializer):
+class TemplateSerializer(DocumentContractSerializer):
+    content_source = serializers.SerializerMethodField()
+    columns = serializers.SerializerMethodField()
+    font_size = serializers.SerializerMethodField()
+    spacing = serializers.SerializerMethodField()
+    margins = serializers.SerializerMethodField()
+    orientation = serializers.SerializerMethodField()
+
+    def get_content_source(self, obj):
+        return self._legacy_mode(obj.source_mode)
+
+    def get_columns(self, obj):
+        return obj.default_columns
+
+    def get_font_size(self, obj):
+        return obj.default_font_size
+
+    def get_spacing(self, obj):
+        return obj.default_spacing
+
+    def get_margins(self, obj):
+        return obj.default_margins
+
+    def get_orientation(self, obj):
+        return obj.default_orientation
+
     class Meta:
         model = Template
         fields = [
@@ -46,13 +72,28 @@ class TemplateSerializer(serializers.ModelSerializer):
             "subject",
             "description",
             "latex_content",
+            "schema_version",
+            "revision",
+            "source_mode",
+            "source_latex",
+            "layout",
+            "formula_selections",
+            "content_source",
+            "columns",
+            "font_size",
+            "spacing",
+            "margins",
+            "orientation",
             "default_margins",
             "default_columns",
+            "default_font_size",
+            "default_spacing",
+            "default_orientation",
             "selected_formulas",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "source_latex", "layout", "content_source", "columns", "font_size", "spacing", "margins", "orientation"]
 
 
 class PracticeProblemSerializer(serializers.ModelSerializer):
@@ -77,17 +118,33 @@ class PracticeProblemSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
-class CheatSheetSerializer(serializers.ModelSerializer):
+class CheatSheetSerializer(DocumentContractSerializer):
     problems = PracticeProblemSerializer(many=True, read_only=True)
     full_latex = serializers.SerializerMethodField()
+    template_id = serializers.PrimaryKeyRelatedField(
+        source="template", queryset=Template.objects.all(), allow_null=True, required=False
+    )
+
+    def to_internal_value(self, data):
+        data = data.copy()
+        if "template_id" in data and "template" in data and data["template_id"] != data["template"]:
+            raise serializers.ValidationError({"template_id": "Conflicts with template."})
+        return super().to_internal_value(data)
 
     class Meta:
         model = CheatSheet
         fields = [
             "id",
             "title",
+            "template_id",
             "template",
             "latex_content",
+            "schema_version",
+            "revision",
+            "source_mode",
+            "source_latex",
+            "layout",
+            "formula_selections",
             "content_source",
             "margins",
             "columns",
@@ -101,21 +158,8 @@ class CheatSheetSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "user", "created_at", "updated_at", "full_latex"]
+        read_only_fields = ["id", "user", "created_at", "updated_at", "full_latex", "source_latex", "layout"]
 
     def get_full_latex(self, obj):
         """Return the fully-assembled LaTeX document string."""
         return obj.build_full_latex()
-
-    def validate(self, attrs):
-        if "content_source" in attrs:
-            return attrs
-
-        current_content = getattr(self.instance, "latex_content", "")
-        latex_content = attrs.get("latex_content", current_content) or ""
-
-        if not latex_content.strip():
-            attrs["content_source"] = "empty"
-        else:
-            attrs["content_source"] = "manual"
-        return attrs
