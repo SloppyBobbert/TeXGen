@@ -6,6 +6,7 @@ const SAVE_DEBOUNCE_MS = 500;
 const AUTO_COMPILE_DEBOUNCE_MS = 450;
 const MAX_HISTORY_ENTRIES = 7;
 const AUTHENTICATION_ERROR = 'Sign in to compile or download PDFs.';
+const SELECTION_RESOLUTION_ERROR = 'Unable to resolve selected formulas for generation.';
 const DEFAULT_LAYOUT = {
   columns: 4,
   fontSize: '9pt',
@@ -59,6 +60,28 @@ function formatCompileError(errorData = {}) {
     .replace(/error:\s*halted on potentially-recoverable error as specified\.?/ig, '')
     .replace(/\n\s*\n/g, '\n')
     .trim() || 'Failed to compile LaTeX';
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function normalizeLegacyFormula(formula) {
+  if (!formula || typeof formula !== 'object') return null;
+
+  const classKey = isNonEmptyString(formula.class)
+    ? 'class'
+    : isNonEmptyString(formula.class_name)
+      ? 'class_name'
+      : null;
+  if (!classKey || !isNonEmptyString(formula.name)) return null;
+  if (Object.hasOwn(formula, 'category') && typeof formula.category !== 'string') return null;
+
+  return {
+    [classKey]: formula[classKey],
+    ...(Object.hasOwn(formula, 'category') ? { category: formula.category } : {}),
+    name: formula.name,
+  };
 }
 
 async function readErrorResponse(response) {
@@ -334,14 +357,27 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   }, []);
 
   const generateLatexContent = useCallback(async (selectedList, epoch) => {
-    const formulas = selectedList.every((formula) => formula?.formula_id || formula?.id)
-      ? selectedList.map((formula) => ({ formula_id: formula.formula_id || formula.id }))
-      : selectedList;
+    const hasCanonicalSelections = selectedList.every((formula) => (
+      isNonEmptyString(formula?.formula_id) || isNonEmptyString(formula?.id)
+    ));
+    const legacyFormulas = hasCanonicalSelections
+      ? null
+      : selectedList.map(normalizeLegacyFormula);
+    const formulaPayload = hasCanonicalSelections
+      ? {
+        formula_selections: selectedList.map((formula) => ({
+          formula_id: isNonEmptyString(formula.formula_id) ? formula.formula_id : formula.id,
+        })),
+      }
+      : legacyFormulas.every(Boolean)
+        ? { formulas: legacyFormulas }
+        : null;
+    if (!formulaPayload) throw new Error(SELECTION_RESOLUTION_ERROR);
     const response = await request('/api/generate-sheet/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        formulas,
+        ...formulaPayload,
         columns,
         font_size: fontSize,
         spacing,
