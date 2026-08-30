@@ -20,7 +20,8 @@ test('registered user can compile, save, reload, and delete a cheat sheet', asyn
   ));
   await page.getByRole('button', { name: 'Generate / Regenerate' }).click();
   await compileResponse;
-  await expect(page.locator('.pdf-preview-stage')).toContainText(/Page 1 of 1/, { timeout: 60_000 });
+  await expect(page.locator('.pdf-toolbar-note')).toContainText(/Page 1 of 1/, { timeout: 60_000 });
+  await expect(page.locator('.pdf-page canvas')).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText('Saved just now')).toBeVisible({ timeout: 30_000 });
 
   const saveResponse = page.waitForResponse((response) => (
