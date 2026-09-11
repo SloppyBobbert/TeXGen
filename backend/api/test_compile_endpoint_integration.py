@@ -258,6 +258,26 @@ def test_cross_owner_and_disabled_compiler_do_not_consume_quota(authenticated_cl
     quota.assert_not_called()
 
 
+@pytest.mark.parametrize("source_fields", [
+    {"source_mode": None},
+    {"content_source": None},
+    {"source_mode": None, "content_source": None},
+    {"source_mode": None, "content_source": "manual"},
+    {"source_mode": "raw", "content_source": None},
+])
+@pytest.mark.parametrize("normalize_only", [False, True])
+def test_null_source_modes_are_rejected_before_downstream_work(authenticated_client, source_fields, normalize_only):
+    with patch("api.views.admit_compile") as quota, patch("api.views.get_compiler_service") as compiler:
+        response = authenticated_client.post(
+            "/api/compile/", {"content": "x", "normalize_only": normalize_only, **source_fields}, format="json"
+        )
+    assert response.status_code == 400
+    field = "source_mode" if "source_mode" in source_fields and source_fields["source_mode"] is None else "content_source"
+    assert response.json()["error"].startswith(field + " must be")
+    quota.assert_not_called()
+    compiler.assert_not_called()
+
+
 @pytest.mark.django_db
 def test_compile_source_mode_accepts_legacy_and_rejects_conflicts(authenticated_client):
     response = authenticated_client.post(

@@ -19,6 +19,14 @@ The current curated Tectonic binary is Linux ARM64. Use a matching ARM64 build a
 
 Verify this checksum before extraction. Then run `python3 -S backend/compiler_sidecar/container/verify_assets.py backend/.compiler-assets`. CI performs both checks before the Docker build; the Dockerfile verifies the tree again. A missing archive, changed checksum, or invalid tree must fail the build. The archive and extracted assets remain outside Git.
 
+The backend build uses `backend/Dockerfile.dockerignore` to exclude compiler assets, local environments, archives under `build/`, and test outputs. The compiler build uses the root `backend/.dockerignore`, so it can still receive the verified assets. These rules control image builds only: the development Compose bind mount of `backend/` can still expose locally staged files to the running backend.
+
+## Compiler modes
+
+Production compilation defaults to `disabled`. The supported Compose path explicitly selects `sidecar`. Do not enable `local` in production.
+
+`local` is a development-only mode and requires `DEBUG=True`. It does not install Tectonic or locate assets automatically. The normal backend image intentionally contains neither the compiler binary nor its assets. To use local mode in a separate development environment, provide the matching Linux ARM64 executable at `/opt/compiler-assets/tectonic/tectonic`, the verified cache and formats, and all required POSIX resource limits. Set `XDG_CACHE_HOME=/opt/compiler-assets/formats` and `TECTONIC_CACHE_DIR=/opt/compiler-assets/cache`; provide a writable temporary directory. Without these prerequisites, compilation fails rather than falling back to another adapter. Local mode does not provide the container isolation of the sidecar.
+
 ## Manifest formats
 
 Two inventories have different purposes:
@@ -29,5 +37,7 @@ Two inventories have different purposes:
 To assemble a new deployment tree, first verify its cache-only proof. Copy the approved binary, cache, formats, and provenance into the final tree. Then calculate a deployment inventory from that complete tree using the deployment schema. Do not pass the cache-only manifest directly to the image verifier or convert only its `files` field: it omits deployment assets outside the cache. Verify the final tree before archiving it. Consumers of a verified release archive must preserve the included deployment manifest and verify the unpacked tree again.
 
 ## Health checks
+
+Compose uses `restart: "on-failure:3"` for the compiler. Docker can restart it after a nonzero process exit, with up to three retries for a failure sequence. Repeated failures can exhaust the retry budget and require operator intervention. A manual stop is not a crash-recovery request, and an unhealthy probe alone does not restart the container. Repeated failures still require operator investigation; inspect restart counts and OOM events rather than treating a restart as proof of recovery.
 
 The health check compiles a minimal document through the same socket as normal jobs. Its 40-second I/O budget covers one running 15-second job, its own job, and cleanup/framing time. Compose allows 45 seconds for the probe process. These probe budgets do not raise the 15-second limit on individual compiler jobs. Heavy load can still fill the bounded queue and cause a probe to fail; this check tests compilation readiness, not independent process liveness.

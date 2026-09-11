@@ -37,6 +37,7 @@ services:
       timeout: 5s
       retries: 10
   compiler:
+    restart: "on-failure:3"
     build:
       context: ./backend
       dockerfile: compiler_sidecar/Dockerfile

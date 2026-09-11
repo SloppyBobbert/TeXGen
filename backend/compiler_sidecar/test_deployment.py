@@ -59,6 +59,7 @@ def test_compose_isolates_the_sidecar_and_shares_only_the_socket_volume():
     backend_section = compose.split("  backend:\n", 1)[1].split("  compiler:\n", 1)[0]
     assert 'group_add: ["10001"]' in backend_section
     compiler_section = compose.split("  compiler:\n", 1)[1].split("  frontend:\n", 1)[0]
+    assert 'restart: "on-failure:3"' in compiler_section
     assert "environment:" not in compiler_section
     assert "env_file:" not in compiler_section
     assert "secrets:" not in compiler_section
@@ -67,6 +68,17 @@ def test_compose_isolates_the_sidecar_and_shares_only_the_socket_volume():
     assert "timeout: 45s" in compiler_section
     assert "retries: 3" in compiler_section
     assert "start_period: 20s" in compiler_section
+
+
+def test_backend_specific_ignore_excludes_assets_without_breaking_compiler_build():
+    default_ignore = (BACKEND / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    backend_ignore = (BACKEND / "Dockerfile.dockerignore").read_text(encoding="utf-8").splitlines()
+    # Dockerfile-specific rules replace the root rules, so retain all existing exclusions.
+    assert set(default_ignore) <= set(backend_ignore)
+    for pattern in (".compiler-assets/", "build/", "dist/", "coverage/", "htmlcov/", ".pytest_cache/", ".coverage*", ".env.*"):
+        assert pattern in backend_ignore
+    assert ".compiler-assets/" not in default_ignore
+    assert not (BACKEND / "compiler_sidecar/Dockerfile.dockerignore").exists()
 
 
 def test_asset_manifest_schema_is_committed_while_staged_assets_are_ignored():

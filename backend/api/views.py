@@ -105,9 +105,9 @@ def get_compile_source_mode(data):
     canonical = data.get("source_mode") if "source_mode" in data else None
     legacy = data.get("content_source") if "content_source" in data else None
     legacy_mode = {"empty": "empty", "generated": "generated", "manual": "raw"}.get(legacy) if isinstance(legacy, str) else None
-    if canonical is not None and (not isinstance(canonical, str) or canonical not in {"empty", "generated", "raw"}):
+    if "source_mode" in data and (not isinstance(canonical, str) or canonical not in {"empty", "generated", "raw"}):
         return None, "source_mode must be empty, generated, or raw"
-    if legacy is not None and legacy_mode is None:
+    if "content_source" in data and legacy_mode is None:
         return None, "content_source must be empty, generated, or manual"
     if canonical is not None and legacy_mode is not None and canonical != legacy_mode:
         return None, "source_mode conflicts with content_source"
