@@ -1,7 +1,6 @@
 from rest_framework.decorators import api_view, action, permission_classes, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status, viewsets
-from django.http import FileResponse
 from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework.generics import CreateAPIView
@@ -9,14 +8,13 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.db import transaction
-import subprocess
-import tempfile
 import os
 import json
 import re
 import time
+import uuid
 from html import unescape
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -30,6 +28,19 @@ from .formula_catalog import get_formula_by_id, get_formula_by_legacy_alias
 from .document_contract import canonical_selections, legacy_selections
 from .latex_utils import build_latex_for_formulas, normalize_latex_layout
 from .compiler import validate_cheat_sheet_id, validate_source_text
+from .compilation.service import CompilerService, SettingsCompilerSelector, compile_limits_from_settings
+from .compilation.types import (
+    CompileRequest,
+    CompilerBusy,
+    CompilerInternalError,
+    CompilerOutputError,
+    CompilerResourceLimit,
+    CompilerSyntaxError,
+    CompilerTimeout,
+    CompilerUnavailable,
+    InvalidCompileRequest,
+)
+from .compile_quota import CompileQuotaUnavailableError, admit_compile
 
 YOUTUBE_MAX_TOPICS = 6
 YOUTUBE_SEARCH_RESULT_LIMIT = 5
@@ -75,6 +86,35 @@ class CompileUserThrottle(UserRateThrottle):
 
     def get_rate(self):
         return settings.COMPILER_USER_RATE
+
+
+def get_compile_limits():
+    return compile_limits_from_settings()
+
+
+def get_compiler_service():
+    limits = get_compile_limits()
+    return CompilerService(SettingsCompilerSelector(limits))
+
+
+LEGACY_COMPILE_SOURCE_MODE = "legacy"
+
+
+def get_compile_source_mode(data):
+    canonical = data.get("source_mode") if "source_mode" in data else None
+    legacy = data.get("content_source") if "content_source" in data else None
+    legacy_mode = {"empty": "empty", "generated": "generated", "manual": "raw"}.get(legacy) if isinstance(legacy, str) else None
+    if canonical is not None and (not isinstance(canonical, str) or canonical not in {"empty", "generated", "raw"}):
+        return None, "source_mode must be empty, generated, or raw"
+    if legacy is not None and legacy_mode is None:
+        return None, "content_source must be empty, generated, or manual"
+    if canonical is not None and legacy_mode is not None and canonical != legacy_mode:
+        return None, "source_mode conflicts with content_source"
+    if canonical is not None:
+        return canonical, None
+    if legacy_mode is not None:
+        return legacy_mode, None
+    return LEGACY_COMPILE_SOURCE_MODE, None
 
 def validate_layout_params(columns, font_size, margins, spacing, orientation="portrait"):
     try:
@@ -345,6 +385,9 @@ def compile_latex(request):
     """
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
+    source_mode, source_mode_error = get_compile_source_mode(request.data)
+    if source_mode_error:
+        return Response({"error": source_mode_error}, status=400)
     normalize_only = is_truthy(request.data.get("normalize_only"))
     columns = request.data.get("columns", DEFAULT_COLUMNS)
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
@@ -365,6 +408,7 @@ def compile_latex(request):
         spacing = cheatsheet.spacing
         orientation = getattr(cheatsheet, "orientation", None) or "portrait"
         content = cheatsheet.build_full_latex()
+        source_mode = cheatsheet.source_mode
 
     source_error = validate_source_text(content)
     if source_error:
@@ -375,7 +419,12 @@ def compile_latex(request):
     if not content:
         return Response({"error": "No LaTeX content provided"}, status=400)
 
-    content = normalize_latex_layout(content, columns, font_size, margins, spacing, orientation)
+    if source_mode == "empty":
+        return Response({"error": "Empty source mode requires blank content"}, status=400)
+
+    content = normalize_latex_layout(
+        content, columns, font_size, margins, spacing, orientation, source_mode=source_mode
+    )
 
     if normalize_only:
         layout_response = {
@@ -391,38 +440,54 @@ def compile_latex(request):
             "layout": layout_response,
         })
     
-    with tempfile.TemporaryDirectory() as tempdir:
-        tex_file_path = os.path.join(tempdir, "document.tex")
-        with open(tex_file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        
-        try:
-            subprocess.run(
-                ["tectonic", tex_file_path],
-                cwd=tempdir,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True,
-                timeout=settings.COMPILER_TIMEOUT_SECONDS,
-            )
-        except subprocess.TimeoutExpired:
-            return Response({"error": "LaTeX compilation timed out"}, status=408)
-        except FileNotFoundError:
-            return Response({"error": "Failed to compile LaTeX"}, status=500)
-        except subprocess.CalledProcessError:
-            return Response({"error": "Failed to compile LaTeX"}, status=400)
-        except Exception:
-            return Response({"error": "Failed to compile LaTeX"}, status=500)
-        
-        pdf_file_path = os.path.join(tempdir, "document.pdf")
-        if os.path.exists(pdf_file_path):
-            response = FileResponse(
-                open(pdf_file_path, "rb"), content_type="application/pdf"
-            )
-            response["Content-Disposition"] = 'inline; filename="document.pdf"'
-            return response
-        else:
-            return Response({"error": "PDF not generated"}, status=500)
+    # Generated normalization can expand a source that passed the input check.
+    source_error = validate_source_text(content)
+    if source_error:
+        return Response(
+            {"error": source_error},
+            status=413 if source_error == "LaTeX content exceeds the maximum allowed size" else 400,
+        )
+    request_to_compile = CompileRequest(
+        job_id=uuid.uuid4().hex,
+        source=content,
+        limits=get_compile_limits(),
+    )
+    try:
+        adapter = get_compiler_service().prepare()
+    except (CompilerUnavailable, CompilerInternalError, CompilerBusy, CompilerResourceLimit):
+        return Response({"error": "Compilation service is unavailable"}, status=503)
+
+    try:
+        admission = admit_compile(
+            request.user,
+            limit=settings.COMPILER_USER_QUOTA,
+            window_seconds=settings.COMPILER_QUOTA_WINDOW_SECONDS,
+        )
+    except CompileQuotaUnavailableError:
+        return Response({"error": "Compilation service is unavailable"}, status=503)
+    if not admission.allowed:
+        response = Response({"error": "Compilation quota exceeded"}, status=429)
+        response["Retry-After"] = str(admission.retry_after)
+        return response
+
+    try:
+        result = adapter.compile(request_to_compile)
+    except (InvalidCompileRequest, CompilerOutputError):
+        return Response({"error": "Invalid compile request"}, status=400)
+    except CompilerSyntaxError:
+        return Response({"error": "LaTeX compilation failed"}, status=400)
+    except CompilerTimeout:
+        return Response({"error": "LaTeX compilation timed out"}, status=408)
+    except CompilerBusy:
+        return Response({"error": "Compilation service is unavailable"}, status=503)
+    except CompilerResourceLimit:
+        return Response({"error": "LaTeX compilation exceeded resource limits"}, status=422)
+    except (CompilerUnavailable, CompilerInternalError):
+        return Response({"error": "Compilation service is unavailable"}, status=503)
+
+    response = HttpResponse(result.pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="document.pdf"'
+    return response
 
 
 @api_view(["POST"])

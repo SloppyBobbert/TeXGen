@@ -1,0 +1,41 @@
+"""Live Unix-socket protocol probe for the compiler sidecar health check."""
+
+from __future__ import annotations
+
+import socket
+import sys
+import uuid
+from dataclasses import asdict
+
+from api.compilation.types import CompileLimits
+from compiler_sidecar.protocol import ProtocolError, encode_frame, receive_message
+from compiler_sidecar.server import DEFAULT_SOCKET_PATH
+
+_HEALTH_SOURCE = "\\documentclass{article}\n\\begin{document}\nhealthcheck\n\\end{document}\n"
+
+
+def probe(socket_path: str = DEFAULT_SOCKET_PATH, timeout: float = 5.0) -> None:
+    """Compile a minimal document through the live sidecar protocol."""
+    request_id = uuid.uuid4().bytes
+    payload = {"job_id": "healthcheck", "source": _HEALTH_SOURCE, "limits": asdict(CompileLimits())}
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
+        connection.settimeout(timeout)
+        connection.connect(socket_path)
+        connection.sendall(encode_frame(request_id, payload))
+        response_id, response, pdf = receive_message(connection)
+    if response_id != request_id or response.get("failure") or not pdf:
+        raise RuntimeError("compiler sidecar health check failed")
+
+
+def main() -> None:
+    socket_path = sys.argv[1] if len(sys.argv) == 2 else DEFAULT_SOCKET_PATH
+    if len(sys.argv) > 2:
+        raise SystemExit("usage: healthcheck.py [SOCKET_PATH]")
+    try:
+        probe(socket_path)
+    except (OSError, ProtocolError, RuntimeError) as error:
+        raise SystemExit("compiler sidecar health check failed") from error
+
+
+if __name__ == "__main__":
+    main()

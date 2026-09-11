@@ -62,6 +62,12 @@ jobs:
           DATABASE_URL: postgres://user:password@localhost:5432/backend_db
         run: pytest -v --cov-fail-under=95
 
+      - name: Run PostgreSQL quota concurrency evidence
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/backend_db
+          TEXGEN_REQUIRE_POSTGRES_CONCURRENCY: "1"
+        run: pytest -v tests/test_compile_quota_postgres.py
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
