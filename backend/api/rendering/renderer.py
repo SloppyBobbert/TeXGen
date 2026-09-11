@@ -252,6 +252,8 @@ def build_latex_for_formulas(selected_formulas: Sequence[Mapping], columns=4, fo
         lines.extend([f"% ===== {value} =====", "%"])
     for formula in selected_formulas:
         class_name, category, name, latex = formula.get("class_name") or formula.get("class", ""), formula.get("category", ""), formula.get("name", ""), formula.get("latex", "")
+        if not isinstance(latex, str):
+            raise TypeError("formula latex must be a string")
         if class_name != current_class:
             if in_flushleft:
                 lines.append(r"\end{flushleft}")

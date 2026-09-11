@@ -55,6 +55,8 @@ def _build_catalog(formula_data, special_classes):
         legacy_key = (record["class"], record["category"], record["name"])
         if not isinstance(formula_id, str) or not FORMULA_ID_PATTERN.fullmatch(formula_id):
             raise FormulaCatalogError(f"Invalid formula ID: {formula_id!r}")
+        if not isinstance(record["latex"], str):
+            raise FormulaCatalogError(f"Formula {formula_id}: latex must be a string")
         if formula_id in by_id:
             raise FormulaCatalogError(f"Duplicate formula ID: {formula_id}")
         if legacy_key in by_legacy_key:

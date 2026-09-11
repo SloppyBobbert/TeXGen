@@ -54,7 +54,7 @@ def _manifest_files(manifest: object) -> dict[PurePosixPath, tuple[str, int]]:
         parsed[path] = (digest, size)
 
     if not all(path in parsed for path in _REQUIRED_FILES) or not all(
-        any(path.is_relative_to(prefix) for path in parsed) for prefix in _REQUIRED_PREFIXES
+        any(path != prefix and path.is_relative_to(prefix) for path in parsed) for prefix in _REQUIRED_PREFIXES
     ):
         raise SystemExit("compiler asset manifest lacks required Tectonic assets")
     return parsed

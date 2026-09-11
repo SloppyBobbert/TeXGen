@@ -5,8 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
+import stat
 from types import MappingProxyType
 
 from api.formula_catalog import FORMULAS
@@ -167,5 +169,11 @@ def generate_corpus(output_directory: str | Path) -> CorpusResult:
         "compiler_layout_count": len(_COMPILER_LAYOUTS),
         "all_catalog_bytes": len(str(fixtures[len(FORMULAS) + len({formula['class'] for formula in FORMULAS})]["source"]).encode()),
     }
-    (output / "corpus.json").write_text(_json(metadata), encoding="utf-8", newline="\n")
+    # Validate the opened inode before truncating; reject links and never block on FIFOs.
+    descriptor = os.open(output / "corpus.json", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o666)
+    with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as manifest:
+        if not stat.S_ISREG(os.fstat(manifest.fileno()).st_mode):
+            raise ValueError("corpus metadata must be a regular file")
+        manifest.truncate(0)
+        manifest.write(_json(metadata))
     return CorpusResult(identity, tuple(sorted(str(item["path"]) for item in fixtures if item["path"] is not None) + ["corpus.json"]), counts, int(metadata["all_catalog_bytes"]))

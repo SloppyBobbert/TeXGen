@@ -89,6 +89,12 @@ class CheatSheet(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def effective_source_mode(self):
+        if self.source_mode == "empty" and self.latex_content.strip():
+            return "generated" if self.content_source == "generated" else "raw"
+        return self.source_mode
+
     def build_full_latex(self):
         """Compatibility API delegated to the rendering boundary."""
         problems = tuple(
@@ -98,7 +104,7 @@ class CheatSheet(models.Model):
         return render_document(
             DocumentRenderRequest(
                 source_latex=self.latex_content or "",
-                source_mode=self.source_mode,
+                source_mode=self.effective_source_mode,
                 title=self.title,
                 layout=LayoutSpec(self.columns, self.font_size, self.margins, self.spacing, self.orientation),
                 practice_problems=problems,

@@ -409,7 +409,7 @@ def compile_latex(request):
         spacing = cheatsheet.spacing
         orientation = getattr(cheatsheet, "orientation", None) or "portrait"
         content = cheatsheet.build_full_latex()
-        source_mode = cheatsheet.source_mode
+        source_mode = cheatsheet.effective_source_mode
 
     source_error = validate_source_text(content)
     if source_error:

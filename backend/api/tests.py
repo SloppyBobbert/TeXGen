@@ -128,6 +128,7 @@ class TestCheatSheetModel(TestCase):
         raw = "\\documentclass{article}\n\\begin{document}\nCustom\n\\end{document}"
         sheet = CheatSheet.objects.create(
             title="Raw With Problems",
+            source_mode="generated",
             latex_content=raw,
             user=self.user,
         )
@@ -156,6 +157,7 @@ class TestCheatSheetModel(TestCase):
         )
         sheet = CheatSheet.objects.create(
             title="Raw Multi",
+            source_mode="generated",
             latex_content=raw,
             user=self.user,
         )
