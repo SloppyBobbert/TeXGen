@@ -90,8 +90,10 @@ def compile_latex_to_pdf(content):
 
     from .compilation.service import CompilerService, SettingsCompilerSelector, compile_limits_from_settings
     from .compilation.types import CompileRequest
+    from .rendering import DocumentRenderRequest, render_document
 
     limits = compile_limits_from_settings()
+    content = render_document(DocumentRenderRequest(source_latex=content, source_mode="raw"))
     return CompilerService(SettingsCompilerSelector(limits)).compile(
         CompileRequest(job_id=uuid4().hex, source=content, limits=limits)
     ).pdf

@@ -47,15 +47,28 @@ def test_protocol_receives_fragmented_raw_pdf_larger_than_one_megabyte():
     request_id = b"0123456789abcdef"
     pdf = b"%PDF-1.7\n" + b"x" * (1_048_576 + 1)
     frame = encode_response(request_id, {"diagnostics": "ok"}, pdf)
-    sender = Thread(target=lambda: [left.sendall(frame[offset : offset + 17]) for offset in range(0, len(frame), 17)])
+    left.settimeout(1)
+    right.settimeout(5)
+    errors = []
+
+    def send_fragments():
+        try:
+            for offset in range(0, len(frame), 17):
+                left.sendall(frame[offset:offset + 17])
+        except OSError as error:
+            errors.append(error)
+
+    sender = Thread(target=send_fragments)
     sender.start()
     try:
         response_id, metadata, received_pdf = receive_message(right)
     finally:
-        sender.join()
         left.close()
         right.close()
+        sender.join(timeout=2)
 
+    assert not sender.is_alive()
+    assert errors == []
     assert response_id == request_id
     assert metadata == {"diagnostics": "ok"}
     assert received_pdf == pdf

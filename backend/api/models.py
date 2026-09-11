@@ -127,7 +127,7 @@ class CompileQuotaWindow(models.Model):
         on_delete=models.CASCADE,
         related_name="compile_quota_windows",
     )
-    window_start = models.DateTimeField()
+    window_start = models.DateTimeField(db_index=True)
     count = models.PositiveIntegerField()
 
     class Meta:

@@ -175,6 +175,27 @@ def test_compile_returns_pdf_once(authenticated_client):
     adapter.compile.assert_called_once()
 
 
+@pytest.mark.parametrize("source_mode", [None, "raw", "generated"])
+def test_compile_wraps_fragments_before_adapter(authenticated_client, source_mode):
+    adapter = Mock()
+    adapter.compile.return_value = CompileResult(pdf=b"%PDF-1.7")
+    service = Mock()
+    service.prepare.return_value = adapter
+    payload = {"content": "Fragment $x_1$", "columns": 1}
+    if source_mode is not None:
+        payload["source_mode"] = source_mode
+    with patch("api.views.get_compiler_service", return_value=service), patch(
+        "api.views.admit_compile", return_value=admitted()
+    ):
+        response = authenticated_client.post("/api/compile/", payload, format="json")
+    assert response.status_code == 200
+    source = adapter.compile.call_args.args[0].source
+    assert source.count(r"\begin{document}") == 1
+    assert source.count(r"\end{document}") == 1
+    assert "Fragment $x_1$" in source
+    assert r"\begin{multicols}" not in source
+
+
 @pytest.mark.django_db
 def test_raw_complete_document_reaches_selected_adapter_byte_for_byte(authenticated_client):
     source = "\\documentclass{article}\n\\begin{document}\nRaw $x_1$\n\\end{document}"

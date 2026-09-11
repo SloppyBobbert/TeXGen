@@ -99,7 +99,7 @@ jobs:
         run: npm run build
 
   browser-e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -120,6 +120,19 @@ jobs:
       - name: Install Chromium
         working-directory: ./frontend
         run: npx playwright install --with-deps chromium
+
+      - name: Stage verified ARM64 compiler assets
+        run: |
+          test "$(uname -m)" = aarch64
+          archive="$RUNNER_TEMP/texgen-compiler-assets.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --connect-timeout 10 --max-time 120 --retry 3 --max-filesize 25255835 \
+            --output "$archive" \
+            https://github.com/SloppyBobbert/TeXGen/releases/download/compiler-assets-0.15.0-238864f4e9df/texgen-compiler-assets-0.15.0-corpus-238864f4e9df.tar.gz
+          printf '%s  %s\n' add28e26a3af62f800b8171070501bf1ecb4f5b0f79244c5f14b11023fe9bce3 "$archive" | sha256sum --check --strict
+          mkdir backend/.compiler-assets
+          tar --extract --gzip --file "$archive" --directory backend/.compiler-assets --no-same-owner
+          python3 -S backend/compiler_sidecar/container/verify_assets.py backend/.compiler-assets
 
       - name: Build and start the real stack
         run: |

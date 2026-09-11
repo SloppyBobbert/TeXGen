@@ -14,7 +14,11 @@ from compiler_sidecar.server import DEFAULT_SOCKET_PATH
 _HEALTH_SOURCE = "\\documentclass{article}\n\\begin{document}\nhealthcheck\n\\end{document}\n"
 
 
-def probe(socket_path: str = DEFAULT_SOCKET_PATH, timeout: float = 5.0) -> None:
+# Allow one running job and this probe (15 seconds each), plus cleanup/framing time.
+HEALTHCHECK_TIMEOUT_SECONDS = 40.0
+
+
+def probe(socket_path: str = DEFAULT_SOCKET_PATH, timeout: float = HEALTHCHECK_TIMEOUT_SECONDS) -> None:
     """Compile a minimal document through the live sidecar protocol."""
     request_id = uuid.uuid4().bytes
     payload = {"job_id": "healthcheck", "source": _HEALTH_SOURCE, "limits": asdict(CompileLimits())}

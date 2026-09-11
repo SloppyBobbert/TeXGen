@@ -113,6 +113,33 @@ def test_raw_fragment_is_wrapped_deterministically_without_generated_marker():
     assert not is_generated_document(rendered)
 
 
+def test_plain_text_title_and_formula_names_escape_dollar_and_tilde():
+    from api.rendering import escape_latex_text
+
+    title = "Cost $5 ~ estimate"
+    escaped = r"Cost \$5 \textasciitilde{} estimate"
+    assert escape_latex_text(title) == escaped
+    assert f"\\title{{{escaped}}}" in render_document(DocumentRenderRequest(title=title))
+    document = build_latex_for_formulas([
+        {"class_name": title, "category": title + " category", "name": title + " formula", "latex": "x=1"}
+    ])
+    assert document.count(r"\noindent " + escaped) == 3
+
+
+def test_compatibility_compiler_wraps_fragments_but_preserves_complete_documents(monkeypatch):
+    from api.compilation.service import CompilerService
+    from api.compilation.types import CompileResult
+    from api.latex_utils import compile_latex_to_pdf
+
+    received = []
+    monkeypatch.setattr(CompilerService, "compile", lambda _, request: received.append(request.source) or CompileResult(b"%PDF-1.7"))
+    assert compile_latex_to_pdf("x") == b"%PDF-1.7"
+    assert r"\begin{document}" in received[0] and r"\end{document}" in received[0]
+    document = "\\documentclass{article}\n\\begin{document}x\\end{document}"
+    assert compile_latex_to_pdf(document) == b"%PDF-1.7"
+    assert received[1] == document
+
+
 def test_generated_documents_normalize_only_when_marked():
     generated = build_latex_for_formulas([])
 

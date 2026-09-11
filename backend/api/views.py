@@ -27,6 +27,7 @@ from .formula_data import get_classes_with_details
 from .formula_catalog import get_formula_by_id, get_formula_by_legacy_alias
 from .document_contract import canonical_selections, legacy_selections
 from .latex_utils import build_latex_for_formulas, normalize_latex_layout
+from .rendering import DocumentRenderRequest, LayoutSpec, render_document
 from .compiler import validate_cheat_sheet_id, validate_source_text
 from .compilation.service import CompilerService, SettingsCompilerSelector, compile_limits_from_settings
 from .compilation.types import (
@@ -440,7 +441,12 @@ def compile_latex(request):
             "layout": layout_response,
         })
     
-    # Generated normalization can expand a source that passed the input check.
+    content = render_document(DocumentRenderRequest(
+        source_latex=content,
+        source_mode=source_mode,
+        layout=LayoutSpec(columns, font_size, margins, spacing, orientation),
+    ))
+    # Normalization and fragment wrapping can expand a source that passed the input check.
     source_error = validate_source_text(content)
     if source_error:
         return Response(

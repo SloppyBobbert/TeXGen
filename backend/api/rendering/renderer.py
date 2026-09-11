@@ -86,7 +86,7 @@ def get_spacing_values(spacing, font_size):
 
 
 def escape_latex_text(text):
-    replacements = {"\\": "\\textbackslash ", "&": "\\&", "%": "\\%", "#": "\\#", "_": "\\_", "^": "\\textasciicircum ", "{": "\\{", "}": "\\}"}
+    replacements = {"\\": "\\textbackslash ", "&": "\\&", "%": "\\%", "#": "\\#", "_": "\\_", "^": "\\textasciicircum ", "{": "\\{", "}": "\\}", "$": "\\$", "~": "\\textasciitilde{}"}
     return "".join(replacements.get(char, char) for char in (text or ""))
 
 

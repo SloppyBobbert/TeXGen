@@ -18,6 +18,13 @@ else:
     assert connection.vendor == "postgresql", "PostgreSQL concurrency evidence must run against PostgreSQL"
 
 
+@pytest.mark.django_db
+def test_cleanup_has_a_standalone_window_start_index():
+    with connection.cursor() as cursor:
+        indexes = connection.introspection.get_constraints(cursor, CompileQuotaWindow._meta.db_table)
+    assert any(index["index"] and index["columns"] == ["window_start"] for index in indexes.values())
+
+
 def _concurrent_admissions(*, user_id, limit, now, workers=8):
     barrier = threading.Barrier(workers)
     results = []

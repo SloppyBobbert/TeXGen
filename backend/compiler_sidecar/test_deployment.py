@@ -51,7 +51,7 @@ def test_compose_isolates_the_sidecar_and_shares_only_the_socket_volume():
         "condition: service_healthy",
         'test: ["CMD", "python", "-S", "-m", "compiler_sidecar.container.healthcheck", "/run/texgen/compiler.sock"]',
         "interval: 30s",
-        "timeout: 10s",
+        "timeout: 45s",
         "retries: 3",
         "start_period: 20s",
     ):
@@ -64,7 +64,7 @@ def test_compose_isolates_the_sidecar_and_shares_only_the_socket_volume():
     assert "secrets:" not in compiler_section
     assert 'test: ["CMD", "python", "-S", "-m", "compiler_sidecar.container.healthcheck", "/run/texgen/compiler.sock"]' in compiler_section
     assert "interval: 30s" in compiler_section
-    assert "timeout: 10s" in compiler_section
+    assert "timeout: 45s" in compiler_section
     assert "retries: 3" in compiler_section
     assert "start_period: 20s" in compiler_section
 
@@ -83,3 +83,26 @@ def test_healthcheck_is_a_standard_library_live_protocol_probe():
     assert "encode_frame(request_id, payload)" in healthcheck
     assert "receive_message(connection)" in healthcheck
     assert "subprocess" not in healthcheck
+
+
+def test_browser_ci_verifies_pinned_arm64_assets_before_compose():
+    workflow = (BACKEND.parent / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    browser_job = workflow.split("  browser-e2e:\n", 1)[1]
+    assert "runs-on: ubuntu-24.04-arm" in browser_job
+    assert 'test "$(uname -m)" = aarch64' in browser_job
+    assert "--max-filesize 25255835" in browser_job
+    assert "releases/download/compiler-assets-0.15.0-238864f4e9df/texgen-compiler-assets-0.15.0-corpus-238864f4e9df.tar.gz" in browser_job
+    assert "add28e26a3af62f800b8171070501bf1ecb4f5b0f79244c5f14b11023fe9bce3" in browser_job
+    checksum = browser_job.index("sha256sum --check --strict")
+    extract = browser_job.index("tar --extract")
+    verify = browser_job.index("python3 -S backend/compiler_sidecar/container/verify_assets.py backend/.compiler-assets")
+    build = browser_job.index("docker compose -f docker-compose.yml")
+    assert checksum < extract < verify < build
+
+
+def test_healthcheck_budget_covers_running_job_and_probe():
+    from api.compilation.types import CompileLimits
+    from compiler_sidecar.container.healthcheck import HEALTHCHECK_TIMEOUT_SECONDS
+
+    assert HEALTHCHECK_TIMEOUT_SECONDS > 2 * CompileLimits().timeout_seconds
+    assert HEALTHCHECK_TIMEOUT_SECONDS < 45
