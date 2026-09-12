@@ -441,7 +441,12 @@ def test_unaccepted_or_unstarted_job_never_invokes_runner(kind):
         assert not worker.is_alive()
         assert runner.calls == 0
         if kind != "invalid-job":
-            assert client.recv(1) == b""
+            try:
+                assert client.recv(1) == b""
+            except ConnectionResetError:
+                # Linux may reset a v1 peer closed with unread request bytes.
+                if kind != "v1":
+                    raise
     finally:
         client.close()
         connection.close()

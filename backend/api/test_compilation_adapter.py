@@ -90,7 +90,10 @@ def test_sidecar_server_and_client_round_trip_large_pdf_over_socketpair(monkeypa
             CompileRequest("job", "x", CompileLimits())
         )
     finally:
-        thread.join()
+        client_socket.close()  # Unblock peer I/O even if compilation fails early.
+        thread.join(timeout=2)
+        server_socket.close()
+        assert not thread.is_alive()
 
     assert result.pdf == pdf
 
@@ -110,7 +113,10 @@ def test_sidecar_client_maps_typed_failure_and_rejects_mismatched_id(monkeypatch
         with pytest.raises(__import__("api.compilation.types", fromlist=["CompilerBusy"]).CompilerBusy):
             SidecarCompilerClient("unused").compile(CompileRequest("job", "x", CompileLimits()))
     finally:
-        thread.join()
+        client_socket.close()
+        thread.join(timeout=2)
+        server_socket.close()
+        assert not thread.is_alive()
 
 
 def test_sidecar_client_rejects_mismatched_response_id(monkeypatch):
@@ -128,7 +134,10 @@ def test_sidecar_client_rejects_mismatched_response_id(monkeypatch):
         with pytest.raises(CompilerUnavailable, match="mismatched"):
             SidecarCompilerClient("unused").compile(CompileRequest("job", "x", CompileLimits()))
     finally:
-        thread.join()
+        client_socket.close()
+        thread.join(timeout=2)
+        server_socket.close()
+        assert not thread.is_alive()
 
 
 @pytest.mark.parametrize(
@@ -155,4 +164,7 @@ def test_sidecar_client_rejects_response_over_request_limit(monkeypatch, payload
                 CompileRequest("job", "x", CompileLimits(pdf_max_bytes=10, diagnostics_max_bytes=10))
             )
     finally:
-        thread.join()
+        client_socket.close()
+        thread.join(timeout=2)
+        server_socket.close()
+        assert not thread.is_alive()
