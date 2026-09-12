@@ -98,14 +98,15 @@ def test_authenticated_raw_content_reaches_compilation_branch(authenticated_clie
         patch("api.views.normalize_latex_layout", return_value="normalized"),
         adapter as get_service,
     ):
-        get_service.return_value.prepare.return_value.compile.return_value = CompileResult(pdf=b"%PDF-1.4")
+        execute = get_service.return_value.prepare.return_value.__enter__.return_value
+        execute.return_value = CompileResult(pdf=b"%PDF-1.4")
         response = authenticated_client.post(
             "/api/compile/", {"content": "raw content"}, format="json"
         )
 
     assert response.status_code == 200
     get_service.return_value.prepare.assert_called_once()
-    get_service.return_value.prepare.return_value.compile.assert_called_once()
+    execute.assert_called_once_with()
 
 
 def test_compile_uses_only_the_authenticated_user_throttle():

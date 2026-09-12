@@ -1,4 +1,7 @@
+from contextlib import nullcontext
 from datetime import UTC, datetime
+from functools import partial
+from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 import pytest
@@ -21,7 +24,7 @@ from api.compilation.types import (
     InvalidCompileRequest,
 )
 from api.compile_quota import CompileQuotaAdmission, CompileQuotaUnavailableError
-from api.models import CheatSheet
+from api.models import CheatSheet, CompileQuotaWindow
 
 
 @pytest.fixture
@@ -79,7 +82,7 @@ def test_malformed_payload_does_not_consume_quota_or_reach_compiler(authenticate
 def test_quota_exhaustion_stops_selected_adapter_before_compilation(authenticated_client):
     compiler = Mock()
     adapter = Mock()
-    compiler.prepare.return_value = adapter
+    compiler.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     denied = CompileQuotaAdmission(allowed=False, retry_after=37, window_start=datetime.now(UTC))
     with patch("api.views.admit_compile", return_value=denied), patch(
         "api.views.get_compiler_service", return_value=compiler
@@ -137,7 +140,7 @@ def test_owner_scope_and_compiler_status_mapping(authenticated_client):
     service.prepare.assert_not_called()
 
     adapter = Mock()
-    service.prepare.return_value = adapter
+    service.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     for failure, expected_status in (
         (InvalidCompileRequest("secret"), 400),
         (CompilerOutputError("secret"), 400),
@@ -162,7 +165,7 @@ def test_compile_returns_pdf_once(authenticated_client):
     adapter = Mock()
     adapter.compile.return_value = CompileResult(pdf=b"%PDF-1.7\nbody")
     service = Mock()
-    service.prepare.return_value = adapter
+    service.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     with patch("api.views.admit_compile", return_value=admitted()), patch(
         "api.views.get_compiler_service", return_value=service
     ):
@@ -180,7 +183,7 @@ def test_compile_wraps_fragments_before_adapter(authenticated_client, source_mod
     adapter = Mock()
     adapter.compile.return_value = CompileResult(pdf=b"%PDF-1.7")
     service = Mock()
-    service.prepare.return_value = adapter
+    service.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     payload = {"content": "Fragment $x_1$", "columns": 1}
     if source_mode is not None:
         payload["source_mode"] = source_mode
@@ -202,7 +205,7 @@ def test_raw_complete_document_reaches_selected_adapter_byte_for_byte(authentica
     adapter = Mock()
     adapter.compile.return_value = CompileResult(pdf=b"%PDF-1.7\nbody")
     service = Mock()
-    service.prepare.return_value = adapter
+    service.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     with patch("api.views.get_compiler_service", return_value=service), patch(
         "api.views.admit_compile", return_value=admitted()
     ):
@@ -228,7 +231,7 @@ def test_raw_complete_document_reaches_selected_adapter_byte_for_byte(authentica
 def test_quota_database_failure_prevents_selected_adapter_invocation(authenticated_client):
     adapter = Mock()
     service = Mock()
-    service.prepare.return_value = adapter
+    service.prepare.side_effect = lambda request: nullcontext(partial(adapter.compile, request))
     with patch("api.views.get_compiler_service", return_value=service), patch(
         "api.views.admit_compile", side_effect=CompileQuotaUnavailableError
     ):
@@ -295,6 +298,20 @@ def test_compile_source_mode_accepts_legacy_and_rejects_conflicts(authenticated_
         )
     assert response.status_code == 400
     quota.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_missing_real_sidecar_does_not_admit_or_create_quota(authenticated_client):
+    # Exercise SettingsCompilerSelector, not a mocked prepare method.
+    from api.compile_quota import admit_compile
+
+    with TemporaryDirectory(prefix="txsc-") as directory, override_settings(
+        COMPILER_BACKEND="sidecar", COMPILER_SIDECAR_SOCKET=f"{directory}/missing.sock"
+    ), patch("api.views.admit_compile", wraps=admit_compile) as quota:
+        response = authenticated_client.post("/api/compile/", {"content": "x"}, format="json")
+    assert response.status_code == 503
+    quota.assert_not_called()
+    assert not CompileQuotaWindow.objects.exists()
 
 
 def test_compiler_selector_fails_closed_and_never_falls_back():

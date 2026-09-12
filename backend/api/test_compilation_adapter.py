@@ -13,8 +13,15 @@ from api.compilation.types import (
     CompilerOutputError,
     InvalidCompileRequest,
 )
-from compiler_sidecar.protocol import send_response
+from compiler_sidecar.protocol import READY, START, receive_control, receive_request, send_control, send_response
 from compiler_sidecar.server import SidecarServer
+
+
+def receive_started_request(connection):
+    request_id, payload = receive_request(connection)
+    send_control(connection, request_id, READY)
+    receive_control(connection, request_id, START)
+    return request_id, payload
 
 
 class ConnectedSocket:
@@ -94,9 +101,7 @@ def test_sidecar_client_maps_typed_failure_and_rejects_mismatched_id(monkeypatch
     from threading import Thread
 
     def respond():
-        from compiler_sidecar.protocol import receive_request
-
-        request_id, _ = receive_request(server_socket)
+        request_id, _ = receive_started_request(server_socket)
         send_response(server_socket, request_id, {"failure": "busy", "diagnostics": "x"})
 
     thread = Thread(target=respond)
@@ -114,9 +119,7 @@ def test_sidecar_client_rejects_mismatched_response_id(monkeypatch):
     from threading import Thread
 
     def respond():
-        from compiler_sidecar.protocol import receive_request
-
-        receive_request(server_socket)
+        receive_started_request(server_socket)
         send_response(server_socket, b"fedcba9876543210", {"failure": "busy", "diagnostics": "x"})
 
     thread = Thread(target=respond)
@@ -141,9 +144,7 @@ def test_sidecar_client_rejects_response_over_request_limit(monkeypatch, payload
     from threading import Thread
 
     def respond():
-        from compiler_sidecar.protocol import receive_request
-
-        request_id, _ = receive_request(server_socket)
+        request_id, _ = receive_started_request(server_socket)
         send_response(server_socket, request_id, payload, pdf)
 
     thread = Thread(target=respond)

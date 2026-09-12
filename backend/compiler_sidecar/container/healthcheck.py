@@ -8,7 +8,7 @@ import uuid
 from dataclasses import asdict
 
 from api.compilation.types import CompileLimits
-from compiler_sidecar.protocol import ProtocolError, encode_frame, receive_message
+from compiler_sidecar.protocol import READY, START, ProtocolError, encode_frame, receive_control, receive_message, send_control
 from compiler_sidecar.server import DEFAULT_SOCKET_PATH
 
 _HEALTH_SOURCE = "\\documentclass{article}\n\\begin{document}\nhealthcheck\n\\end{document}\n"
@@ -26,6 +26,8 @@ def probe(socket_path: str = DEFAULT_SOCKET_PATH, timeout: float = HEALTHCHECK_T
         connection.settimeout(timeout)
         connection.connect(socket_path)
         connection.sendall(encode_frame(request_id, payload))
+        receive_control(connection, request_id, READY)
+        send_control(connection, request_id, START)
         response_id, response, pdf = receive_message(connection)
     if response_id != request_id or response.get("failure") or not pdf:
         raise RuntimeError("compiler sidecar health check failed")

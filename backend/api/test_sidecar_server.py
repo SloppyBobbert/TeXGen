@@ -14,7 +14,7 @@ import pytest
 
 from api.compilation.types import CompileLimits, CompileResult, CompilationFailure, CompilerSyntaxError, InvalidCompileRequest
 from compiler_sidecar.container.healthcheck import probe
-from compiler_sidecar.protocol import HEADER_SIZE, encode_frame, receive_message, receive_request, send_response
+from compiler_sidecar.protocol import HEADER_SIZE, READY, START, encode_frame, receive_control, receive_message, receive_request, send_control, send_response
 from compiler_sidecar.runner import TectonicRunner
 from compiler_sidecar.server import DEFAULT_SOCKET_PATH, SidecarServer, main
 
@@ -141,6 +141,8 @@ def test_drip_fed_request_releases_worker_for_next_job(header_sent):
     worker = threading.Thread(target=server.handle, args=(peer,))
     worker.start()
     try:
+        receive_control(client, b"0123456789abcdef", READY)
+        send_control(client, b"0123456789abcdef", START)
         assert receive_message(client)[2] == b"%PDF-1.7"
     finally:
         client.close()
@@ -166,6 +168,8 @@ def test_non_reading_peer_is_bounded_and_next_job_succeeds(failure):
     thread = threading.Thread(target=server.handle, args=(peer,))
     thread.start()
     try:
+        receive_control(client, b"0123456789abcdef", READY)
+        send_control(client, b"0123456789abcdef", START)
         thread.join(timeout=0.5)
         assert not thread.is_alive(), "non-reading peer retained the worker"
     finally:
@@ -179,6 +183,8 @@ def test_non_reading_peer_is_bounded_and_next_job_succeeds(failure):
     thread = threading.Thread(target=server.handle, args=(peer,))
     thread.start()
     try:
+        receive_control(client, b"0123456789abcdef", READY)
+        send_control(client, b"0123456789abcdef", START)
         _, response, pdf = receive_message(client)
         assert not response.get("failure") and pdf.startswith(b"%PDF-")
     finally:
@@ -238,6 +244,8 @@ def test_health_probe_exercises_a_live_unix_socket_protocol():
             with connection:
                 request_id, payload = receive_request(connection)
                 received.append(payload)
+                send_control(connection, request_id, READY)
+                receive_control(connection, request_id, START)
                 send_response(connection, request_id, {"diagnostics": ""}, b"%PDF-1.7 health")
 
         thread = threading.Thread(target=respond)
@@ -401,3 +409,40 @@ def test_socket_cleanup_preserves_replacement_and_accepts_missing_path():
         with pytest.raises(RuntimeError, match="path changed"):
             server._unlink_socket(before)
         assert path.read_text() == "retain"
+
+
+@pytest.mark.parametrize("kind", ["v1", "missing-start", "wrong-id", "wrong-type", "invalid-job"])
+def test_unaccepted_or_unstarted_job_never_invokes_runner(kind):
+    runner = Runner()
+    server = SidecarServer("unused", runner, framing_timeout=0.05)
+    client, connection = socket.socketpair()
+    request_id = b"0123456789abcdef"
+    payload = _payload()
+    if kind == "invalid-job":
+        payload["job_id"] = ""
+    frame = encode_frame(request_id, payload)
+    if kind == "v1":
+        frame = frame[:4] + bytes([1]) + frame[5:]
+    client.settimeout(1)
+    client.sendall(frame)
+    worker = threading.Thread(target=server.handle, args=(connection,))
+    worker.start()
+    try:
+        if kind == "invalid-job":
+            assert receive_message(client)[1]["failure"] == "invalid"
+        elif kind != "v1":
+            receive_control(client, request_id, READY)
+            assert runner.calls == 0
+            if kind == "wrong-id":
+                send_control(client, b"fedcba9876543210", START)
+            elif kind == "wrong-type":
+                send_control(client, request_id, READY)
+        worker.join(timeout=1)
+        assert not worker.is_alive()
+        assert runner.calls == 0
+        if kind != "invalid-job":
+            assert client.recv(1) == b""
+    finally:
+        client.close()
+        connection.close()
+        worker.join(timeout=1)

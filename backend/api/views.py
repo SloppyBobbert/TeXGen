@@ -459,25 +459,19 @@ def compile_latex(request):
         limits=get_compile_limits(),
     )
     try:
-        adapter = get_compiler_service().prepare()
-    except (CompilerUnavailable, CompilerInternalError, CompilerBusy, CompilerResourceLimit):
-        return Response({"error": "Compilation service is unavailable"}, status=503)
-
-    try:
-        admission = admit_compile(
-            request.user,
-            limit=settings.COMPILER_USER_QUOTA,
-            window_seconds=settings.COMPILER_QUOTA_WINDOW_SECONDS,
-        )
+        with get_compiler_service().prepare(request_to_compile) as execute:
+            admission = admit_compile(
+                request.user,
+                limit=settings.COMPILER_USER_QUOTA,
+                window_seconds=settings.COMPILER_QUOTA_WINDOW_SECONDS,
+            )
+            if not admission.allowed:
+                response = Response({"error": "Compilation quota exceeded"}, status=429)
+                response["Retry-After"] = str(admission.retry_after)
+                return response
+            result = execute()
     except CompileQuotaUnavailableError:
         return Response({"error": "Compilation service is unavailable"}, status=503)
-    if not admission.allowed:
-        response = Response({"error": "Compilation quota exceeded"}, status=429)
-        response["Retry-After"] = str(admission.retry_after)
-        return response
-
-    try:
-        result = adapter.compile(request_to_compile)
     except (InvalidCompileRequest, CompilerOutputError):
         return Response({"error": "Invalid compile request"}, status=400)
     except CompilerSyntaxError:

@@ -7,9 +7,12 @@ import time
 from typing import Any
 
 MAGIC = b"TXSC"
-VERSION = 1
+# Version 2 requires READY/START; a v1 server must reject jobs before execution.
+VERSION = 2
 REQUEST = 1
 RESPONSE = 2
+READY = 3
+START = 4
 REQUEST_ID_BYTES = 16
 MAX_SOURCE_BYTES = 256 * 1024
 MAX_PDF_BYTES = 10 * 1024 * 1024
@@ -49,6 +52,10 @@ def _encode(request_id: bytes, payload: dict[str, Any], message_type: int, pdf: 
     elif message_type == RESPONSE:
         _validate_response(payload, pdf)
         metadata = _encode_metadata(payload, MAX_RESPONSE_METADATA_BYTES)
+    elif message_type in (READY, START):
+        if payload or pdf:
+            raise ProtocolError("control frame must be empty")
+        metadata = b""
     else:
         raise ProtocolError("unsupported message type")
     return _HEADER.pack(MAGIC, VERSION, message_type, request_id, len(metadata), len(pdf)) + metadata + pdf
@@ -66,11 +73,14 @@ def _parse_header(header: bytes) -> tuple[int, bytes, int, int]:
     if len(header) != HEADER_SIZE:
         raise ProtocolError("incomplete header")
     magic, version, message_type, request_id, metadata_length, pdf_length = _HEADER.unpack(header)
-    if magic != MAGIC or version != VERSION or message_type not in (REQUEST, RESPONSE):
+    if magic != MAGIC or version != VERSION or message_type not in (REQUEST, RESPONSE, READY, START):
         raise ProtocolError("unsupported protocol header")
     if message_type == REQUEST:
         if metadata_length > MAX_REQUEST_METADATA_BYTES or pdf_length:
             raise ProtocolError("declared payload exceeds maximum size")
+    elif message_type in (READY, START):
+        if metadata_length or pdf_length:
+            raise ProtocolError("control frame must be empty")
     elif metadata_length > MAX_RESPONSE_METADATA_BYTES or pdf_length > MAX_PDF_BYTES:
         raise ProtocolError("declared PDF or metadata exceeds maximum size")
     return message_type, request_id, metadata_length, pdf_length
@@ -80,6 +90,8 @@ def _decode(header: bytes, metadata: bytes, pdf: bytes) -> tuple[int, bytes, dic
     message_type, request_id, metadata_length, pdf_length = _parse_header(header)
     if len(metadata) != metadata_length or len(pdf) != pdf_length:
         raise ProtocolError("incomplete payload")
+    if message_type in (READY, START):
+        return message_type, request_id, {}, b""
     try:
         payload = json.loads(metadata.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -147,6 +159,20 @@ def _receive(connection: socket.socket, expected_type: int) -> tuple[bytes, dict
     if decoded_id != request_id:
         raise ProtocolError("mismatched request id")
     return request_id, payload, decoded_pdf
+
+
+def send_control(connection: socket.socket, request_id: bytes, message_type: int) -> None:
+    if message_type not in (READY, START):
+        raise ProtocolError("expected control frame")
+    _send(connection, _encode(request_id, {}, message_type))
+
+
+def receive_control(connection: socket.socket, request_id: bytes, message_type: int) -> None:
+    if message_type not in (READY, START):
+        raise ProtocolError("expected control frame")
+    received_id, _, _ = _receive(connection, message_type)
+    if received_id != request_id:
+        raise ProtocolError("mismatched control request id")
 
 
 def send_message(connection: socket.socket, request_id: bytes, payload: dict[str, Any]) -> None:

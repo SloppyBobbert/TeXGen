@@ -20,7 +20,7 @@ from api.compilation.types import (
     InvalidCompileRequest,
 )
 
-from .protocol import MAX_DIAGNOSTICS_BYTES, ProtocolError, receive_request, send_response
+from .protocol import MAX_DIAGNOSTICS_BYTES, READY, START, ProtocolError, receive_control, receive_request, send_control, send_response
 from .runner import TectonicRunner
 
 _LIMIT_KEYS = {field.name for field in fields(CompileLimits)}
@@ -104,6 +104,9 @@ class SidecarServer:
             connection.settimeout(self.framing_timeout)
             request_id, payload = receive_request(connection)
             request = self._request_from_payload(payload)
+            send_control(connection, request_id, READY)
+            # Admission occurs in the caller, without holding a DB transaction here.
+            receive_control(connection, request_id, START)
             result = self.runner.compile(request)
             send_response(
                 connection,

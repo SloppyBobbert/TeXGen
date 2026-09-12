@@ -1,5 +1,7 @@
 """Fail-closed compiler selection point."""
 
+from contextlib import contextmanager
+from functools import partial
 from typing import Protocol
 
 from django.conf import settings
@@ -58,7 +60,15 @@ class CompilerService:
         self._selector = selector
 
     def compile(self, request: CompileRequest) -> CompileResult:
-        return self.prepare().compile(request)
+        with self.prepare(request) as execute:
+            return execute()
 
-    def prepare(self) -> CompilerAdapter:
-        return self._selector.select()
+    @contextmanager
+    def prepare(self, request: CompileRequest):
+        """Own the selected job until execution or admission cancellation."""
+        adapter = self._selector.select()
+        if isinstance(adapter, SidecarCompilerClient):
+            with adapter.prepare(request) as execute:
+                yield execute
+        else:
+            yield partial(adapter.compile, request)

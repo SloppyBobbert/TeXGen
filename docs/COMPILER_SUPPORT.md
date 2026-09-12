@@ -27,6 +27,14 @@ Production compilation defaults to `disabled`. The supported Compose path explic
 
 `local` is a development-only mode and requires `DEBUG=True`. It does not install Tectonic or locate assets automatically. The normal backend image intentionally contains neither the compiler binary nor its assets. To use local mode in a separate development environment, provide the matching Linux ARM64 executable at `/opt/compiler-assets/tectonic/tectonic`, the verified cache and formats, and all required POSIX resource limits. Set `XDG_CACHE_HOME=/opt/compiler-assets/formats` and `TECTONIC_CACHE_DIR=/opt/compiler-assets/cache`; provide a writable temporary directory. Without these prerequisites, compilation fails rather than falling back to another adapter. Local mode does not provide the container isolation of the sidecar.
 
+## Quota admission and socket acceptance
+
+Production quota admission requires PostgreSQL. SQLite is development-only: its `select_for_update()` is a no-op, so it does not provide the row locking required for concurrent fixed-window admission. SQLite tests do not prove production concurrency correctness.
+
+Protocol v2 validates the job and acknowledges READY on the same connection before quota admission. The worker waits for START before running the compiler; denial or database failure closes the connection without starting work. Missing/refused sockets and pre-READY transport or protocol failures return 503 without consuming quota. READY/START frames retain bounded framing deadlines; a caller that stalls during admission releases the worker after the framing timeout. No database transaction is held during compilation.
+
+Once READY has been received and quota admitted, attempts remain charged, including syntax, timeout, resource, and successful outcomes. Lost connections or replies after admission are not refunded: work may already have executed. Deploy the v2 backend and sidecar together; incompatible protocol versions fail closed rather than executing before admission. The Compose memory and memory-plus-swap limits are both 256 MiB (no additional swap), while the per-process address-space ceiling remains 512 MiB.
+
 ## Manifest formats
 
 Two inventories have different purposes:

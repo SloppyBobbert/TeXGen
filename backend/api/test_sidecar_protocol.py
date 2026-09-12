@@ -10,6 +10,7 @@ from compiler_sidecar.protocol import (
     MAX_REQUEST_METADATA_BYTES,
     MAX_SOURCE_BYTES,
     ProtocolError,
+    VERSION,
     decode_frame,
     encode_frame,
     encode_response,
@@ -32,7 +33,7 @@ def test_protocol_round_trips_versioned_request_with_fixed_request_id():
 def test_protocol_rejects_declared_oversized_payload_before_body_is_needed():
     header = (
         b"TXSC"
-        + bytes([1, 1])
+        + bytes([VERSION, 1])
         + b"0123456789abcdef"
         + (MAX_FRAME_BYTES + 1).to_bytes(4, "big")
         + (0).to_bytes(4, "big")
@@ -146,6 +147,31 @@ def test_receive_uses_one_deadline_across_all_chunks(monkeypatch, response, drip
         (receive_message if response else receive_request)(connection)
     assert connection.offset < len(frame)
     assert connection.timeout == 0.1
+
+
+@pytest.mark.parametrize("kind", ["metadata", "pdf", "wrong-id", "wrong-type"])
+def test_control_frames_are_empty_bounded_and_correlated(kind):
+    request_id = b"0123456789abcdef"
+    left, right = socket.socketpair()
+    left.settimeout(0.1)
+    right.settimeout(0.1)
+    frame_id = b"fedcba9876543210" if kind == "wrong-id" else request_id
+    message_type = protocol.START if kind == "wrong-type" else protocol.READY
+    header = protocol._HEADER.pack(b"TXSC", VERSION, message_type, frame_id, int(kind == "metadata"), int(kind == "pdf"))
+    try:
+        # Invalid control types fail before socket I/O.
+        with pytest.raises(ProtocolError):
+            protocol.send_control(left, request_id, protocol.REQUEST)
+        with pytest.raises(ProtocolError):
+            protocol.receive_control(right, request_id, protocol.REQUEST)
+        left.sendall(header)
+        with pytest.raises(ProtocolError):
+            protocol.receive_control(right, request_id, protocol.READY)
+        with pytest.raises(ProtocolError):
+            protocol._encode(request_id, {"not": "empty"}, protocol.READY)
+    finally:
+        left.close()
+        right.close()
 
 
 def test_protocol_rejects_source_one_byte_over_maximum():

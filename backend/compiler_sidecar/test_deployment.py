@@ -60,6 +60,8 @@ def test_compose_isolates_the_sidecar_and_shares_only_the_socket_volume():
     assert 'group_add: ["10001"]' in backend_section
     compiler_section = compose.split("  compiler:\n", 1)[1].split("  frontend:\n", 1)[0]
     assert 'restart: "on-failure:3"' in compiler_section
+    assert "mem_limit: 256m" in compiler_section
+    assert "memswap_limit: 256m" in compiler_section
     assert "environment:" not in compiler_section
     assert "env_file:" not in compiler_section
     assert "secrets:" not in compiler_section

@@ -51,6 +51,7 @@ services:
       - no-new-privileges:true
     pids_limit: 32
     mem_limit: 256m
+    memswap_limit: 256m
     cpus: "0.50"
     volumes:
       - compiler_socket:/run/texgen
