@@ -6,6 +6,7 @@ from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from api.models import CheatSheet
+from api.compilation.types import CompileResult
 from api.views import CompileUserThrottle, compile_latex
 
 
@@ -30,28 +31,13 @@ def test_unauthenticated_compilation_stops_before_downstream_work(payload):
     client = APIClient()
 
     with (
-        patch("api.views.is_truthy") as is_truthy,
-        patch("api.views.validate_layout_params") as validate_layout,
-        patch("api.views.validate_cheat_sheet_id") as validate_sheet_id,
-        patch("api.views.get_object_or_404") as get_sheet,
-        patch("api.views.validate_source_text") as validate_source,
-        patch("api.views.normalize_latex_layout") as normalize,
-        patch("api.views.tempfile.TemporaryDirectory") as temporary_directory,
-        patch("api.views.subprocess.run") as compile_process,
+        patch("api.views.admit_compile") as quota,
+        patch("api.views.get_compiler_service") as compiler,
     ):
         response = client.post("/api/compile/", payload, format="json")
 
     assert response.status_code == 401
-    for downstream_call in (
-        is_truthy,
-        validate_layout,
-        validate_sheet_id,
-        get_sheet,
-        validate_source,
-        normalize,
-        temporary_directory,
-        compile_process,
-    ):
+    for downstream_call in (quota, compiler):
         downstream_call.assert_not_called()
 
 
@@ -76,7 +62,7 @@ def test_authenticated_raw_content_reaches_normalize_only_branch(authenticated_c
 @pytest.mark.django_db
 def test_authenticated_sheet_compile_uses_owner_scoped_sheet(authenticated_client):
     user = authenticated_client.handler._force_user
-    sheet = CheatSheet.objects.create(title="Owned", latex_content="sheet content", user=user)
+    sheet = CheatSheet.objects.create(title="Owned", latex_content="sheet content", source_mode="raw", user=user)
 
     with patch("api.views.normalize_latex_layout", return_value="normalized") as normalize:
         response = authenticated_client.post(
@@ -106,22 +92,21 @@ def test_authenticated_sheet_compile_returns_404_for_another_owner(authenticated
 
 
 @pytest.mark.django_db
-def test_authenticated_raw_content_reaches_compilation_branch(authenticated_client, tmp_path):
-    def create_pdf(*args, **kwargs):
-        (tmp_path / "document.pdf").write_bytes(b"%PDF-1.4")
-
+def test_authenticated_raw_content_reaches_compilation_branch(authenticated_client):
+    adapter = patch("api.views.get_compiler_service")
     with (
         patch("api.views.normalize_latex_layout", return_value="normalized"),
-        patch("api.views.tempfile.TemporaryDirectory") as temporary_directory,
-        patch("api.views.subprocess.run", side_effect=create_pdf) as compile_process,
+        adapter as get_service,
     ):
-        temporary_directory.return_value.__enter__.return_value = str(tmp_path)
+        execute = get_service.return_value.prepare.return_value.__enter__.return_value
+        execute.return_value = CompileResult(pdf=b"%PDF-1.4")
         response = authenticated_client.post(
             "/api/compile/", {"content": "raw content"}, format="json"
         )
 
     assert response.status_code == 200
-    compile_process.assert_called_once()
+    get_service.return_value.prepare.assert_called_once()
+    execute.assert_called_once_with()
 
 
 def test_compile_uses_only_the_authenticated_user_throttle():

@@ -20,16 +20,47 @@ services:
       - DATABASE_URL=postgres://cheatsheet_user:cheatsheet_pass@db:5432/cheatsheet_db
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,backend
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - COMPILER_BACKEND=sidecar
+      - COMPILER_SIDECAR_SOCKET=/run/texgen/compiler.sock
     volumes:
       - ./backend:/app
-      - tectonic_cache:/root/.cache/Tectonic
+      - compiler_socket:/run/texgen
+    group_add: ["10001"]
     depends_on:
-      - db
+      db:
+        condition: service_started
+      compiler:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health/"]
       interval: 10s
       timeout: 5s
       retries: 10
+  compiler:
+    restart: "on-failure:3"
+    build:
+      context: ./backend
+      dockerfile: compiler_sidecar/Dockerfile
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /work:rw,noexec,nosuid,nodev,size=64m,mode=700,uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 32
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: "0.50"
+    volumes:
+      - compiler_socket:/run/texgen
+    healthcheck:
+      test: ["CMD", "python", "-S", "-m", "compiler_sidecar.container.healthcheck", "/run/texgen/compiler.sock"]
+      interval: 30s
+      timeout: 45s
+      retries: 3
+      start_period: 20s
   frontend:
     build: ./frontend
     ports:
@@ -46,4 +77,4 @@ services:
 volumes:
   postgres_data:
   frontend_node_modules:
-  tectonic_cache:
+  compiler_socket:

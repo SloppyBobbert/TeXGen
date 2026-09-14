@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ChicoState/cheat-sheet/actions/workflows/ci.yml"><img src="https://github.com/ChicoState/cheat-sheet/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <img src="https://img.shields.io/github/languages/top/ChicoState/cheat-sheet" alt="Top language" />
+  <a href="https://github.com/SloppyBobbert/TeXGen/actions/workflows/ci.yml"><img src="https://github.com/SloppyBobbert/TeXGen/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <img src="https://img.shields.io/github/languages/top/SloppyBobbert/TeXGen" alt="Top language" />
   <img src="https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white" alt="Node 24" />
   <img src="https://img.shields.io/badge/python-3.14-3776AB?logo=python&logoColor=white" alt="Python 3.14" />
   <img src="https://img.shields.io/badge/react-18-61DAFB?logo=react&logoColor=black" alt="React 18" />
@@ -40,7 +40,8 @@ Cheat Sheet Generator is a study-sheet editor for math-heavy classes. Users can 
 The app is split into:
 
 - a **React + Vite frontend** for the editor, dashboard, auth screens, preview controls, and resource rail
-- a **Django REST API** for formula generation, persistence, JWT auth, and PDF compilation
+- a **Django REST API** for rendering, persistence, JWT auth, and authenticated compile requests
+- a **dedicated compiler container** for offline PDF compilation through a Unix socket
 - a **Docker Compose setup** for local full-stack development with PostgreSQL
 
 ## Current Editor UI
@@ -158,7 +159,7 @@ The main editor is a three-region workspace:
 | --- | --- |
 | Frontend | React 18, Vite 6, react-pdf, dnd-kit, lucide-react, framer-motion |
 | Backend | Django 6, Django REST Framework, Simple JWT |
-| PDF pipeline | Tectonic |
+| PDF pipeline | Tectonic 0.15.0 sidecar with verified Linux ARM64 assets |
 | Database | SQLite by default, PostgreSQL in Docker |
 | Tooling | Docker Compose, ESLint, Vitest, Pytest, Ruff |
 
@@ -177,9 +178,15 @@ Backend (Django + DRF)
   ├─ JWT auth + registration
   ├─ Formula/class metadata
   ├─ LaTeX generation endpoint
-  ├─ LaTeX compile + normalize endpoint
+  ├─ Authenticated compile + normalize endpoint
   ├─ YouTube resource proxy endpoint
   └─ Template / cheat sheet / problem CRUD
+         │ Unix socket (compile requests only)
+         ▼
+Compiler sidecar (Tectonic)
+  ├─ Verified offline assets for the supported corpus
+  ├─ No network or application secrets
+  └─ Bounded time, memory, processes, and output
 ```
 
 ## Project structure
@@ -188,8 +195,11 @@ Backend (Django + DRF)
 .
 ├── backend/
 │   ├── api/
+│   │   ├── compilation/           # Compiler adapters, results, and source limits
+│   │   ├── rendering/             # Shared document assembly and normalization
 │   │   ├── formula_data/          # Class/category/formula source data
-│   │   ├── models.py              # Template, CheatSheet, PracticeProblem
+│   │   ├── compile_quota.py       # Database-backed compile admission
+│   │   ├── models.py              # Templates, sheets, problems, quota windows
 │   │   ├── serializers.py         # DRF serializers
 │   │   ├── tests.py               # Backend API and compile tests
 │   │   ├── urls.py                # API routes
@@ -197,7 +207,9 @@ Backend (Django + DRF)
 │   ├── cheat_sheet/
 │   │   ├── settings.py            # Django settings + env loading
 │   │   └── urls.py
+│   ├── compiler_sidecar/          # Socket server, bounded runner, asset verification
 │   ├── Dockerfile
+│   ├── Dockerfile.dockerignore    # Excludes compiler assets from the backend image
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/
@@ -224,15 +236,14 @@ Backend (Django + DRF)
 
 - Node.js 24+
 - Python 3.14+
-- Tectonic
-- Docker Desktop or equivalent container runtime
+- Docker Desktop or an equivalent container runtime for the full stack
+- Verified Linux ARM64 compiler assets for PDF compilation; see [Compiler support](docs/COMPILER_SUPPORT.md#build-prerequisite)
+
+A host Tectonic installation is not required for Compose. The compiler image contains its own verified executable and cache.
 
 ### Environment
 
-The backend reads both, with `/backend/.env` taking precedence over repo-root defaults:
-
-- `/.env`
-- `/backend/.env`
+The backend reads the repo-root `.env`, then `backend/.env`. Values in `backend/.env` override root-file defaults. Existing process environment variables take precedence over both files.
 
 For YouTube suggestions, add this in the repo-root `.env`:
 
@@ -243,6 +254,10 @@ YOUTUBE_API_KEY=your_key_here
 Docker Compose passes `YOUTUBE_API_KEY` into the backend container from the repo-root `.env` (or from your shell environment), so the same key works in local Django runs and containers without mounting the whole root `.env` file into the container.
 
 ### Backend setup
+
+This starts the API with compilation disabled by default. For PDF compilation, use the Compose setup below.
+
+The development-only local adapter needs separate compiler assets and configuration; see [Compiler modes](docs/COMPILER_SUPPORT.md#compiler-modes).
 
 ```bash
 cd backend
@@ -263,7 +278,7 @@ http://localhost:8000/api/
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -275,6 +290,10 @@ http://localhost:5173/
 
 ### Full stack with Docker
 
+First stage and verify `backend/.compiler-assets` as described in [Build prerequisite](docs/COMPILER_SUPPORT.md#build-prerequisite). A clean checkout cannot build the compiler image without these files. Use a matching Linux ARM64 runtime.
+
+Compose is a development setup, not a production deployment. Do not put application secrets in the compiler image or mount them into the compiler container.
+
 ```bash
 docker compose up --build
 ```
@@ -283,14 +302,17 @@ Services:
 
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:8000/api/`
-- postgres: internal Compose service used by Django
+- db: internal PostgreSQL service used by Django
+- compiler: internal Unix-socket service; no network endpoint
+
+Sign in before you compile a PDF. Compilation supports the documented curated corpus, not arbitrary LaTeX. See [Compiler support](docs/COMPILER_SUPPORT.md) for package limits and failure recovery.
 
 ## Editor workflow
 
 1. Select one or more classes.
 2. Toggle the categories you want included.
 3. Reorder class groups or formulas if needed.
-4. Generate/compile the sheet.
+4. Sign in, then generate/compile the sheet.
 5. Adjust columns, spacing, font size, or margins.
 6. Open the LaTeX editor only if you need to inspect or edit the generated source.
 7. Save locally or, if signed in, save to your account.
@@ -314,8 +336,10 @@ Services:
 | --- | --- | --- |
 | GET | `/api/classes/` | List classes, categories, and formulas |
 | POST | `/api/generate-sheet/` | Generate LaTeX from selected formulas |
-| POST | `/api/compile/` | Normalize and compile LaTeX into PDF |
+| POST | `/api/compile/` | Authenticated normalization or PDF compilation; compile quotas apply to PDF jobs |
 | POST | `/api/youtube-resources/` | Return top YouTube picks for selected sections |
+
+Compilation is disabled unless a compiler mode is configured. `normalize_only` does not invoke the compiler. Explicit null source selectors are invalid; omit them for legacy compatibility or supply a valid source mode.
 
 ### Persistence
 
@@ -355,7 +379,7 @@ Each class contains multiple categories and formulas in `backend/api/formula_dat
 
 ```bash
 cd frontend
-npx eslint src
+npm run lint
 npm test -- --run
 npm run build
 ```
@@ -365,9 +389,12 @@ npm run build
 ```bash
 cd backend
 python manage.py check
-pytest -v
+pytest -v --cov-fail-under=95
 ruff check .
+pip-audit -r requirements.txt
 ```
+
+The five PostgreSQL quota tests skip under SQLite. To run them, configure a test PostgreSQL `DATABASE_URL` and set `TEXGEN_REQUIRE_POSTGRES_CONCURRENCY=1` when running `pytest tests/test_compile_quota_postgres.py`.
 
 For the Docker-backed backend checks used before release:
 
@@ -388,9 +415,10 @@ docker compose build
 
 GitHub Actions verifies:
 
-- frontend install and build
-- backend lint/tests
-- container build verification
+- frontend tests, lint, and production build with Node 24
+- backend Ruff checks, dependency audit, and tests with Python 3.14 and a 95% API coverage floor
+- PostgreSQL compile-quota concurrency tests
+- a real-stack Playwright journey on Linux ARM64, including verified compiler assets and Compose image builds
 
 ## Development notes
 

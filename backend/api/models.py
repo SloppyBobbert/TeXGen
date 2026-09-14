@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from .latex_utils import get_body_font_command, get_document_class, get_spacing_values
+from .rendering import DocumentRenderRequest, LayoutSpec, PracticeProblemSpec, render_document
 
 class Template(models.Model):
     SOURCE_MODE_CHOICES = [
@@ -89,109 +89,27 @@ class CheatSheet(models.Model):
     def __str__(self):
         return self.title
 
-    def _build_practice_problems_section(self):
-        problems = list(self.problems.all())
-        if not problems:
-            return ""
+    @property
+    def effective_source_mode(self):
+        if self.source_mode == "empty" and self.latex_content.strip():
+            return "generated" if self.content_source == "generated" else "raw"
+        return self.source_mode
 
-        section_lines = [r"\noindent Practice Problems\par"]
-        for problem in problems:
-            section_lines.append(
-                f"Problem {problem.order}: {problem.question_latex}"
-            )
-            if problem.answer_latex:
-                section_lines.append(f"Answer: {problem.answer_latex}")
-            section_lines.append("")
-
-        return "\n".join(section_lines).rstrip()
-
-    def _inject_practice_problems_into_document(self, content):
-        practice_problems = self._build_practice_problems_section()
-        if not practice_problems:
-            return content
-
-        end_document = r"\end{document}"
-        end_multicols = r"\end{multicols}"
-
-        insert_before = end_document
-        if end_multicols in content and content.rfind(end_multicols) < content.rfind(end_document):
-            insert_before = end_multicols
-
-        insert_index = content.rfind(insert_before)
-        if insert_index == -1:
-            return content
-
-        return (
-            f"{content[:insert_index].rstrip()}\n\n"
-            f"{practice_problems}\n"
-            f"{content[insert_index:]}"
-        )
-    
     def build_full_latex(self):
-        """
-        Build a complete LaTeX document from the cheat sheet's content.
-        If the content already contains \\begin{document}, return it as-is.
-        Otherwise, wrap it in a proper document structure.
-        """
-        content = self.latex_content or ""
-        
-        # If it's already a complete document, keep its layout and inject problems if needed
-        if r"\begin{document}" in content and r"\end{document}" in content:
-            return self._inject_practice_problems_into_document(content)
-            
-        # Build document header
-        document_class, document_class_size = get_document_class(self.font_size)
-        spacing_values = get_spacing_values(self.spacing, self.font_size)
-
-        doc_options = f"{document_class_size},fleqn,letterpaper"
-        if self.orientation == "landscape":
-            doc_options += ",landscape"
-
-        geometry_options = f"letterpaper,margin={self.margins}"
-        if self.orientation == "landscape":
-            geometry_options += ",landscape"
-
-        header = [
-            f"\\documentclass[{doc_options}]{{{document_class}}}",
-            "\\usepackage[utf8]{inputenc}",
-            "\\usepackage{amsmath, amssymb}",
-            "\\usepackage{adjustbox}",
-            f"\\usepackage[{geometry_options}]{{geometry}}",
-            f"\\setlength{{\\baselineskip}}{{{spacing_values['baseline_skip']}}}",
-            f"\\setlength{{\\parskip}}{{{spacing_values['paragraph_skip']}}}",
-        ]
-            
-        # Add multicolumn support if needed
-        if self.columns > 1:
-            header.append("\\usepackage{multicol}")
-            
-        # Start document
-        document_parts = header + ["\\begin{document}", get_body_font_command(self.font_size)]
-        
-        # Add title if exists
-        if self.title:
-            document_parts.append(f"\\title{{{self.title}}}")
-            document_parts.append("\\maketitle")
-            
-        # Add multicolumn environment if needed
-        if self.columns > 1:
-            document_parts.append(f"\\begin{{multicols}}{{{self.columns}}}")
-            
-        # Add main content
-        document_parts.append(content)
-        
-        practice_problems = self._build_practice_problems_section()
-        if practice_problems:
-            document_parts.append(practice_problems)
-        
-        # Close multicolumn environment if needed
-        if self.columns > 1:
-            document_parts.append("\\end{multicols}")
-            
-        # End document
-        document_parts.append("\\end{document}")
-        
-        return "\n".join(document_parts)
+        """Compatibility API delegated to the rendering boundary."""
+        problems = tuple(
+            PracticeProblemSpec(problem.order, problem.question_latex, problem.answer_latex)
+            for problem in self.problems.all()
+        )
+        return render_document(
+            DocumentRenderRequest(
+                source_latex=self.latex_content or "",
+                source_mode=self.effective_source_mode,
+                title=self.title,
+                layout=LayoutSpec(self.columns, self.font_size, self.margins, self.spacing, self.orientation),
+                practice_problems=problems,
+            )
+        )
 
 
 class PracticeProblem(models.Model):
@@ -207,3 +125,25 @@ class PracticeProblem(models.Model):
 
     def __str__(self):
         return f"Problem {self.order} - {self.cheat_sheet.title}"
+
+
+class CompileQuotaWindow(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="compile_quota_windows",
+    )
+    window_start = models.DateTimeField(db_index=True)
+    count = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "window_start"],
+                name="compile_quota_window_user_start_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(count__gte=1),
+                name="compile_quota_window_count_positive",
+            ),
+        ]

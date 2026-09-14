@@ -15,7 +15,9 @@ Prepare TeXGen for a small public production launch without a full rewrite. The 
 - Optimize initially for a small public launch on portable Linux containers.
 - No existing production data or external API clients require compatibility.
 
-## Confirmed problem areas
+## Originally identified problem areas — August 25, 2026
+
+Historical baseline; current implementation status appears below.
 
 - Template-created sheets do not preserve formula-selection provenance.
 - Topic removal changes selection state but does not alter existing raw LaTeX.
@@ -60,7 +62,7 @@ Evidence recorded in `omos/phase1-correctness-pr`, rebuilt from `origin/main` at
 - Template selection persistence, permissions and ownership, authenticated sheet-ID compile-path validation and related source validation, plus throttles, timeouts, and generic compiler errors are covered.
 - Some document fields already exist in current `origin/main`; this is baseline context, not Phase 2 completion or work attributed to this diff.
 
-Phase 1 is not complete. Remaining containment work:
+At that checkpoint, Phase 1 was not complete. The remaining containment work was:
 
 - Configure shared/global throttle storage and trusted proxy/client-IP handling; the current in-process cache cannot enforce global quotas across workers.
 - Add process-group, container, filesystem, network, CPU, memory, process-count, and output isolation. Authenticated compilation is not production-safe until these controls and shared throttling exist.
@@ -75,15 +77,39 @@ Phase 1 is not complete. Remaining containment work:
 - [x] Make raw source authoritative in advanced mode.
 - [x] Require explicit regeneration before replacing manual source.
 - [ ] Extract layout validation, formula resolution, document assembly, and practice-problem rendering into focused services.
-- [ ] Create one compiler adapter and remove duplicate Tectonic invocation paths.
+- [x] Create one compiler adapter boundary and remove duplicate Tectonic invocation paths.
 - [ ] Keep Django models focused on persistence and views focused on HTTP orchestration.
-- [ ] Restrict normalization to known generated documents rather than parsing arbitrary TeX with regexes.
+- [x] Restrict normalization to marked generated documents rather than parsing arbitrary TeX with regexes.
 - [ ] Fully isolate Tectonic with offline assets, resource limits, bounded diagnostics, and verified downloads.
-- [ ] Add golden document tests and one real offline compilation smoke test.
+- [x] Add golden document tests (`backend/api/test_rendering_boundary.py`).
+- [x] Add a real compilation smoke journey with the networkless Compose sidecar (`frontend/e2e/real-stack.spec.js`).
 
 ### Gate
 
 One backend path owns document construction and compilation, and structured documents can remove topics without damaging unrelated manual content.
+
+### Historical PR6 implementation checkpoint — September 11, 2026
+
+[PR #6](https://github.com/SloppyBobbert/TeXGen/pull/6) replaced closed, unmerged PR #5. The following is historical PR6 evidence, not the current PR7 validation status, a production release, or a merge into `main`.
+
+- Shared rendering now owns document assembly, practice problems, plain-text escaping, and marker-based normalization. Explicit raw documents retain their source; fragments receive a document wrapper.
+- The compiler adapter boundary selects `disabled`, development-only `local`, or `sidecar` without fallback. Source selectors reject explicit null values. Compilation remains disabled by default.
+- PostgreSQL-backed compile quotas serialize admission across workers. This does not replace the general request throttle or complete deployment-specific proxy configuration.
+- The dedicated compiler uses verified offline assets, a Unix socket, no network, a read-only root, bounded resources, bounded diagnostics, and a finite crash-restart policy. See [Compiler support](COMPILER_SUPPORT.md).
+- The asset proof covers a curated sparse corpus on Linux ARM64. It does not establish arbitrary-LaTeX support or general security isolation. The peak near 234 MiB remains a capacity concern under the 256 MiB container limit.
+- Local checks passed 372 backend tests with 96.46% API coverage, five separate PostgreSQL tests, and 160 frontend tests. Docker checks proved asset exclusions, crash recovery, and the three-retry limit. PR checks remain separate gates.
+
+[CI run 34646076421](https://github.com/SloppyBobbert/TeXGen/actions/runs/34646076421) passed backend, frontend, and real-stack browser checks for `1cc6b6b`. Later commits require their own checks. External review remains a separate gate.
+
+### Current PR7 follow-up — September 11, 2026
+
+[PR #7](https://github.com/SloppyBobbert/TeXGen/pull/7) carries the backend review follow-up, including quota acceptance before START. At `d8d52423e14625ab50d7f3596e5a1331a7ae36db`, local validation passed 403 backend tests with 96.65% API coverage and five separate PostgreSQL tests. Existing Linux ARM64 compiler evidence showed healthy operation with swap disabled; these are separate checks, not a claim of passing current CI.
+
+[CI run 34663945842](https://github.com/SloppyBobbert/TeXGen/actions/runs/34663945842) passed frontend and real-stack browser checks but failed backend on the v1 rejection test: Linux raised `ConnectionResetError` when the server closed with unread payload. This follow-up accepts that reset only for v1, retains EOF and no-runner assertions, and bounds adapter-test worker cleanup. Post-fix local validation passed 403 backend tests with 96.60% API coverage (95% floor); the five PostgreSQL tests were skipped in that local run, not rerun as new PostgreSQL evidence. Focused adapter/server/admission/protocol checks passed 88 tests, and Ruff passed. Fresh CI remains required; earlier green CI for `1f45c49` is historical evidence only.
+
+Phase 2 remains incomplete. Stable generated-section identities, separation of custom content, and further model/view decomposition remain open.
+
+Production targets, shared request throttling, proxy configuration, and deployment verification also remain open.
 
 ## Phase 3 — Frontend state, networking, and race-condition cleanup
 
@@ -92,8 +118,8 @@ One backend path owns document construction and compilation, and structured docu
 - [x] Derive checkbox state, selected counts, and generation payloads from one canonical ordered selection.
 - [ ] Centralize API paths, auth headers, token refresh, payload mapping, errors, and cancellation.
 - [ ] Remove raw `fetch()` orchestration from UI components.
-- [ ] Add request IDs or editor-version tokens and ignore obsolete responses.
-- [ ] Ensure only the newest generation and compilation can update content or preview.
+- [x] Add operation-version tokens and ignore obsolete editor responses (implemented in Phase 1; retain during state consolidation).
+- [x] Ensure only the newest generation and compilation can update content or preview (implemented in Phase 1; retain during state consolidation).
 - [ ] Abort work invalidated by clear, reset, navigation, or document changes.
 - [ ] Preserve the last valid PDF after a failed compile and clean up obsolete object URLs.
 - [ ] Model Generate, Compile, Save, Clear, Restore, and Regenerate as explicit transitions.
@@ -125,7 +151,7 @@ Creator and Dashboard workflows work on mobile and desktop and are operable usin
 
 ## Phase 5 — Full validation, CI, and production readiness
 
-- [ ] Add App/editor integration tests and a real-backend Playwright smoke journey.
+- [x] Add App/editor integration tests and a real-backend Playwright smoke journey.
 - [ ] Remove conditional and swallowed end-to-end assertions.
 - [ ] Complete API permission and compiler-abuse test matrices.
 - [x] Consolidate the two CI workflows.
@@ -133,7 +159,7 @@ Creator and Dashboard workflows work on mobile and desktop and are operable usin
 - [x] Enforce 95% backend coverage as an intentional CI regression floor, not a pursuit of 100% coverage.
 - [ ] Run backend lint/tests/security checks and frontend lint/tests/build in one required pipeline.
 - [ ] Lock Python dependencies and use `npm ci` consistently.
-- [ ] Verify and checksum Tectonic assets.
+- [x] Verify and checksum the curated Linux ARM64 Tectonic assets.
 - [ ] Create separate development and production container targets.
 - [ ] Run Django through a production WSGI/ASGI server and serve static frontend assets appropriately.
 - [ ] Add deployment checks, health checks, explicit migrations, and offline compilation verification.
@@ -162,7 +188,7 @@ One CI pipeline proves the complete supported workflow, and production images ru
 - [ ] Clear/reset cannot be reversed by stale responses.
 - [ ] Selection controls always match generated payloads.
 - [ ] Content, formulas, and layout survive save and reload.
-- [ ] Authenticated compilation is isolated, bounded, and rate-limited; production sandbox enforcement remains deferred to PR2.
+- [ ] Authenticated compilation is isolated, bounded, and rate-limited; PR #7 carries the bounded sidecar controls and quota-acceptance follow-up, but the production gate remains open.
 - [ ] Cross-user resource access is prevented.
 - [ ] Mobile and keyboard workflows pass.
 - [ ] One CI pipeline validates the production workflow.

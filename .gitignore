@@ -57,6 +57,9 @@ backend/coverage/
 .coverage
 htmlcov/
 
+# Locally staged compiler assets are verified during image construction, never committed.
+backend/.compiler-assets/**
+
 # LaTeX/TeX build artifacts (if any contributor compiles PDFs locally)
 *.pdf
 *.aux

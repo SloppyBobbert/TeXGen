@@ -3,8 +3,6 @@ Backend tests using pytest-django.
 Run with: pytest  (from the backend/ directory)
 """
 
-import subprocess
-
 import pytest
 from unittest.mock import patch
 from urllib.error import HTTPError
@@ -13,7 +11,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient, APIRequestFactory
-from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, compile_latex_to_pdf, normalize_latex_layout
+from api.latex_utils import LATEX_HEADER, build_dynamic_header, build_latex_for_formulas, normalize_latex_layout
 from api.models import Template, CheatSheet, PracticeProblem
 from api.compiler import validate_cheat_sheet_id
 from api.views import CompileUserThrottle, YOUTUBE_RESOURCE_CACHE, fetch_top_youtube_video, get_youtube_http_error_message
@@ -130,6 +128,7 @@ class TestCheatSheetModel(TestCase):
         raw = "\\documentclass{article}\n\\begin{document}\nCustom\n\\end{document}"
         sheet = CheatSheet.objects.create(
             title="Raw With Problems",
+            source_mode="generated",
             latex_content=raw,
             user=self.user,
         )
@@ -158,6 +157,7 @@ class TestCheatSheetModel(TestCase):
         )
         sheet = CheatSheet.objects.create(
             title="Raw Multi",
+            source_mode="generated",
             latex_content=raw,
             user=self.user,
         )
@@ -244,7 +244,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=4, font_size="8pt", margins="0.5in", spacing="tiny", orientation="portrait")
+        normalized = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=4, font_size="8pt", margins="0.5in", spacing="tiny", orientation="portrait")
 
         assert "\\documentclass[8pt,fleqn,letterpaper]{extarticle}" in normalized
         assert "margin=0.5in" in normalized
@@ -267,7 +267,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
+        normalized = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=5, font_size="10.5pt", margins="0.25in", spacing="0.6pt")
 
         assert normalized.count("\\fontsize{10.5pt}{11.3pt}\\selectfont") == 1
         assert normalized.count("\\begin{multicols}{5}") == 1
@@ -278,6 +278,7 @@ class TestLatexUtils:
         raw = (
             "\\documentclass{article}\n"
             "\\begin{document}\n"
+            "% @texgen-generated\n"
             "\\fontsize{10pt}{10.8pt}\\selectfont\n"
             "\\begin{multicols}{2}\n"
             "\\raggedcolumns\n"
@@ -290,7 +291,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+        normalized = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
 
         assert "\\vspace{0.6pt}" in normalized
         assert "\\vspace{1.2pt}" not in normalized
@@ -319,7 +320,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
+        normalized = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=2, font_size="10pt", margins="0.25in", spacing="0.6pt")
 
         assert "\\noindent ALGEBRA I\\par" in normalized
         assert "\\noindent Linear Equations\\par" in normalized
@@ -349,7 +350,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized = normalize_latex_layout(raw, columns=2, font_size="8pt", margins="0.25in", spacing="0.6pt")
+        normalized = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=2, font_size="8pt", margins="0.25in", spacing="0.6pt")
 
         assert normalized.count("\\fontsize{8pt}{8.8pt}\\selectfont") == 1
         assert "\\small" not in normalized
@@ -371,7 +372,7 @@ class TestLatexUtils:
             "\\end{document}"
         )
 
-        normalized_once = normalize_latex_layout(raw, columns=2, font_size="10pt", margins="0.25in", spacing="large")
+        normalized_once = normalize_latex_layout(raw.replace("\\begin{document}\n", "\\begin{document}\n% @texgen-generated\n"), columns=2, font_size="10pt", margins="0.25in", spacing="large")
         normalized_twice = normalize_latex_layout(normalized_once, columns=2, font_size="10pt", margins="0.25in", spacing="large")
 
         assert normalized_twice.count("% @cheatsheet-layout columns:") == 1
@@ -1360,6 +1361,7 @@ class TestCompileEndpoint:
         raw = (
             "\\documentclass{article}\n"
             "\\begin{document}\n"
+            "% @texgen-generated\n"
             "\\fontsize{10pt}{10.8pt}\\selectfont\n"
             "\\begin{multicols}{2}\n"
             "\\raggedcolumns\n"
@@ -1376,6 +1378,7 @@ class TestCompileEndpoint:
             "/api/compile/",
             {
                 "content": raw,
+                "source_mode": "generated",
                 "normalize_only": True,
                 "font_size": "8pt",
                 "spacing": "0.6pt",
@@ -1398,6 +1401,7 @@ class TestCompileEndpoint:
         raw = (
             "\\documentclass{article}\n"
             "\\begin{document}\n"
+            "% @texgen-generated\n"
             "\\fontsize{10pt}{10.8pt}\\selectfont\n"
             "% @cheatsheet-layout columns: 5 | change layout options up top to update columns\n"
             "% @cheatsheet-layout font_size: 10.5pt | change layout options up top to update text size\n"
@@ -1412,6 +1416,7 @@ class TestCompileEndpoint:
             "/api/compile/",
             {
                 "content": raw,
+                "source_mode": "generated",
                 "normalize_only": True,
                 "columns": 2,
                 "font_size": "8pt",
@@ -1601,37 +1606,6 @@ class TestPhaseOneTransfer:
             content_type="application/json",
         )
         assert response.status_code == 400
-
-    @patch("api.views.subprocess.run")
-    @override_settings(COMPILER_TIMEOUT_SECONDS=7)
-    def test_compile_timeout_and_failure_are_generic(self, run, auth_client):
-        run.side_effect = subprocess.TimeoutExpired("tectonic", 7)
-        assert auth_client.post("/api/compile/", {"content": "x"}, format="json").status_code == 408
-        assert run.call_args.kwargs["timeout"] == 7
-        run.side_effect = subprocess.CalledProcessError(1, "tectonic", stderr="sensitive compiler path")
-        response = auth_client.post("/api/compile/", {"content": "x"}, format="json")
-        assert response.json() == {"error": "Failed to compile LaTeX"}
-        assert run.call_args.kwargs["stdout"] is subprocess.DEVNULL
-        assert run.call_args.kwargs["stderr"] is subprocess.DEVNULL
-
-    @patch("api.views.subprocess.run", side_effect=FileNotFoundError("sensitive executable path"))
-    def test_compile_missing_executable_is_generic(self, _run, auth_client):
-        response = auth_client.post("/api/compile/", {"content": "x"}, format="json")
-        assert response.status_code == 500
-        assert response.json() == {"error": "Failed to compile LaTeX"}
-
-    @patch("api.latex_utils.subprocess.run")
-    def test_compile_helper_discards_compiler_diagnostics(self, run):
-        run.side_effect = subprocess.CalledProcessError(1, "tectonic", stderr="sensitive compiler path")
-        with pytest.raises(RuntimeError, match="Failed to compile LaTeX"):
-            compile_latex_to_pdf("content")
-        assert run.call_args.kwargs["stdout"] is subprocess.DEVNULL
-        assert run.call_args.kwargs["stderr"] is subprocess.DEVNULL
-
-    @patch("api.latex_utils.subprocess.run", side_effect=FileNotFoundError("sensitive executable path"))
-    def test_compile_helper_missing_executable_is_generic(self, _run):
-        with pytest.raises(RuntimeError, match="Failed to compile LaTeX"):
-            compile_latex_to_pdf("content")
 
     def test_compile_throttles_use_configured_rates(self):
         cache.clear()

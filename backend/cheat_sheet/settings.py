@@ -4,6 +4,7 @@ Django settings for cheat_sheet project.
 
 from pathlib import Path
 import os
+from math import isfinite
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 import dj_database_url
@@ -16,6 +17,39 @@ for key, value in ORIGINAL_ENV.items():
     os.environ[key] = value
 
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+
+
+def _positive_int_setting(name, default):
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as error:
+        raise ImproperlyConfigured(f"{name} must be a positive integer") from error
+    if value < 1:
+        raise ImproperlyConfigured(f"{name} must be a positive integer")
+    return value
+
+
+def _nonnegative_int_setting(name, default):
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as error:
+        raise ImproperlyConfigured(f"{name} must be a non-negative integer") from error
+    if value < 0:
+        raise ImproperlyConfigured(f"{name} must be a non-negative integer")
+    return value
+
+
+def _positive_float_setting(name, default):
+    raw = os.getenv(name, str(default))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError) as error:
+        raise ImproperlyConfigured(f"{name} must be a positive number") from error
+    if not isfinite(value) or value <= 0:
+        raise ImproperlyConfigured(f"{name} must be a positive number")
+    return value
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
@@ -121,6 +155,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 # DRF
+DJANGO_NUM_PROXIES = _nonnegative_int_setting("DJANGO_NUM_PROXIES", 0)
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -128,12 +163,54 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "NUM_PROXIES": DJANGO_NUM_PROXIES,
 }
 
 SIMPLE_JWT = {
     "SIGNING_KEY": JWT_SIGNING_KEY,
 }
 
-COMPILER_SOURCE_MAX_BYTES = int(os.getenv("COMPILER_SOURCE_MAX_BYTES", 256 * 1024))
-COMPILER_TIMEOUT_SECONDS = int(os.getenv("COMPILER_TIMEOUT_SECONDS", 15))
+COMPILER_BACKEND = os.getenv("COMPILER_BACKEND", "disabled").strip().lower()
+if COMPILER_BACKEND not in {"disabled", "local", "sidecar"}:
+    raise ImproperlyConfigured("COMPILER_BACKEND must be disabled, local, or sidecar")
+
+COMPILER_SIDECAR_SOCKET = os.getenv("COMPILER_SIDECAR_SOCKET", "/run/texgen/compiler.sock").strip()
+if not COMPILER_SIDECAR_SOCKET or not os.path.isabs(COMPILER_SIDECAR_SOCKET):
+    raise ImproperlyConfigured("COMPILER_SIDECAR_SOCKET must be an absolute socket path")
+
+COMPILER_SOURCE_MAX_BYTES = _positive_int_setting("COMPILER_SOURCE_MAX_BYTES", 256 * 1024)
+COMPILER_TIMEOUT_SECONDS = _positive_float_setting("COMPILER_TIMEOUT_SECONDS", 15)
+COMPILER_PDF_MAX_BYTES = _positive_int_setting("COMPILER_PDF_MAX_BYTES", 10 * 1024 * 1024)
+COMPILER_DIAGNOSTICS_MAX_BYTES = _nonnegative_int_setting("COMPILER_DIAGNOSTICS_MAX_BYTES", 4 * 1024)
+COMPILER_CPU_SECONDS = _positive_int_setting("COMPILER_CPU_SECONDS", 10)
+COMPILER_ADDRESS_SPACE_BYTES = _positive_int_setting("COMPILER_ADDRESS_SPACE_BYTES", 512 * 1024 * 1024)
+COMPILER_FILE_SIZE_BYTES = _positive_int_setting("COMPILER_FILE_SIZE_BYTES", 10 * 1024 * 1024)
+COMPILER_PROCESS_COUNT = _positive_int_setting("COMPILER_PROCESS_COUNT", 32)
+COMPILER_OPEN_FILES = _positive_int_setting("COMPILER_OPEN_FILES", 64)
+COMPILER_USER_QUOTA = _positive_int_setting("COMPILER_USER_QUOTA", 60)
+COMPILER_QUOTA_WINDOW_SECONDS = _positive_int_setting("COMPILER_QUOTA_WINDOW_SECONDS", 3600)
 COMPILER_USER_RATE = os.getenv("COMPILER_USER_RATE", "60/hour")
+
+_COMPILER_HARD_MAXIMA = {
+    "COMPILER_SOURCE_MAX_BYTES": 256 * 1024,
+    "COMPILER_TIMEOUT_SECONDS": 15,
+    "COMPILER_PDF_MAX_BYTES": 10 * 1024 * 1024,
+    "COMPILER_DIAGNOSTICS_MAX_BYTES": 4 * 1024,
+    "COMPILER_CPU_SECONDS": 10,
+    "COMPILER_ADDRESS_SPACE_BYTES": 512 * 1024 * 1024,
+    "COMPILER_FILE_SIZE_BYTES": 10 * 1024 * 1024,
+    "COMPILER_PROCESS_COUNT": 32,
+    "COMPILER_OPEN_FILES": 64,
+}
+for _setting_name, _maximum in _COMPILER_HARD_MAXIMA.items():
+    if globals()[_setting_name] > _maximum:
+        raise ImproperlyConfigured(f"{_setting_name} exceeds sidecar hard maximum")
+
+if COMPILER_BACKEND == "local" and not DEBUG:
+    try:
+        import resource
+    except ImportError as error:
+        raise ImproperlyConfigured("local compiler requires Linux resource limits") from error
+    _required_rlimits = ("RLIMIT_CPU", "RLIMIT_AS", "RLIMIT_FSIZE", "RLIMIT_NPROC", "RLIMIT_NOFILE")
+    if any(not hasattr(resource, name) for name in _required_rlimits):
+        raise ImproperlyConfigured("local compiler requires all configured resource limits")

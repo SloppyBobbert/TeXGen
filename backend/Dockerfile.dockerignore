@@ -1,0 +1,24 @@
+# Backend-only exclusions. The compiler Dockerfile still uses .dockerignore.
+# Dockerfile-specific rules replace, rather than extend, the root rules.
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+.env
+.git
+
+**/__pycache__/
+*.sqlite3
+.env.*
+.compiler-assets/
+build/
+dist/
+coverage/
+htmlcov/
+.coverage*
+.pytest_cache/
+node_modules/
+AGENTS.md
+session-*.md
