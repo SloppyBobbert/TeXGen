@@ -31,6 +31,24 @@ function draft(identity = 'draft-a') {
 }
 
 describe('draftStore', () => {
+  it('keeps damaged metadata and source bytes available for recovery instead of migrating them', () => {
+    const storage = createStorage();
+    const key = getDraftStorageKey('draft-a');
+    const damaged = JSON.stringify({ ...draft(), source_latex: 'manual work', generated_sections: { version: 1, baseline: '% @texgen-section broken' } });
+    storage.setItem(key, damaged);
+    expect(readDraft(storage, 'draft-a')).toMatchObject({ ok: false, error: { code: 'invalid_generated_sections' } });
+    expect(migrateLegacyDraft(storage, 'draft-a').ok).toBe(false);
+    expect(storage.getItem(key)).toBe(damaged);
+  });
+
+  it('preserves explicit raw mode even with a structurally valid saved baseline', () => {
+    const storage = createStorage();
+    const marker = (kind, body) => `% @texgen-section v1 begin ${kind}:algebra-i.slope-formula\n${body}% @texgen-section v1 end ${kind}:algebra-i.slope-formula\n`;
+    const baseline = marker('c', marker('g', marker('f', 'generated\n')));
+    const value = { ...draft(), source_latex: `${baseline}manual note`, generated_sections: { version: 1, baseline } };
+    expect(writeDraft(storage, value).ok).toBe(true);
+    expect(readDraft(storage, 'draft-a').draft).toEqual(value);
+  });
   it('writes and reads the versioned envelope with explicit refetch state', () => {
     const storage = createStorage();
     expect(writeDraft(storage, draft())).toMatchObject({ ok: true, refetch_needed: true });

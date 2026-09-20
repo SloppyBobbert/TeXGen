@@ -33,6 +33,7 @@ describe('useLatex hook', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     mockLocalStorage.clear();
@@ -48,6 +49,148 @@ describe('useLatex hook', () => {
       {children}
     </AuthContext.Provider>
   );
+
+  test('confirms edited structured removal atomically and restores source and selections with undo', () => {
+    const id = 'algebra-i.slope-formula';
+    const block = (kind, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const source = `HEADER\n${block('c', block('g', block('f', 'original\n')))}FOOTER`;
+    const selection = [{ formula_id: id }];
+    const restoreSelections = vi.fn();
+    const apply = vi.fn();
+    const { result } = renderHook(() => useLatex({ content: source, contentSource: 'generated', generatedSections: { version: 1, baseline: source } }, 'section-test', selection, { restoreSelections }), { wrapper });
+    act(() => result.current.handleContentChange(source.replace('original', 'my work')));
+    expect(result.current.contentSource).toBe('generated');
+    act(() => result.current.requestRemoval([id], apply));
+    expect(apply).not.toHaveBeenCalled();
+    expect(result.current.pendingRemoval).toBeTruthy();
+    act(() => result.current.cancelRemoval());
+    expect(result.current.content).toContain('my work');
+    expect(apply).not.toHaveBeenCalled();
+    act(() => result.current.requestRemoval([id], apply));
+    act(() => result.current.confirmRemoval());
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(result.current.content).toBe('HEADER\nFOOTER');
+    act(() => { result.current.setColumns(2); result.current.setTitle('later title'); });
+    act(() => result.current.goBack());
+    expect(result.current.columns).toBe(4);
+    expect(result.current.title).toBe('');
+    expect(result.current.content).toContain('my work');
+    expect(restoreSelections).toHaveBeenCalledWith(selection, undefined);
+  });
+
+  test.each(['removal', 'raw mode', 'generation', 'preview regeneration'])('persists %s recovery and undo cursor before any debounce timer', async (transition) => {
+    vi.useFakeTimers();
+    const id = 'algebra-i.slope-formula';
+    const block = (kind, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const source = `HEADER\n${block('c', block('g', block('f', 'original\n')))}FOOTER`;
+    const edited = source.replace('original', 'manual work');
+    const regenerated = source.replace('original', 'new generation');
+    const metadata = { version: 1, baseline: source };
+    const selections = [{ formula_id: id }];
+    const identity = 'immediate-history';
+    const restoreSelections = vi.fn();
+    fetch.mockImplementation((url) => Promise.resolve(url === '/api/generate-sheet/'
+      ? { ok: true, json: async () => ({ tex_code: regenerated, generated_sections: { version: 1, baseline: regenerated } }) }
+      : { ok: true, blob: async () => new Blob(['pdf']) }));
+    const first = renderHook(() => useLatex({ content: edited, contentSource: 'generated', generatedSections: metadata }, identity, selections, { restoreSelections, formulaSelections: selections }), { wrapper });
+    if (transition === 'removal') {
+      act(() => first.result.current.requestRemoval([id], vi.fn(), { records: [], canonical: [] }));
+      act(() => first.result.current.confirmRemoval());
+    } else if (transition === 'raw mode') {
+      act(() => first.result.current.useRawSource());
+    } else if (transition === 'generation') {
+      await act(async () => first.result.current.handleGenerateSheet(selections));
+    } else {
+      await act(async () => first.result.current.handlePreview(null, { formulas: selections }));
+    }
+    const after = first.result.current.content;
+    first.unmount();
+    const saved = JSON.parse(localStorage.getItem(`cheatSheetLatex:${identity}`));
+    expect(saved).toMatchObject({ content: after, historyIndex: 1 });
+    expect(saved.history).toHaveLength(2);
+    expect(saved.history[0]).toMatchObject({ content: edited, generatedSections: metadata, formulaSelections: selections });
+    const second = renderHook(() => useLatex(undefined, identity, [], { restoreSelections }), { wrapper });
+    expect(second.result.current.canGoBack).toBe(true);
+    act(() => second.result.current.goBack());
+    expect(second.result.current.content).toBe(edited);
+    expect(second.result.current.generatedSections).toEqual(metadata);
+    expect(restoreSelections).toHaveBeenLastCalledWith(selections, selections);
+    second.unmount();
+    const third = renderHook(() => useLatex(undefined, identity, [], { restoreSelections }), { wrapper });
+    expect(third.result.current.content).toBe(edited);
+    expect(third.result.current.canGoBack).toBe(false);
+    expect(third.result.current.canGoForward).toBe(true);
+    act(() => third.result.current.goForward());
+    expect(third.result.current.content).toBe(after);
+    third.unmount();
+    expect(JSON.parse(localStorage.getItem(`cheatSheetLatex:${identity}`)).historyIndex).toBe(1);
+  });
+
+  test.each(['removal', 'raw mode', 'generation', 'preview regeneration'])('keeps source and metadata if %s recovery cannot be stored', async (transition) => {
+    vi.useFakeTimers();
+    const id = 'algebra-i.slope-formula';
+    const block = (kind, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const source = block('c', block('g', block('f', 'original\n')));
+    const edited = source.replace('original', 'manual work');
+    const metadata = { version: 1, baseline: source };
+    const selections = [{ formula_id: id }];
+    const apply = vi.fn();
+    const onDocumentChange = vi.fn();
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ tex_code: source, generated_sections: metadata }) });
+    const { result, unmount } = renderHook(() => useLatex({ content: edited, contentSource: 'generated', generatedSections: metadata }, 'failed-recovery', selections, { onDocumentChange }), { wrapper });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(mockLocalStorage, 'setItem').mockImplementation(() => { throw new Error('Storage full'); });
+    if (transition === 'removal') {
+      act(() => result.current.requestRemoval([id], apply, { records: [], canonical: [] }));
+      act(() => result.current.confirmRemoval());
+    } else if (transition === 'raw mode') {
+      act(() => result.current.useRawSource());
+    } else if (transition === 'generation') {
+      await act(async () => result.current.handleGenerateSheet(selections));
+    } else {
+      await act(async () => result.current.handlePreview(null, { formulas: selections }));
+    }
+    expect(result.current.content).toBe(edited);
+    expect(result.current.contentSource).toBe('generated');
+    expect(result.current.generatedSections).toEqual(metadata);
+    expect(result.current.canGoBack).toBe(false);
+    expect(result.current.sectionMessage).toContain('Recovery could not be saved');
+    expect(apply).not.toHaveBeenCalled();
+    expect(onDocumentChange).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.some(([url]) => url === '/api/compile/')).toBe(false);
+    unmount();
+  });
+
+  test('invalidates removal confirmation after an edit and raw mode never rewrites marked source', () => {
+    const id = 'algebra-i.slope-formula';
+    const block = (kind, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const source = `HEADER\n${block('c', block('g', block('f', 'original\n')))}FOOTER`;
+    const apply = vi.fn();
+    const { result } = renderHook(() => useLatex({ content: source, contentSource: 'generated', generatedSections: { version: 1, baseline: source } }, 'stale-removal', [{ formula_id: id }]), { wrapper });
+    act(() => result.current.handleContentChange(source.replace('original', 'edited')));
+    act(() => result.current.requestRemoval([id], apply));
+    act(() => result.current.handleContentChange(source.replace('original', 'newer edit')));
+    act(() => result.current.confirmRemoval());
+    expect(apply).not.toHaveBeenCalled();
+    expect(result.current.content).toContain('newer edit');
+    expect(result.current.sectionMessage).toContain('changed');
+    const rawSource = result.current.content;
+    act(() => result.current.useRawSource());
+    expect(result.current.contentSource).toBe('manual');
+    expect(result.current.content).toBe(rawSource);
+    act(() => result.current.requestRemoval([id], apply));
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(result.current.content).toBe(rawSource);
+    expect(result.current.pendingRemoval).toBeNull();
+  });
+
+  test('does not replace current source with a damaged browser history entry', () => {
+    localStorage.setItem('cheatSheetLatex:damaged-history', JSON.stringify({ content: 'current work', contentSource: 'manual', history: [null, { content: 'current work' }], historyIndex: 1 }));
+    const { result } = renderHook(() => useLatex(undefined, 'damaged-history'), { wrapper });
+    act(() => result.current.goBack());
+    expect(result.current.content).toBe('current work');
+    expect(result.current.sectionMessage).toContain('damaged');
+  });
 
   test('initializes with default values when no storage or initial data is provided', () => {
     const { result } = renderHook(() => useLatex(), { wrapper });
@@ -376,7 +519,7 @@ describe('useLatex hook', () => {
     expect(mockElement.download).toBe('FileTitle.tex');
   });
 
-  test('keeps manual source and the existing PDF when normalized compilation fails', async () => {
+  test('keeps raw source and the existing PDF when compilation fails', async () => {
     const { result } = renderHook(() => useLatex({
       content: 'manual source',
       contentSource: 'manual',
@@ -387,9 +530,7 @@ describe('useLatex hook', () => {
     expect(result.current.pdfBlob).toBe('blob:test-url');
 
     act(() => { result.current.setColumns(3); });
-    global.fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'normalized source' }) })
-      .mockResolvedValueOnce({ ok: false, text: async () => 'Compile failed' });
+    global.fetch.mockResolvedValueOnce({ ok: false, text: async () => 'Compile failed' });
 
     await act(async () => { await result.current.handleCompileOnly(); });
 
@@ -642,7 +783,8 @@ describe('useLatex hook', () => {
       result.current.setOrientation('landscape');
     });
     await act(async () => { await vi.advanceTimersByTimeAsync(450); });
-    await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).normalize_only)).toHaveLength(1));
+    expect(global.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).normalize_only)).toHaveLength(0);
+    expect(global.fetch.mock.calls.every(([, options]) => JSON.parse(options.body).content === 'source')).toBe(true);
     await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([, options]) => JSON.parse(options.body).orientation === 'landscape' && !JSON.parse(options.body).normalize_only)).toHaveLength(1));
     await act(async () => {
       pendingBlob.resolve(new Blob(['stale pdf']));

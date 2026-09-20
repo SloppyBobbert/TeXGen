@@ -1,0 +1,191 @@
+{
+  "head": "65a4938f11bd3b3817e3ba98b2b5e8fe1afa9783",
+  "tracked_diff_sha256": "d20758ee28ccec500fce5220b52e2ee7bb6c16830aff5e4baef0bbd628d8f78b",
+  "algorithm": "Per-file SHA-256; tracked diff SHA-256 of git diff --binary",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "new": false,
+      "bytes": 6281,
+      "sha256": "ac81f17ce8361de2997f6606981ead5fc445ad3dedb2b60933c08e51a2bce3d6"
+    },
+    {
+      "path": "backend/api/document_contract.py",
+      "new": false,
+      "bytes": 12401,
+      "sha256": "8cbfff5b6e8a39c07d2dfaebf022d7ca7bdff18408cfcff37eb3e708cb047c1e"
+    },
+    {
+      "path": "backend/api/document_sections.py",
+      "new": true,
+      "bytes": 2099,
+      "sha256": "1138c3569b0864a56ba69d4be9c4ef34b8ef3acc3b0fbc85b054f83da4860716"
+    },
+    {
+      "path": "backend/api/migrations/0015_cheatsheet_generated_sections_and_more.py",
+      "new": true,
+      "bytes": 619,
+      "sha256": "dd68d8e32539c5768904e813d84edc0145048d33128c57b998606301284f8927"
+    },
+    {
+      "path": "backend/api/models.py",
+      "new": false,
+      "bytes": 6519,
+      "sha256": "f7db39fe137b356a39922db8fa5bd18f46e4411f5996c3b2b6e1284126676e7f"
+    },
+    {
+      "path": "backend/api/rendering/renderer.py",
+      "new": false,
+      "bytes": 14748,
+      "sha256": "1be642d11ef46e3929ce70fed39f646d691338837f0c1225481f8bec51684439"
+    },
+    {
+      "path": "backend/api/serializers.py",
+      "new": false,
+      "bytes": 5359,
+      "sha256": "84789938eceb35562229ff474cdb3d55db3d3c7d2bfc0bface6371cf981a7b3c"
+    },
+    {
+      "path": "backend/api/test_compiler_settings.py",
+      "new": false,
+      "bytes": 1825,
+      "sha256": "4d6ce90a410add5ed9738613a9be7b260d4d5a056939f082600216bc1d2ae0a8"
+    },
+    {
+      "path": "backend/api/test_document_sections.py",
+      "new": true,
+      "bytes": 2037,
+      "sha256": "d80f1b58aad4ee8508a9073bcdf5859736f69457f9597c6ea8fb312e1505ecb0"
+    },
+    {
+      "path": "backend/api/test_generation_contract.py",
+      "new": false,
+      "bytes": 5089,
+      "sha256": "3d38a2a0e662981404fd8679175dc1640db316f12d3d854001374fc916040f10"
+    },
+    {
+      "path": "backend/api/views.py",
+      "new": false,
+      "bytes": 27079,
+      "sha256": "d407eb16b1b278872c858c64a4249a3fd5e4ec620b6cd76d82154d3956a15408"
+    },
+    {
+      "path": "backend/cheat_sheet/settings.py",
+      "new": false,
+      "bytes": 7586,
+      "sha256": "449c3c9fe632335c85f788a3d78fe822512f2cd84805f3a5dbe8d023befd1529"
+    },
+    {
+      "path": "backend/tests/seed_e2e_template.py",
+      "new": true,
+      "bytes": 917,
+      "sha256": "20ed8c5079eca379d2bcde313071b72cf2f15b45906bc5c9a15afd7846d52a96"
+    },
+    {
+      "path": "frontend/e2e/real-stack.spec.js",
+      "new": false,
+      "bytes": 9450,
+      "sha256": "228c85aae757b7380a947cd9b3e4a2c484eabaa3ec6c398efc41255388858002"
+    },
+    {
+      "path": "frontend/src/App.jsx",
+      "new": false,
+      "bytes": 28036,
+      "sha256": "3109f16492dd0d8e409d9fa5571cbb2779078fbccc809b9dbd42fd0e7723183c"
+    },
+    {
+      "path": "frontend/src/App.test.jsx",
+      "new": false,
+      "bytes": 41313,
+      "sha256": "59e35088551df4d4450dd37a28c1e1fd656016f9f3795219bd55484c94629fc6"
+    },
+    {
+      "path": "frontend/src/Phase1Journey.test.jsx",
+      "new": false,
+      "bytes": 11014,
+      "sha256": "b0d5ea89d3300b3073914066a3e9017d933445ac4bd1dd77b116e6a92be83b39"
+    },
+    {
+      "path": "frontend/src/components/CreateCheatSheet.jsx",
+      "new": false,
+      "bytes": 74419,
+      "sha256": "e93135eb9a31f43165c9fe854e5a33a5ac1d81532906bda207e80a97255a5976"
+    },
+    {
+      "path": "frontend/src/components/CreateCheatSheet.test.jsx",
+      "new": false,
+      "bytes": 25037,
+      "sha256": "c9582ea04049a3d24222bd5290a7a7d44854fa73d3a4176858af2f008bda07ea"
+    },
+    {
+      "path": "frontend/src/hooks/formulas.js",
+      "new": false,
+      "bytes": 16622,
+      "sha256": "4ed1faa53a2c87a170e670bdd2556c5f9088ecc52f696fae3af9d174384a9bc0"
+    },
+    {
+      "path": "frontend/src/hooks/formulas.test.js",
+      "new": false,
+      "bytes": 24251,
+      "sha256": "b2927c5524c956e00cd99647b61daa04261f81dc0ae881fd517749d7670b0680"
+    },
+    {
+      "path": "frontend/src/hooks/latex.js",
+      "new": false,
+      "bytes": 38419,
+      "sha256": "3355a2be82048c1187781dee94bb6a0e7235d7fe143f63f344b08525dc2d2344"
+    },
+    {
+      "path": "frontend/src/hooks/latex.test.jsx",
+      "new": false,
+      "bytes": 31554,
+      "sha256": "d1725762d6c7d50ff46b97565c76068cf457a8a46c2cbe37acf62fea192908f4"
+    },
+    {
+      "path": "frontend/src/storage/documentAdapter.js",
+      "new": false,
+      "bytes": 3160,
+      "sha256": "da829427cdaf00cb9749a09ff94a923bd3673013b0d54417d7268aa8f2c789c9"
+    },
+    {
+      "path": "frontend/src/storage/documentAdapter.test.js",
+      "new": false,
+      "bytes": 2442,
+      "sha256": "f7b6d39d08950e72ed7cd8264087721ce9cde466d4491739fe71c267d4025864"
+    },
+    {
+      "path": "frontend/src/storage/documentSections.js",
+      "new": true,
+      "bytes": 4649,
+      "sha256": "11a8b1e744bf8e97bf57497451c424b0ac4ea50c2a606a9e48b610fa7f23d98a"
+    },
+    {
+      "path": "frontend/src/storage/documentSections.test.js",
+      "new": true,
+      "bytes": 2852,
+      "sha256": "0c65b041b5d2e98e4134369544a356b905feeacfdd1298d67c1496adedb884d9"
+    },
+    {
+      "path": "frontend/src/storage/draftStore.js",
+      "new": false,
+      "bytes": 13014,
+      "sha256": "22390d6ecef2f75ce0828f025cc746eca0b047beca20756248e71db18fe7b570"
+    },
+    {
+      "path": "frontend/src/storage/draftStore.test.js",
+      "new": false,
+      "bytes": 12797,
+      "sha256": "5172937d04a209f54336bf6a2780f8e23338273fd1c04f6757518e40bcfb93d0"
+    },
+    {
+      "path": "pyrightconfig.json",
+      "new": false,
+      "bytes": 201,
+      "sha256": "40fc797366d56d6dbf3abfa12862bf74e4ba1b49dfca91fa7ceb41923edaae34"
+    }
+  ],
+  "changed_since_review": [
+    "frontend/src/App.jsx",
+    "frontend/src/App.test.jsx"
+  ]
+}

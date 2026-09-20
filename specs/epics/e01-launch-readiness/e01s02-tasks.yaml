@@ -1,0 +1,48 @@
+story_id: e01s02
+title: Make editor actions consistent and accessible
+spec: e01s02-editor.md
+status: failing
+bcps: 8
+depends_on: [e01s01]
+tasks:
+  - id: 1
+    description: Add transition tests, then consolidate document state without duplicating authority; retain all safe-removal behavior.
+    risk: P0
+    security: low
+    status: failing
+    verify: cd frontend && npm test -- --run src/hooks src/storage src/App.test.jsx src/Phase1Journey.test.jsx
+    allure: {severity: critical, categories: [editor, persistence]}
+  - id: 2
+    description: Centralize repeated API and authentication handling; test bounded refresh, cancellation, errors, and non-replay of unsafe requests.
+    risk: P0
+    security: high
+    status: failing
+    verify: cd frontend && npm test -- --run && npm run lint
+    review_gate: No new security findings in affected paths; no token exposure or unintended save/compile replay.
+    allure: {severity: critical, categories: [network, Security Review]}
+  - id: 3
+    description: Verify and repair recovery for stale work, save conflicts, history, failed compilation, and PDF object URLs.
+    risk: P0
+    security: low
+    status: failing
+    verify: cd frontend && npm test -- --run src/hooks/latex.test.jsx src/App.test.jsx src/Phase1Journey.test.jsx src/components/Dashboard.test.jsx
+    allure: {severity: critical, categories: [recovery]}
+  - id: 4
+    description: Repair confirmed responsive and accessibility gaps, add editor-accessibility browser tests, and extract only needed components.
+    risk: P1
+    security: low
+    status: failing
+    verify: >-
+      cd frontend && npm test -- --run src/components && npm run lint && npm run build && npm run test:e2e -- e2e/editor-accessibility.spec.js e2e/real-stack.spec.js
+    prerequisites: The new browser spec exists; approved browser assets and the real stack are available.
+    allure: {severity: high, categories: [accessibility, mobile]}
+  - id: 5
+    description: Run full regression checks and obtain an independent review of editor state, authentication, and accessibility.
+    risk: P0
+    security: high
+    status: failing
+    verify: >-
+      (cd backend && python3 -m pytest --cov-fail-under=95 && python3 -m ruff check .) &&
+      (cd frontend && npm test -- --run && npm run lint && npm run build && npm run test:e2e -- e2e/editor-accessibility.spec.js e2e/real-stack.spec.js)
+    review_gate: No new security findings in affected paths and no unresolved blocking review findings.
+    allure: {severity: critical, categories: [integration, Security Review]}

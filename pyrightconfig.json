@@ -1,10 +1,11 @@
 {
   "venvPath": "backend",
-  "venv": "venv",
+  "venv": ".venv",
   "exclude": [
     "**/node_modules",
     "**/dist",
     "backend/venv",
+    "backend/.venv",
     "backend/.pytest_cache",
     "backend/.ruff_cache"
   ]

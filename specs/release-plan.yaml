@@ -1,0 +1,10 @@
+title: TeXGen launch readiness
+release_status: planned_not_authorized_for_release
+baseline: 65a4938f11bd3b3817e3ba98b2b5e8fe1afa9783
+epics:
+  - id: e01
+    title: Complete safe editing and launch readiness
+    path: epics/e01-launch-readiness
+    order: 1
+    ordering_reason: Protect content before consolidating the editor; verify deployment after behavior stabilizes.
+    stories: [e01s01, e01s02, e01s03]

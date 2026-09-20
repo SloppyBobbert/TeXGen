@@ -87,6 +87,7 @@ describe('CreateCheatSheet Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     window.ResizeObserver = class ResizeObserver {
       observe = vi.fn();
       disconnect = vi.fn();
@@ -178,7 +179,7 @@ describe('CreateCheatSheet Component', () => {
       />,
     );
 
-    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'saved source', orientation: 'landscape' }), undefined, []);
+    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'saved source', orientation: 'landscape' }), undefined, [], { restoreSelections: undefined, formulaSelections: [], knownIds: new Set(), onDocumentChange: expect.any(Function) });
     expect(setOrientation).not.toHaveBeenCalled();
     expect(handleContentChange).not.toHaveBeenCalled();
 
@@ -190,7 +191,7 @@ describe('CreateCheatSheet Component', () => {
       />,
     );
 
-    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'new server source', orientation: 'portrait' }), undefined, []);
+    expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'new server source', orientation: 'portrait' }), undefined, [], { restoreSelections: undefined, formulaSelections: [], knownIds: new Set(), onDocumentChange: expect.any(Function) });
     expect(handleContentChange).not.toHaveBeenCalled();
   });
 

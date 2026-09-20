@@ -1,8 +1,8 @@
 """The single owner of deterministic TeXGen document composition."""
 
-from dataclasses import dataclass, field
 import re
-from typing import Mapping, Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 
 
 GENERATED_MARKER = "% @texgen-generated v1"
@@ -205,7 +205,7 @@ def normalize_latex_layout(
 ):
     if not content:
         return content
-    if source_mode == "raw" or not is_generated_document(content):
+    if source_mode == "raw" or "@texgen-section" in content or not is_generated_document(content):
         return content
     layout = _layout(columns, font_size, margins, spacing, orientation)
     header = build_dynamic_header(
@@ -246,6 +246,13 @@ def build_latex_for_formulas(selected_formulas: Sequence[Mapping], columns=4, fo
         return header + GENERATED_MARKER + "\n" + footer
     lines, current_class, current_category, in_flushleft = [GENERATED_MARKER, *build_layout_comment_block(layout)], None, None, False
     gap = get_spacing_values(layout.spacing, layout.font_size)["formula_gap"]
+    structured = all(formula.get("id") for formula in selected_formulas)
+    class_id = category_id = None
+
+    def boundary(action, section_id):
+        if structured and section_id:
+            lines.append(f"% @texgen-section v1 {action} {section_id}")
+
     def comment(value):
         if lines:
             lines.append("%")
@@ -260,8 +267,13 @@ def build_latex_for_formulas(selected_formulas: Sequence[Mapping], columns=4, fo
                 in_flushleft = False
             if current_category is not None and current_category != current_class:
                 comment(f"END CATEGORY: {current_category}")
+            boundary("end", category_id)
+            category_id = None
             if current_class is not None:
                 comment(f"END CLASS: {current_class}")
+            boundary("end", class_id)
+            class_id = f"c:{formula.get('id')}"
+            boundary("begin", class_id)
             comment(f"BEGIN CLASS: {class_name}")
             lines.append(r"\noindent " + escape_latex_text(class_name) + r"\par")
             current_class, current_category = class_name, None
@@ -272,11 +284,15 @@ def build_latex_for_formulas(selected_formulas: Sequence[Mapping], columns=4, fo
                 in_flushleft = False
             if current_category is not None and current_category != current_class:
                 comment(f"END CATEGORY: {current_category}")
+            boundary("end", category_id)
+            category_id = f"g:{formula.get('id')}"
+            boundary("begin", category_id)
             if not special:
                 comment(f"BEGIN CATEGORY: {category}")
                 lines.extend([r"\noindent " + escape_latex_text(category) + r"\par", r"\begin{flushleft}"])
                 in_flushleft = True
             current_category = category
+        boundary("begin", f"f:{formula.get('id')}")
         lines.append(f"% Formula Block: {name}")
         if category == class_name:
             lines.append(latex)
@@ -285,10 +301,13 @@ def build_latex_for_formulas(selected_formulas: Sequence[Mapping], columns=4, fo
             if gap != "0pt":
                 lines.append(r"\vspace{" + gap + "}")
         lines.append("%")
+        boundary("end", f"f:{formula.get('id')}")
     if in_flushleft:
         lines.append(r"\end{flushleft}")
     if current_category is not None and current_category != current_class:
         comment(f"END CATEGORY: {current_category}")
+    boundary("end", category_id)
     if current_class is not None:
         comment(f"END CLASS: {current_class}")
+    boundary("end", class_id)
     return header + "\n".join(lines) + "\n" + footer

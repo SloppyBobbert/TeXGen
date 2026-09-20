@@ -116,7 +116,7 @@ function hasArray(object, key) {
   return Array.isArray(object?.[key]);
 }
 
-export function useFormulas(initialData, draftIdentity) {
+export function useFormulas(initialData, draftIdentity, onRemove) {
   const identity = draftIdentityFor(initialData, draftIdentity);
   const storageKey = storageKeyFor(initialData, draftIdentity);
   const [classesData, setClassesData] = useState([]);
@@ -257,14 +257,32 @@ export function useFormulas(initialData, draftIdentity) {
     });
   }, [classesData]);
 
+  const requestRemoval = useCallback((next) => {
+    const records = flattenGroupedFormulas(next);
+    const remaining = new Set(records.map(formulaId));
+    const removed = flattenGroupedFormulas(groupedFormulas).map(formulaId).filter((id) => !remaining.has(id));
+    const canonical = selectionsForVisibleFormulas(formulaSelections, records, knownFormulaIds(classesData));
+    const apply = () => setGroupedFormulas(updateFromGrouped(next));
+    if (onRemove && removed.length) onRemove(removed, apply, { records, canonical });
+    else apply();
+  }, [classesData, formulaSelections, groupedFormulas, onRemove, updateFromGrouped]);
+
+  const restoreSelections = useCallback((records, canonical) => {
+    const next = buildSelectionState(records);
+    setGroupedFormulas(next.groupedFormulas);
+    setSelectedClasses(next.selectedClasses);
+    setSelectedCategories(next.selectedCategories);
+    setFormulaSelections(canonical ?? canonicalSelections(records));
+  }, []);
+
   const removeFormulasFromOrder = useCallback((className, categoryName) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.map((group) => group.class === className
-      ? { ...group, formulas: group.formulas.filter((formula) => formula.category !== categoryName) } : group).filter((group) => group.formulas.length)));
-  }, [updateFromGrouped]);
+    requestRemoval(groupedFormulas.map((group) => group.class === className
+      ? { ...group, formulas: group.formulas.filter((formula) => formula.category !== categoryName) } : group).filter((group) => group.formulas.length));
+  }, [groupedFormulas, requestRemoval]);
 
   const toggleClass = (className) => {
     if (selectedClasses[className]) {
-      setGroupedFormulas((prev) => updateFromGrouped(prev.filter((group) => group.class !== className)));
+      requestRemoval(groupedFormulas.filter((group) => group.class !== className));
       return;
     }
     const cls = classesData.find((item) => item.name === className);
@@ -281,18 +299,18 @@ export function useFormulas(initialData, draftIdentity) {
   };
 
   const removeClassFromOrder = useCallback((className) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.filter((group) => group.class !== className)));
-  }, [updateFromGrouped]);
-  const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.map((group) => group.class !== className ? group : {
-      ...group, formulas: group.formulas.filter((formula) => !(formula.category === categoryName && formula.name === formulaName)),
-    }).filter((group) => group.formulas.length)));
-  }, [updateFromGrouped]);
+    requestRemoval(groupedFormulas.filter((group) => group.class !== className));
+  }, [groupedFormulas, requestRemoval]);
+  const removeSingleFormula = useCallback((className, categoryName, formulaName, id) => {
+    requestRemoval(groupedFormulas.map((group) => group.class !== className ? group : {
+      ...group, formulas: group.formulas.filter((formula) => id ? formulaId(formula) !== id : !(formula.category === categoryName && formula.name === formulaName)),
+    }).filter((group) => group.formulas.length));
+  }, [groupedFormulas, requestRemoval]);
   const selectAllClasses = useCallback(() => {
     const next = classesData.map((cls) => ({ class: cls.name, formulas: (cls.categories || []).flatMap((category) => (category.formulas || []).map((formula) => ({ ...formula, id: formula.id, formula_id: formula.id, class: cls.name, category: category.name, name: formula.name }))) })).filter((group) => group.formulas.length);
     setGroupedFormulas(updateFromGrouped(next));
   }, [classesData, updateFromGrouped]);
-  const deselectAllClasses = useCallback(() => { setGroupedFormulas(updateFromGrouped([])); }, [updateFromGrouped]);
+  const deselectAllClasses = useCallback(() => { requestRemoval([]); }, [requestRemoval]);
   const reorderClass = useCallback((oldIndex, newIndex) => setGroupedFormulas((prev) => {
     const next = [...prev]; const [removed] = next.splice(oldIndex, 1); next.splice(newIndex, 0, removed);
     const ids = knownFormulaIds(classesData);
@@ -311,5 +329,5 @@ export function useFormulas(initialData, draftIdentity) {
   const getFormulaSelectionsList = () => formulaSelections;
   const clearSelections = () => { skipNextPersist.current = true; setGroupedFormulas(updateFromGrouped([])); setFormulaSelections([]); if (identity != null) localStorage.removeItem(storageKey); };
 
-  return { classesData, selectedClasses, selectedCategories, groupedFormulas, formulaSelections, formulaSelectionError, toggleClass, toggleCategory, getSelectedFormulasList, getFormulaSelectionsList, clearSelections, reorderClass, reorderFormula, removeClassFromOrder, removeSingleFormula, selectAllClasses, deselectAllClasses, selectedCount: getSelectedFormulasList().length, hasSelectedClasses: Object.keys(selectedClasses).length > 0, isFormulaSelectionInitialized };
+  return { restoreSelections, classesData, selectedClasses, selectedCategories, groupedFormulas, formulaSelections, formulaSelectionError, toggleClass, toggleCategory, getSelectedFormulasList, getFormulaSelectionsList, clearSelections, reorderClass, reorderFormula, removeClassFromOrder, removeSingleFormula, selectAllClasses, deselectAllClasses, selectedCount: getSelectedFormulasList().length, hasSelectedClasses: Object.keys(selectedClasses).length > 0, isFormulaSelectionInitialized };
 }

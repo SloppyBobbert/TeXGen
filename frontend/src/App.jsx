@@ -8,7 +8,7 @@ import SignUp from './components/SignUp';
 import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
-import { migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
+import { getLegacyStorageKeys, migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
 import { fromServerDocument, toCanonicalDocument } from './storage/documentAdapter';
 
 const CURRENT_SHEET_STORAGE_KEY = 'currentCheatSheet';
@@ -59,6 +59,7 @@ const toDraftEnvelope = (sheet) => {
     base_revision: Number.isSafeInteger(sheet.revision) && sheet.revision > 0 ? sheet.revision : null,
     source_mode: document.source_mode,
     source_latex: document.source_latex,
+    generated_sections: document.generated_sections ?? null,
     formula_selections: document.formula_selections,
     layout: document.layout,
     title: document.title,
@@ -82,10 +83,11 @@ const persistSheet = (sheet) => {
     }
     const existing = readDraft(localStorage, identity);
     if (!existing.ok) return existing;
+    const recovery = sanitizeSheet(JSON.parse(localStorage.getItem(getLegacyStorageKeys(identity).latex) || '{}'));
     return writeDraft(localStorage, toDraftEnvelope(sanitized), {
       legacy: {
         formulas: sanitized.selectedFormulas,
-        latex: { title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
+        latex: { history: recovery.history, historyIndex: recovery.historyIndex, title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, generatedSections: sanitized.generatedSections ?? null, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
         history: sanitized.compileHistory,
         source: sanitized.contentSource,
         currentSheet: sanitized,
@@ -99,6 +101,7 @@ const fromDraftEnvelope = (draft, fallback = {}) => sanitizeSheet({
   ...fallback,
   title: draft.title,
   content: draft.source_latex,
+  generatedSections: draft.generated_sections ?? null,
   contentSource: draft.source_mode === 'raw' ? 'manual' : draft.source_mode,
   columns: draft.layout.columns,
   fontSize: draft.layout.font_size,
@@ -190,7 +193,8 @@ const buildRestoredSheet = (baseSheet, snapshot) => {
   ...baseSheet,
   title: snapshot.title ?? baseSheet.title,
   content: snapshot.content ?? '',
-  contentSource: snapshot.contentSource ?? baseSheet.contentSource ?? 'generated',
+  contentSource: snapshot.generatedSections ? (snapshot.contentSource ?? 'generated') : (snapshot.content?.trim() ? 'manual' : 'empty'),
+  generatedSections: snapshot.generatedSections ?? null,
   columns: snapshot.columns ?? baseSheet.columns,
   fontSize: snapshot.fontSize ?? baseSheet.fontSize,
   spacing: snapshot.spacing ?? baseSheet.spacing,

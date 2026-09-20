@@ -1,8 +1,12 @@
 """Canonical/legacy document API translation and validation."""
 
+from collections.abc import Mapping
+from typing import cast
+
 from rest_framework import serializers
 
 from .compiler import validate_source_text
+from .document_sections import validate_generated_sections
 from .formula_catalog import get_formula_by_id, get_formula_by_legacy_alias
 
 VALID_FONT_SIZES = {"8pt", "9pt", "10pt", "11pt", "12pt"}
@@ -112,8 +116,9 @@ class DocumentContractSerializer(serializers.ModelSerializer):
     def get_layout(self, obj):
         return self._legacy_layout(obj)
 
-    def to_representation(self, obj):
-        data = super().to_representation(obj)
+    def to_representation(self, instance):
+        obj = instance
+        data = super().to_representation(instance)
         legacy = None
         try:
             selections = canonical_selections(obj.formula_selections) if obj.formula_selections is not None else legacy_selections(obj.selected_formulas)
@@ -206,9 +211,15 @@ class DocumentContractSerializer(serializers.ModelSerializer):
         source = attrs.get("latex_content", getattr(self.instance, "latex_content", ""))
         source_mode = attrs.get("source_mode", getattr(self.instance, "source_mode", "empty"))
         # Only legacy payloads without either mode preserve the old inference.
-        if "source_mode" not in attrs and "source_mode" not in self.initial_data and "content_source" not in self.initial_data and "latex_content" in attrs:
+        initial_data = cast(Mapping, self.initial_data)
+        if "source_mode" not in attrs and "source_mode" not in initial_data and "content_source" not in initial_data and "latex_content" in attrs:
             source_mode = "empty" if not source.strip() else "raw"
             attrs["source_mode"] = source_mode
+        sections = attrs.get("generated_sections", getattr(self.instance, "generated_sections", None))
+        try:
+            validate_generated_sections(sections)
+        except ValueError as exc:
+            raise serializers.ValidationError({"generated_sections": str(exc)}) from exc
         source_error = validate_source_text(source)
         if source_error:
             raise serializers.ValidationError({"source_latex": source_error})

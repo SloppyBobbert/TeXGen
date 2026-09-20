@@ -81,7 +81,50 @@ describe('phase 1 component persistence journey with mocked save callback', () =
     localStorage.clear();
   });
 
-  it('retains a normalized manual edit when remounted with supplied persisted data', async () => {
+  it('removes an untouched category, confirms edited removal, and restores both source and selections', async () => {
+    const block = (kind, id, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const velocity = 'physics-i.velocity';
+    const force = 'physics-i.newton-second-law';
+    const original = `HEADER\n${block('c', velocity, `Physics\n${block('g', velocity, block('f', velocity, 'velocity formula\n'))}${block('g', force, block('f', force, 'force formula\n'))}`)}FOOTER`;
+    const source = original.replace('HEADER\n', 'HEADER\ncustom note\n').replace('force formula', 'my edited force');
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderEditor({ initialData: { ...template, content: source, generatedSections: { version: 1, baseline: original } }, draftIdentity: 'removal-journey', onSave });
+    await screen.findByLabelText('Physics 101');
+    fireEvent.click(screen.getByRole('button', { name: /Show LaTeX editor/i }));
+    fireEvent.click(screen.getByLabelText(/Motion \(1 formulas\)/i));
+    const editor = screen.getByLabelText(/Generated LaTeX Code:/i);
+    expect(editor.value).not.toContain('velocity formula');
+    expect(editor.value).toContain('custom note');
+    expect(editor.value).toContain('my edited force');
+    const beforeConfirm = editor.value;
+    fireEvent.click(screen.getByLabelText(/Forces \(1 formulas\)/i));
+    expect(screen.getByRole('dialog', { name: 'Remove edited topics?' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Forces \(1 formulas\)/i)).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel removal' }));
+    expect(editor.value).toBe(beforeConfirm);
+    fireEvent.click(screen.getByLabelText(/Forces \(1 formulas\)/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove edited topics' }));
+    expect(editor.value).toBe('HEADER\ncustom note\nFOOTER');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(editor.value).toBe(beforeConfirm);
+    expect(screen.getByLabelText(/Forces \(1 formulas\)/i)).toBeChecked();
+    expect(screen.getByLabelText(/Motion \(1 formulas\)/i)).not.toBeChecked();
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const saved = onSave.mock.calls.at(-1)[0];
+    expect(saved.content).toBe(beforeConfirm);
+    expect(saved.contentSource).toBe('generated');
+    expect(saved.generatedSections.baseline).not.toContain('velocity formula');
+    unmount();
+    localStorage.clear();
+    renderEditor({ initialData: saved, draftIdentity: 'reloaded-removal', onSave });
+    await screen.findByLabelText('Physics 101');
+    fireEvent.click(screen.getByRole('button', { name: /Show LaTeX editor/i }));
+    expect(screen.getByLabelText(/Generated LaTeX Code:/i).value).toBe(beforeConfirm);
+    expect(screen.getByLabelText(/Forces \(1 formulas\)/i)).toBeChecked();
+  });
+
+  it('retains raw source byte-for-byte when compiled and remounted with supplied persisted data', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const firstDraftIdentity = 'template-draft';
     const { unmount } = renderEditor({ initialData: template, draftIdentity: firstDraftIdentity, onSave });
@@ -106,27 +149,16 @@ describe('phase 1 component persistence journey with mocked save callback', () =
         spacing: 'medium',
         margins: '0.25in',
         orientation: 'landscape',
-        normalize_only: true,
-      }) }),
-    ));
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
-      '/api/compile/',
-      expect.objectContaining({ body: JSON.stringify({
-        content: '\\documentclass{article}\nManual body\n% normalized',
-        columns: 2,
-        font_size: '10pt',
-        spacing: 'medium',
-        margins: '0.25in',
-        orientation: 'landscape',
+        source_mode: 'raw',
       }) }),
     ));
     expect(global.fetch).not.toHaveBeenCalledWith('/api/generate-sheet/', expect.anything());
     expect(await screen.findByTestId('pdf-document')).toBeInTheDocument();
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ compileSnapshot: expect.any(Object) }), false));
-    const savedPayload = onSave.mock.calls.find(([, showFeedback]) => showFeedback === false)[0];
+    const savedPayload = onSave.mock.calls.find(([payload, showFeedback]) => showFeedback === false && payload.compileSnapshot)[0];
     expect(savedPayload).toMatchObject({
-      content: expect.stringContaining('Manual body'),
+      content: '\\documentclass{article}\nManual body',
       contentSource: 'manual',
       spacing: 'medium',
       orientation: 'landscape',
@@ -157,7 +189,7 @@ describe('phase 1 component persistence journey with mocked save callback', () =
     expect(screen.getByLabelText(/Forces \(1 formulas\)/i)).toBeChecked();
     expect(screen.getByRole('button', { name: /Snapshots \(1\)/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Show LaTeX editor/i }));
-    expect(screen.getByLabelText(/Generated LaTeX Code:/i)).toHaveValue('\\documentclass{article}\nManual body\n% normalized');
+    expect(screen.getByLabelText(/Generated LaTeX Code:/i)).toHaveValue('\\documentclass{article}\nManual body');
   });
 
   it('waits for hydrated formulas before restoring exactly one preview and autosaving it', async () => {

@@ -2,12 +2,13 @@
 Django settings for cheat_sheet project.
 """
 
-from pathlib import Path
 import os
 from math import isfinite
-from dotenv import load_dotenv
-from django.core.exceptions import ImproperlyConfigured
+from pathlib import Path
+
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ORIGINAL_ENV = dict(os.environ)
@@ -125,7 +126,8 @@ WSGI_APPLICATION = "cheat_sheet.wsgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default="sqlite:///" + str(BASE_DIR / "db.sqlite3"),
-        conn_max_age=600,
+        # The threaded development server cannot reuse persistent connections.
+        conn_max_age=0 if DEBUG else 600,
     )
 }
 

@@ -1,3 +1,5 @@
+import { validSectionMetadata } from './documentSections';
+
 export const DRAFT_SCHEMA_VERSION = 1;
 export const DRAFT_STORAGE_PREFIX = 'cheatSheetDraft:v1';
 
@@ -112,6 +114,9 @@ export function validateDraftEnvelope(draft, expectedIdentity = draft?.draft_ide
   }
   if (draft.base_revision !== null && !(typeof draft.base_revision === 'number' && Number.isSafeInteger(draft.base_revision) && draft.base_revision >= 1)) {
     return resultError('invalid_base_revision', 'base_revision must be a positive integer or null.');
+  }
+  if (!validSectionMetadata(draft.generated_sections)) {
+    return resultError('invalid_generated_sections', 'Stored section metadata is invalid; keep the source for recovery.');
   }
   if (!SOURCE_MODES.has(draft.source_mode) || typeof draft.source_latex !== 'string') {
     return resultError('invalid_source', 'Draft source_mode or source_latex is invalid.');

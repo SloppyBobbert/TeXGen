@@ -164,6 +164,12 @@ jobs:
           wait "$frontend_wait_pid" || frontend_wait_status=$?
           (( backend_wait_status == 0 && frontend_wait_status == 0 ))
 
+      - name: Seed the disposable template fixture
+        run: >-
+          docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml
+          exec -T backend python manage.py shell
+          < backend/tests/seed_e2e_template.py
+
       - name: Run real browser journey
         working-directory: ./frontend
         env:

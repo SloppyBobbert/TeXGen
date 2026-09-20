@@ -4,8 +4,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Template, CheatSheet, PracticeProblem
+
 from .document_contract import DocumentContractSerializer
+from .models import CheatSheet, PracticeProblem, Template
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -27,7 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
         try:
             validate_password(value)
         except DjangoValidationError as e:
-            raise serializers.ValidationError(list(e.messages))
+            raise serializers.ValidationError(list(e.messages)) from e
         return value
 
     def create(self, validated_data):
@@ -84,6 +85,7 @@ class TemplateSerializer(DocumentContractSerializer):
             "spacing",
             "margins",
             "orientation",
+            "generated_sections",
             "default_margins",
             "default_columns",
             "default_font_size",
@@ -152,6 +154,7 @@ class CheatSheetSerializer(DocumentContractSerializer):
             "spacing",
             "orientation",
             "selected_formulas",
+            "generated_sections",
             "problems",
             "full_latex",
             "user",

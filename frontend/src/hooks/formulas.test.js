@@ -62,6 +62,27 @@ describe('useFormulas hook', () => {
     mockLocalStorage.clear();
   });
 
+  it.each([
+    ['formula', (state) => state.removeSingleFormula('Algebra', 'Linear Equations', 'Slope Formula', 'slope'), ['slope']],
+    ['category', (state) => state.toggleCategory('Algebra', 'Linear Equations'), ['slope', 'intercept']],
+    ['class checkbox', (state) => state.toggleClass('Algebra'), ['slope', 'intercept', 'quadratic']],
+    ['class order button', (state) => state.removeClassFromOrder('Algebra'), ['slope', 'intercept', 'quadratic']],
+    ['all classes', (state) => state.deselectAllClasses(), ['slope', 'intercept', 'quadratic', 'circle']],
+  ])('keeps %s selection intact until the removal guard applies it', async (_name, remove, ids) => {
+    const onRemove = vi.fn();
+    const { result } = renderHook(() => useFormulas(undefined, 'guarded', onRemove));
+    await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
+    act(() => result.current.selectAllClasses());
+    const before = result.current.getFormulaSelectionsList();
+    act(() => remove(result.current));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+    expect(onRemove.mock.calls[0][0]).toEqual(ids);
+    expect(result.current.getFormulaSelectionsList()).toEqual(before);
+    expect(result.current.selectedCount).toBe(4);
+    act(() => onRemove.mock.calls[0][1]());
+    expect(result.current.selectedCount).toBe(4 - ids.length);
+  });
+
   it('fetches classes data on mount', async () => {
     const { result } = renderHook(() => useFormulas());
 

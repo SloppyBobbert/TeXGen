@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { fromServerDocument, toCanonicalDocument } from './documentAdapter';
 
 describe('documentAdapter', () => {
+  it('keeps the saved generation baseline separate from edited source and mode', () => {
+    const generated_sections = { version: 1, baseline: 'original generated source' };
+    const loaded = fromServerDocument({ schema_version: 1, source_latex: 'edited source', source_mode: 'raw', generated_sections });
+    expect(loaded.generatedSections).toEqual(generated_sections);
+    expect(toCanonicalDocument(loaded)).toMatchObject({ source_latex: 'edited source', source_mode: 'raw', generated_sections });
+  });
   it('creates a canonical create payload without a revision', () => {
     expect(toCanonicalDocument({
       title: 'Draft', content: 'x', contentSource: 'manual', columns: 2, fontSize: '10pt',
