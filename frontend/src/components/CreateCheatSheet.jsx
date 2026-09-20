@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useDndContext, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
+import { EditorSessionContext, useEditorSession } from '../hooks/editorSession';
 import { useLatex } from '../hooks/latex';
 import { useYouTubeResources } from '../hooks/youtubeResources';
 import { getCuratedVideosForTopics } from '../data/subjectVideos';
@@ -102,9 +103,11 @@ const samePanelLayout = (a, b) => (
 
 
 function SortableFormulaItem({ id, formula, onRemove, className }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+  const { active } = useDndContext();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
     id,
-    data: { type: 'formula', class: formula.class }
+    data: { type: 'formula', class: formula.class },
+    disabled: { droppable: Boolean(active && (active.data.current?.type !== 'formula' || active.data.current?.class !== formula.class)) },
   });
   
   const style = {
@@ -117,7 +120,7 @@ function SortableFormulaItem({ id, formula, onRemove, className }) {
 
   return (
     <div ref={setNodeRef} style={style} className={`sortable-formula-item ${className || ''}`}>
-      <span className="drag-handle" {...attributes} {...listeners}>⋮⋮</span>
+      <button type="button" ref={setActivatorNodeRef} className="drag-handle" {...attributes} {...listeners} aria-label={`Move formula ${formula.name} in ${formula.class}`}>⋮⋮</button>
       <span className="formula-name" style={{ fontStyle: 'italic' }}>{formula.name}</span>
       <span className="formula-class" style={{ fontStyle: 'italic' }}>{formula.class}</span>
       <button 
@@ -166,9 +169,11 @@ function CollapsiblePanelSection({ title, isOpen, onToggle, children, countBadge
 }
 
 function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClass, onRemoveFormula }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+  const { active } = useDndContext();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
     id: `class-${group.class}`,
-    data: { type: 'class' }
+    data: { type: 'class' },
+    disabled: { droppable: Boolean(active && active.data.current?.type !== 'class') },
   });
   
   const style = {
@@ -181,25 +186,27 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
 
   return (
     <div ref={setNodeRef} style={style} className={`formula-class-group ${isCollapsed ? 'collapsed' : ''}`}>
-      <div 
-        className="class-group-header" 
-        onClick={onToggleCollapse}
-        {...attributes} 
-        {...listeners}
-      >
-        <div className="class-group-main">
-          <span className="drag-handle">⋮⋮</span>
-          <span className="collapse-icon">{isCollapsed ? '▶' : '▼'}</span>
+      <div className="class-group-header">
+        <button type="button" ref={setActivatorNodeRef} className="drag-handle" {...attributes} {...listeners} aria-label={`Move class ${group.class}`}>⋮⋮</button>
+        <button
+          type="button"
+          className="class-group-main"
+          onClick={onToggleCollapse}
+          aria-expanded={!isCollapsed}
+          aria-label={`${isCollapsed ? 'Show' : 'Hide'} formulas in ${group.class}`}
+        >
+          <span className="collapse-icon" aria-hidden="true">{isCollapsed ? '▶' : '▼'}</span>
           <span 
             className="class-group-title" 
           >
             {group.class} ({group.formulas.length})
           </span>
-        </div>
+        </button>
         <div className="class-group-actions">
           <button 
             type="button" 
-            className="class-group-btn remove" 
+            className="class-group-btn remove"
+            aria-label={`Remove all formulas from ${group.class}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -234,7 +241,7 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
 function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula, onRemoveClass, onRemoveFormula }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, scrollBehavior: 'auto' })
   );
 
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -280,7 +287,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
   return (
     <div className="formula-reorder-panel">
       <div className="reorder-instructions subtle-copy">
-        <span>Click the bar to collapse. Click and hold to move.</span>
+        <span>Show or hide formulas with the class button. Use a move handle to reorder.</span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={groupedFormulas.map(g => `class-${g.class}`)} strategy={verticalListSortingStrategy}>
@@ -793,7 +800,8 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
   }, [cancelPendingScrollFrame, pdfBlob]);
 
   const scrollToTop = () => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    scrollRef.current?.scrollTo({ top: 0, behavior });
   };
 
   const clampZoom = (value) => Math.min(2, Math.max(0.5, value));
@@ -1134,7 +1142,7 @@ function SectionRemovalDialog({ pending, onConfirm, onCancel }) {
   </dialog>;
 }
 
-const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity, isSaving = false }) => {
+const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity, isSaving = false }) => {
   const removalHandlerRef = useRef(null);
   const guardRemoval = useCallback((ids, apply, next) => {
     if (removalHandlerRef.current) removalHandlerRef.current(ids, apply, next);
@@ -1798,7 +1806,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
             <div className="panel-resizer-slot panel-resizer-left" aria-hidden="true" />
           )}
           {/* ══ CENTER PANEL — PDF main focus ══ */}
-          <main className="center-panel" ref={centerPanelRef}>
+          <section className="center-panel" aria-label="Editor workspace" ref={centerPanelRef}>
             <div className="workspace-topbar">
               <div className="workspace-topbar-group">
                 <button
@@ -1929,7 +1937,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
                  </>
                )}
              </div>
-          </main>
+          </section>
 
           {rightPanelVisible ? (
             <button
@@ -2008,7 +2016,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
             aria-labelledby="video-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="modal-close" onClick={handleCloseVideo} autoFocus>✕</button>
+            <button type="button" className="modal-close" aria-label="Close video" onClick={handleCloseVideo} autoFocus>✕</button>
             <h4 id="video-modal-title">{modalVideo.title}</h4>
             <iframe
               width="100%"
@@ -2043,4 +2051,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
   );
 };
 
-export default CreateCheatSheet;
+export default function CreateCheatSheet(props) {
+  const session = useEditorSession(props.initialData ?? {});
+  return <EditorSessionContext.Provider value={session}><Editor {...props} /></EditorSessionContext.Provider>;
+}

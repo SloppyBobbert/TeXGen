@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({ childMount: vi.fn() }));
 
 vi.mock('framer-motion', () => ({
   motion: new Proxy({}, { get: () => 'div' }),
+  MotionConfig: ({ children }) => children,
 }));
 
 vi.mock('lucide-react', () => ({
@@ -312,6 +313,33 @@ describe('App save lifecycle regressions', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['logout', null, 2, false],
+    ['account switch', { access: 'second' }, 2, false],
+    ['token refresh', { access: 'renewed' }, 1, true],
+  ])('reconciles a pending save only within its session after %s', async (_change, tokens, version, accept) => {
+    const save = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => save.promise));
+    const view = (authTokens, authSessionVersion) => <BrowserRouter><AuthContext.Provider value={{ user: authTokens ? { username: 'tester' } : null, authTokens, authSessionVersion, logoutUser: vi.fn() }}><App /></AuthContext.Provider></BrowserRouter>;
+    const rendered = render(view({ access: 'first' }, 1));
+    fireEvent.click(screen.getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const localDraft = storedSheet();
+    const signal = fetch.mock.calls[0][1].signal;
+    rendered.rerender(view(tokens, version));
+    await act(async () => save.resolve(response({ id: 99, title: 'remote result', latex_content: 'remote source' })));
+    if (accept) {
+      expect(storedSheet().id).toBe(99);
+      expect(alert).toHaveBeenCalledWith('Progress saved!');
+      expect(signal.aborted).toBe(false);
+    } else {
+      expect(storedSheet()).toEqual(localDraft);
+      expect(alert).not.toHaveBeenCalled();
+      expect(signal.aborted).toBe(true);
+    }
+    expect(screen.getByTestId('saving-state')).toHaveTextContent('false');
+  });
+
   it('reports browser reconciliation failure after a successful server save', async () => {
     const save = deferred();
     vi.stubGlobal('fetch', vi.fn(() => save.promise));
@@ -605,7 +633,7 @@ describe('App recovery and remote persistence integration', () => {
     localStorage.clear();
   });
 
-  it.each(['save', 'compile'])('keeps edited removal recovery after immediate %s and reload before debounce', async (action) => {
+  it.each(['save', 'compile', 'undo/redo'])('keeps edited removal recovery after immediate %s and reload before debounce', async (action) => {
     const block = (kind, id, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
     const baseline = block('c', 'algebra-i.slope-formula', block('g', 'algebra-i.slope-formula', block('f', 'algebra-i.slope-formula', 'slope\n')));
     const source = `% custom note\n${baseline.replace('slope\n', 'manual slope\n')}`;
@@ -633,13 +661,20 @@ describe('App recovery and remote persistence integration', () => {
     fireEvent.click(screen.getByLabelText(/Linear Equations \(1 formulas\)/i));
     fireEvent.click(screen.getByRole('button', { name: 'Remove edited topics' }));
     const storedLatex = () => JSON.parse(localStorage.getItem('cheatSheetLatex:recovery-save'));
-    await act(async () => {
-      fireEvent.click(action === 'save'
-        ? screen.getByTitle('Save (Ctrl + S)')
-        : screen.getByTitle('Compile the current editor source. If the editor is empty, generate from selected formulas first.'));
-    });
+    if (action === 'undo/redo') {
+      fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+      expect(storedSheet()).toMatchObject({ content: source, generatedSections: metadata, formulaSelections: [selection] });
+      fireEvent.click(screen.getByRole('button', { name: 'Forward', exact: true }));
+      expect(storedSheet().content).not.toContain('manual slope');
+    } else {
+      await act(async () => {
+        fireEvent.click(action === 'save'
+          ? screen.getByTitle('Save (Ctrl + S)')
+          : screen.getByTitle('Compile the current editor source. If the editor is empty, generate from selected formulas first.'));
+      });
+    }
     if (action === 'save') expect(alert).toHaveBeenCalledWith('Progress saved!');
-    else expect(storedSheet().compileHistory).toHaveLength(1);
+    if (action === 'compile') expect(storedSheet().compileHistory).toHaveLength(1);
     first.unmount();
     vi.useRealTimers();
     expect(storedLatex()?.history).toHaveLength(2);

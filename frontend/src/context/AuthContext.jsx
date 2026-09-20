@@ -1,117 +1,134 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useRef, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
+import { createApiClient } from '../api/client';
 
 const AuthContext = createContext();
-
+const publicApi = createApiClient();
 export default AuthContext;
 
 export const AuthProvider = ({ children }) => {
-  // Tokens are stored in-memory only (not localStorage) to reduce XSS risk.
-  // Users will need to log in again after a page refresh.
+  // Credentials stay in memory. Every login/logout invalidates older responses.
   const [authTokens, setAuthTokens] = useState(null);
   const [user, setUser] = useState(null);
-
+  const sessionRef = useRef({ version: 0, tokens: null });
+  const controllersRef = useRef(new Set());
   const navigate = useNavigate();
 
-  const loginUser = async (username, password) => {
+  const publishTokens = useCallback((tokens) => {
+    const decoded = tokens ? jwtDecode(tokens.access) : null;
+    sessionRef.current = { ...sessionRef.current, tokens };
+    setAuthTokens(tokens);
+    setUser(decoded);
+  }, []);
+
+  const resetSession = useCallback(() => {
+    sessionRef.current = { version: sessionRef.current.version + 1, tokens: null };
+    controllersRef.current.forEach((controller) => controller.abort());
+    controllersRef.current.clear();
+    publishTokens(null);
+    return sessionRef.current.version;
+  }, [publishTokens]);
+
+  const requestAuth = useCallback(async (url, body) => {
+    const version = sessionRef.current.version;
+    const controller = new globalThis.AbortController();
+    controllersRef.current.add(controller);
+    const timeout = window.setTimeout(() => controller.abort(), 10000);
     try {
-      const response = await fetch('/api/token/', {
+      const response = await publicApi.request(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      const data = response.status === 201 ? {} : await response.json().catch(() => ({ detail: 'Invalid server response' }));
+      if (version !== sessionRef.current.version || controller.signal.aborted) return null;
+      return { response, data };
+    } finally {
+      window.clearTimeout(timeout);
+      controllersRef.current.delete(controller);
+    }
+  }, []);
 
-      const data = await response.json().catch(() => ({ detail: 'Invalid server response' }));
+  // One client per provider shares refresh across timer and concurrent reads.
+  const [api] = useState(() => createApiClient({
+    getSession: () => sessionRef.current,
+    refreshSession: async (original) => {
+      if (sessionRef.current.version !== original.version) return false;
+      try {
+        const result = await requestAuth('/api/token/refresh/', { refresh: original.tokens.refresh });
+        if (sessionRef.current.version !== original.version) return false;
+        if (result?.response.ok) {
+          publishTokens({ ...original.tokens, ...result.data });
+          return true;
+        }
+      } catch {
+        if (sessionRef.current.version !== original.version) return false;
+        console.error('Token refresh failed');
+      }
+      resetSession();
+      navigate('/');
+      return false;
+    },
+  }));
 
-      if (response.ok) {
-        setAuthTokens(data);
-        setUser(jwtDecode(data.access));
+  const loginUser = async (username, password) => {
+    const version = resetSession();
+    try {
+      const result = await requestAuth('/api/token/', { username, password });
+      if (!result || version !== sessionRef.current.version) return;
+      if (result.response.ok) {
+        publishTokens(result.data);
         navigate('/');
       } else {
-        alert(data.detail || 'Invalid credentials');
+        alert(result.data.detail || 'Invalid credentials');
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
+      if (version !== sessionRef.current.version) return;
+      console.error('Login request failed');
       alert('Network error. Is the backend running?');
     }
   };
 
   const registerUser = async (username, password) => {
+    const version = resetSession();
     try {
-      const response = await fetch('/api/register/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.status === 201) {
-        // Auto login after registration
+      const result = await requestAuth('/api/register/', { username, password });
+      if (!result || version !== sessionRef.current.version) return;
+      if (result.response.status === 201) {
         await loginUser(username, password);
       } else {
-        const data = await response.json().catch(() => ({}));
-        const errorMessage = typeof data === 'object'
-          ? Object.entries(data).map(([field, msgs]) => `${field}: ${[].concat(msgs).join(', ')}`).join('\n')
+        const errorMessage = result.data && typeof result.data === 'object'
+          ? Object.entries(result.data).map(([field, msgs]) => `${field}: ${[].concat(msgs).join(', ')}`).join('\n')
           : 'Registration failed';
         alert(`Registration failed:\n${errorMessage}`);
       }
-    } catch (error) {
-      console.error('Registration error:', error);
+    } catch {
+      if (version !== sessionRef.current.version) return;
+      console.error('Registration request failed');
       alert('Network error. Is the backend running?');
     }
   };
 
   const logoutUser = () => {
-    setAuthTokens(null);
-    setUser(null);
+    resetSession();
     navigate('/');
   };
 
   useEffect(() => {
-    const updateToken = async () => {
-      if (!authTokens) return;
-
-      try {
-        const response = await fetch('/api/token/refresh/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh: authTokens?.refresh }),
-        });
-
-        const data = await response.json().catch(() => ({ detail: 'Invalid server response' }));
-
-        if (response.ok) {
-          setAuthTokens(prev => ({ ...prev, ...data }));
-          setUser(jwtDecode(data.access));
-        } else {
-          setAuthTokens(null);
-          setUser(null);
-          navigate('/');
-        }
-      } catch (err) {
-        console.error('Token refresh failed', err);
-        setAuthTokens(null);
-        setUser(null);
-        navigate('/');
-      }
+    const controllers = controllersRef.current;
+    const interval = window.setInterval(() => { void api.refresh(); }, 1000 * 60 * 4);
+    return () => {
+      window.clearInterval(interval);
+      sessionRef.current = { version: sessionRef.current.version + 1, tokens: null };
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
     };
-
-    const interval = window.setInterval(() => {
-      if (authTokens) {
-        updateToken();
-      }
-    }, 1000 * 60 * 4); // Refresh every 4 minutes (default lifespan is 5m)
-    return () => window.clearInterval(interval);
-  }, [authTokens, navigate]);
+  }, [api]);
 
   return (
-    <AuthContext.Provider value={{ user, authTokens, loginUser, registerUser, logoutUser }}>
+    <AuthContext.Provider value={{ user, authTokens, loginUser, registerUser, logoutUser, apiRequest: api.request, authSessionVersion: sessionRef.current.version }}>
       {children}
     </AuthContext.Provider>
   );

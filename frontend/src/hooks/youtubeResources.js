@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useApiRequest } from './useApiRequest';
 
 const YOUTUBE_TOPIC_LIMIT = 6;
 const REQUEST_DEBOUNCE_MS = 350;
 
 export function useYouTubeResources(searchRequest) {
+  const apiRequest = useApiRequest();
   const [resources, setResources] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,14 +31,15 @@ export function useYouTubeResources(searchRequest) {
       setResources([]);
 
       try {
-        const response = await fetch('/api/youtube-resources/', {
+        const response = await apiRequest('/api/youtube-resources/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: requestBody,
           signal: controller.signal,
         });
 
-        const data = await response.json().catch(() => ({}));
+        const data = await response.json();
+        if (controller.signal.aborted) return;
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load video suggestions.');
         }
@@ -52,7 +55,7 @@ export function useYouTubeResources(searchRequest) {
           setError('No video matches found for the current selections yet.');
         }
       } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
+        if (controller.signal.aborted || fetchError.name === 'AbortError') {
           return;
         }
 
@@ -71,7 +74,7 @@ export function useYouTubeResources(searchRequest) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [limitedTopics, requestBody, requestKey]);
+  }, [limitedTopics, requestBody, requestKey, apiRequest]);
 
   return { resources, isLoading, error, topicLimit: YOUTUBE_TOPIC_LIMIT };
 }

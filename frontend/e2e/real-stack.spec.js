@@ -37,7 +37,7 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
     const order = page.getByRole('button', { name: 'Drag to reorder formulas' });
     if (await order.getAttribute('aria-expanded') === 'false') await order.click();
     const removeSlope = page.getByRole('button', { name: 'Remove Slope Formula from Linear Equations', exact: true });
-    if (!await removeSlope.isVisible()) await page.locator('.class-group-header').click();
+    if (!await removeSlope.isVisible()) await page.getByRole('button', { name: /^Show formulas in / }).click();
     await removeSlope.focus();
     await page.keyboard.press('Enter');
     await expect(editor).not.toHaveValue(/% Formula Block: Slope Formula/);

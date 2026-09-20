@@ -1,43 +1,49 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
+import { useApiRequest } from '../hooks/useApiRequest';
 import '../styles/Dashboard.css';
 
 const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
-  const [sheets, setSheets] = useState([]);
+  const [listing, setListing] = useState({ session: null, sheets: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { authTokens } = useContext(AuthContext);
+  const { authTokens, authSessionVersion } = useContext(AuthContext);
+  const session = authSessionVersion ?? authTokens?.access ?? null;
+  const hasAuth = Boolean(authTokens?.access);
+  const sheets = hasAuth && listing.session === session ? listing.sheets : [];
+  const controllersRef = useRef(new Set());
+  const apiRequest = useApiRequest();
   const navigate = useNavigate();
 
   useEffect(() => {
+    const controllers = controllersRef.current;
+    const cancel = () => {
+      controllers.forEach((controller) => controller.abort());
+      controllers.clear();
+    };
+    setListing({ session, sheets: [] });
+    setError('');
+    setLoading(hasAuth);
+    if (!hasAuth) return cancel;
+    const controller = new globalThis.AbortController();
+    controllers.add(controller);
     const fetchSheets = async () => {
-      if (!authTokens?.access) {
-        setLoading(false);
-        return;
-      }
       try {
-        const response = await fetch('/api/cheatsheets/', {
-          headers: {
-            'Authorization': `Bearer ${authTokens.access}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to load cheat sheets');
-        }
-
+        const response = await apiRequest('/api/cheatsheets/', { signal: controller.signal });
+        if (!response.ok) throw new Error('Failed to load cheat sheets');
         const data = await response.json();
-        setSheets(data);
+        if (!controller.signal.aborted) setListing({ session, sheets: data });
       } catch (err) {
-        setError(err.message);
+        if (!controller.signal.aborted) setError(err.message);
       } finally {
-        setLoading(false);
+        controllers.delete(controller);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-
-    fetchSheets();
-  }, [authTokens]);
+    void fetchSheets();
+    return cancel;
+  }, [hasAuth, session, apiRequest]);
 
   const handleEdit = (sheet) => {
     onEditSheet(sheet);
@@ -46,34 +52,35 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this cheat sheet?')) return;
-    if (!authTokens?.access) return;
-
+    if (!hasAuth) return;
+    const controller = new globalThis.AbortController();
+    controllersRef.current.add(controller);
     try {
-      const response = await fetch(`/api/cheatsheets/${id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authTokens.access}`,
-        },
+      const response = await apiRequest(`/api/cheatsheets/${id}/`, {
+        method: 'DELETE', signal: controller.signal,
       });
 
       if (!response.ok) {
         throw new Error('Failed to delete cheat sheet');
       }
 
-      setSheets((prevSheets) => prevSheets.filter((sheet) => sheet.id !== id));
+      if (!controller.signal.aborted) setListing((previous) => ({ ...previous, sheets: previous.sheets.filter((sheet) => sheet.id !== id) }));
     } catch (err) {
-      alert(err.message);
+      if (!controller.signal.aborted) alert(err.message);
+    } finally {
+      controllersRef.current.delete(controller);
     }
   };
 
   const handleDownload = async (sheet) => {
-    if (!authTokens?.access) return;
+    if (!hasAuth) return;
+    const controller = new globalThis.AbortController();
+    controllersRef.current.add(controller);
     try {
-      const response = await fetch('/api/compile/', {
-        method: 'POST',
+      const response = await apiRequest('/api/compile/', {
+        method: 'POST', signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authTokens.access}`,
         },
         body: JSON.stringify({ cheat_sheet_id: sheet.id }),
       });
@@ -84,16 +91,22 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      if (controller.signal.aborted) return;
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${sheet.title || 'cheat_sheet'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const url = window.URL.createObjectURL(blob);
+      try {
+        a.href = url;
+        a.download = `${sheet.title || 'cheat_sheet'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+      } finally {
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      }
     } catch (err) {
-      alert(err.message);
+      if (!controller.signal.aborted) alert(err.message);
+    } finally {
+      controllersRef.current.delete(controller);
     }
   };
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AuthContext from '../context/AuthContext';
@@ -26,6 +26,51 @@ describe('Dashboard Component', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('ignores an old response body after switching accounts', async () => {
+    let resolveOld;
+    const oldBody = new Promise((resolve) => { resolveOld = resolve; });
+    const readOld = vi.fn(() => oldBody);
+    fetch.mockResolvedValueOnce({ ok: true, json: readOld })
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ ...mockSheets[0], title: 'New account sheet' }] });
+    const view = (access) => <AuthContext.Provider value={{ authTokens: { access } }}><BrowserRouter><Dashboard /></BrowserRouter></AuthContext.Provider>;
+    const rendered = render(view('first'));
+    await waitFor(() => expect(readOld).toHaveBeenCalledOnce());
+    rendered.rerender(view('second'));
+    await screen.findByText('New account sheet');
+    await act(async () => { resolveOld(mockSheets); });
+    expect(screen.getByText('New account sheet')).toBeInTheDocument();
+    expect(screen.queryByText('Math Formulas')).not.toBeInTheDocument();
+  });
+
+  it('clears account sheets after logout', async () => {
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockSheets });
+    const view = (authTokens) => <AuthContext.Provider value={{ authTokens }}><BrowserRouter><Dashboard /></BrowserRouter></AuthContext.Provider>;
+    const rendered = render(view({ access: 'first' }));
+    await screen.findByText('Math Formulas');
+    rendered.rerender(view(null));
+    expect(screen.queryByText('Math Formulas')).not.toBeInTheDocument();
+  });
+
+  it('does not publish a PDF after unmount while reading its body', async () => {
+    let resolveBlob;
+    const pendingBlob = new Promise((resolve) => { resolveBlob = resolve; });
+    const readBlob = vi.fn(() => pendingBlob);
+    const createObjectURL = vi.fn(() => 'blob:stale');
+    vi.stubGlobal('URL', Object.assign(class extends globalThis.URL {}, { createObjectURL, revokeObjectURL: vi.fn() }));
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockSheets })
+      .mockResolvedValueOnce({ ok: true, blob: readBlob });
+    const rendered = renderWithContext(<Dashboard />, { authTokens: { access: 'first' } });
+    await screen.findByText('Math Formulas');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Download PDF' })[0]);
+    await waitFor(() => expect(readBlob).toHaveBeenCalledOnce());
+    const signal = fetch.mock.calls[1][1].signal;
+    rendered.unmount();
+    await act(async () => { resolveBlob(new Blob(['pdf'])); });
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(signal?.aborted).toBe(true);
   });
 
   it('renders loading state initially', () => {

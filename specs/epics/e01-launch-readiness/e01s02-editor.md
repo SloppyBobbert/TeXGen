@@ -6,7 +6,7 @@ Users can edit and recover documents with consistent actions on desktop, mobile,
 
 ## 2. Status
 
-Planned; risk P0; 8 BCPs. Split a task further if its first regression reveals a larger independent change.
+Passing; risk P0; 8 BCPs. Both independent reviews passed at 100%. Final evidence: `specs/verifications/e01s02-acceptance.md`.
 
 ## 3. Baseline
 

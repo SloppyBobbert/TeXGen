@@ -1,13 +1,15 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { Home, LayoutDashboard, LogIn, LogOut, Palette } from 'lucide-react';
 import AuthContext from './context/AuthContext';
+import { useApiRequest } from './hooks/useApiRequest';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
+import { EditorSessionContext, useEditorSession } from './hooks/editorSession';
 import { getLegacyStorageKeys, migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
 import { fromServerDocument, toCanonicalDocument } from './storage/documentAdapter';
 
@@ -324,7 +326,7 @@ function App() {
     return THEMES.find(t => t.id === value ) ? value : 'light';
   };
 
-  const [cheatSheet, setCheatSheet] = useState(() => {
+  const session = useEditorSession(() => {
     try {
       const saved = localStorage.getItem(CURRENT_SHEET_STORAGE_KEY);
       if (saved) {
@@ -347,6 +349,7 @@ function App() {
     return sheet;
   });
 
+  const { document: cheatSheet, replace: setCheatSheet } = session;
   const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const cheatSheetRef = useRef(cheatSheet);
@@ -371,9 +374,7 @@ function App() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    cheatSheetRef.current = cheatSheet;
-  }, [cheatSheet]);
+  cheatSheetRef.current = cheatSheet;
 
   useEffect(() => () => {
     saveEpochRef.current += 1;
@@ -383,7 +384,17 @@ function App() {
   }, []);
 
   
-  const { user, authTokens, logoutUser } = useContext(AuthContext);
+  const { user, authTokens, logoutUser, authSessionVersion } = useContext(AuthContext);
+  const authSession = authSessionVersion ?? authTokens?.access ?? null;
+  const apiRequest = useApiRequest();
+
+  useEffect(() => {
+    saveEpochRef.current += 1;
+    saveControllerRef.current?.abort();
+    saveControllerRef.current = null;
+    pendingCreatePromiseRef.current = null;
+    setIsSaving(false);
+  }, [authSession]);
 
   const handleReset = () => {
     saveEpochRef.current += 1;
@@ -398,14 +409,6 @@ function App() {
     safeStorageRemove('cheatSheetLatex');
     try { removeDraft(localStorage, getDraftIdentity(cheatSheetRef.current)); } catch (error) { console.error('Failed to remove draft', error); }
   };
-
-  useEffect(() => {
-    const savedSheet = loadStoredSheet();
-    if (savedSheet) {
-      const storedDraft = readDraft(localStorage, getDraftIdentity(savedSheet));
-      setCheatSheet(storedDraft.ok && storedDraft.draft ? fromDraftEnvelope(storedDraft.draft, savedSheet) : savedSheet);
-    }
-  }, []);
 
   const handleSave = async (data, showFeedback = true) => {
     const saveEpoch = showFeedback ? ++saveEpochRef.current : saveEpochRef.current;
@@ -432,7 +435,8 @@ function App() {
     const submittedSelectedFormulas = stripTransientPdfBlobs(nextSheet.selectedFormulas ?? []);
 
     cheatSheetRef.current = nextSheet;
-    setCheatSheet(nextSheet);
+    // A destructive transition may have queued newer recovery state in this event.
+    session.update((current) => ({ ...nextSheet, history: current.history, historyIndex: current.historyIndex }));
     const localPersistence = persistSaveBoundary(nextSheet, nextHistory, nextSheet.contentSource);
 
     if (!localPersistence.ok) {
@@ -469,11 +473,10 @@ function App() {
 
       const canonicalPayload = toCanonicalDocument({ ...nextSheet, selectedFormulas: submittedSelectedFormulas });
       delete canonicalPayload.revision;
-      const requestPromise = fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
+      const requestPromise = apiRequest(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
         method: sheetId ? 'PATCH' : 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...(authTokens?.access ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -529,7 +532,7 @@ function App() {
       }
       persistedSheet = sanitizeSheet(persistedSheet);
       cheatSheetRef.current = persistedSheet;
-      setCheatSheet(persistedSheet);
+      session.update((current) => ({ ...persistedSheet, history: current.history, historyIndex: current.historyIndex }));
       const reconciliationPersistence = persistSheet(persistedSheet);
       const reconciliationSidecars = [
         saveStoredCompileHistory(persistedSheet.id, persistedSheet.compileHistory),
@@ -597,7 +600,10 @@ function App() {
   };
 
   return (
+    <MotionConfig reducedMotion="user">
+    <EditorSessionContext.Provider value={session}>
     <div className="App">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="app-header">
         <div className="app-header-inner">
           <div className="app-header-nav">
@@ -663,7 +669,7 @@ function App() {
           </div>
         </div>
       </header>
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Routes>
           <Route path="/" element={
             <CreateCheatSheet 
@@ -694,6 +700,8 @@ function App() {
         </a>
       </footer>
     </div>
+    </EditorSessionContext.Provider>
+    </MotionConfig>
   );
 }
 
