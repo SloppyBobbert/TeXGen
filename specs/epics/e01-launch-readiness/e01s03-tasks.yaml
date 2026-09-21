@@ -1,7 +1,7 @@
 story_id: e01s03
 title: Verify production readiness and prepare handoff
 spec: e01s03-production.md
-status: failing
+status: passing
 bcps: 8
 depends_on: [e01s02]
 tasks:
@@ -52,7 +52,9 @@ tasks:
     description: Run final checks on the final revision, obtain independent review, reconcile the original plan, and prepare the release handoff without publication.
     risk: P0
     security: high
-    status: failing
+    status: passing
+    evidence: specs/verifications/e01s03-acceptance.md
+    ci: https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902
     verify: >-
       (cd backend && python3 -m pytest --cov-fail-under=95 && python3 -m ruff check . && python3 -m pip_audit -r requirements.txt && python3 manage.py makemigrations --check --dry-run && TEXGEN_REQUIRE_POSTGRES_CONCURRENCY=1 python3 -m pytest --no-cov tests/test_compile_quota_postgres.py) &&
       (cd frontend && npm test -- --run && npm run lint && npm run build && npm run test:e2e) &&

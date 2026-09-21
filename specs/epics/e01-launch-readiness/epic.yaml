@@ -1,6 +1,6 @@
 id: e01
 title: Complete safe editing and launch readiness
-status: failing
+status: passing
 stories:
   - id: e01s01
     title: Remove generated topics without losing manual edits

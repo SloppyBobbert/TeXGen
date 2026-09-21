@@ -1,5 +1,5 @@
 title: TeXGen launch readiness
-release_status: planned_not_authorized_for_release
+release_status: verified_draft_pending_owner_approval
 baseline: 65a4938f11bd3b3817e3ba98b2b5e8fe1afa9783
 epics:
   - id: e01

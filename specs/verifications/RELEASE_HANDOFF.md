@@ -1,16 +1,17 @@
-# Release handoff — CODE ACCEPTED, CI PENDING
+# Release handoff — VERIFIED DRAFT
 
-The editor checkpoint is published in draft PR [#8](https://github.com/SloppyBobbert/TeXGen/pull/8). Production changes remain under verification. Do not merge, enable auto-merge, or deploy without fresh owner approval.
+The reviewed editor and production candidate is published in draft PR [#8](https://github.com/SloppyBobbert/TeXGen/pull/8). Local verification, independent review and fresh CI passed. Do not merge, enable auto-merge, or deploy without fresh owner approval.
 
 ## Scope and source
 
 - Branch: `fix/document-sections`.
-- Last published checkpoint: `114b4ca`.
+- Reviewed implementation commit: `c238dd2de041525214cb383d67080d080aab5524`.
+- Subsequent handoff-only changes preserve the accepted implementation hashes.
 - Worktree: `.slim/worktrees/document-sections` under the main checkout.
 - Editor acceptance: `e01s02-acceptance.md`; both independent reviewers passed at 100%.
 - Production code acceptance: round 4, both independent reviewers 95%, zero must-fix. See `e01s03-acceptance.md` and both round-4 reports.
 - Accepted manifest: `e01s03-review-round4-manifest.json`; source SHA-256 `6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8`.
-- Final commit and fresh CI run: pending.
+- [CI 35576550902](https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902): backend, frontend and browser-e2e succeeded for `c238dd2`.
 
 ## Local verification
 
@@ -68,7 +69,9 @@ See `e01s03-runtime.md`, `e01s03-dependencies.md`, `e01s03-frontend-update-propo
 
 Local checks and the independent review gate passed; see `e01s03-round4-checks.md` and `e01s03-acceptance.md`. The final local run passed 478 backend tests (96.88% coverage), all seven PostgreSQL cases separately, 244 frontend tests, and all 39 browser tests, plus lint/build/migration/runtime/recovery checks.
 
-Remaining gate: commit intended files, update draft PR #8 and verify fresh GitHub CI. Do not interpret the previous editor-only CI as production acceptance.
+The candidate is committed and pushed, draft PR #8 is updated, and fresh CI passed for the production commit. All 15 tasks in the approved three-story execution plan are verified. Historical checkpoint files retain their older results; this handoff and the acceptance record state the current result.
+
+Remaining decision: owner approval before merge, auto-merge or deployment. The separate development stack and unrelated worktree files are preserved; local test resources have not been removed.
 
 ## Non-blocking follow-up work
 

@@ -33,6 +33,10 @@ Both findings are accepted as valid and explicitly deferred to separate work. Ne
 
 These are not approval to run the verifier against production data. Its database validation restricts it to the owned disposable service.
 
-## Remaining release gate
+## Published CI: PASS
 
-Fresh GitHub CI and intended-file publication remain pending. This document records independent code acceptance and local checks, not final CI acceptance. No merge, auto-merge, public deployment, TLS/WCAG/load/OS-scan certification is authorized or claimed.
+Implementation commit `c238dd2de041525214cb383d67080d080aab5524` is published in draft PR #8. [GitHub CI 35576550902](https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902) succeeded for that exact commit: backend, frontend and browser-e2e all passed. The PR remains open and draft.
+
+The accepted implementation is unchanged by subsequent handoff-only documentation. Copied review reports have trailing whitespace normalized; their original external artifacts remain unchanged. Historical evidence files retain their checkpoint status and are superseded by this acceptance record.
+
+No merge, auto-merge, public deployment, TLS/WCAG/load/OS-scan certification is authorized or claimed. The owner must approve any merge or deployment separately.
