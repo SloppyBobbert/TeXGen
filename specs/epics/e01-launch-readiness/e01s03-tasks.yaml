@@ -9,7 +9,8 @@ tasks:
     description: Verify remaining model/view rendering duplication and simplify only still-valid cases without changing raw or structured contracts.
     risk: P1
     security: medium
-    status: failing
+    status: passing
+    evidence: specs/verifications/e01s03-rendering.md
     verify: cd backend && python3 -m pytest --no-cov api/test_rendering_boundary.py api/test_generation_contract.py api/test_compilation_permissions.py api/test_compile_endpoint_integration.py && python3 -m ruff check .
     review_gate: No new security findings in affected paths; preserve raw complete documents and fragment wrapping.
     allure: {severity: high, categories: [rendering, Security Review]}
@@ -17,7 +18,8 @@ tasks:
     description: After runtime and topology approval, add production configuration tests, separate container targets, safe startup, shared request throttling, and proxy rules.
     risk: P0
     security: high
-    status: failing
+    status: passing
+    evidence: specs/verifications/e01s03-acceptance.md
     verify: >-
       (cd backend && python3 -m pytest --no-cov api/test_production_config.py api/test_compiler_settings.py api/test_compilation_permissions.py api/test_sidecar_admission.py && python3 -m ruff check .) && docker compose config --quiet
     prerequisites: Create test_production_config.py; obtain approval for exact runtime dependencies and deployment topology before installing or configuring external resources.
@@ -27,7 +29,9 @@ tasks:
     description: Lock the approved dependency set, complete permission and compiler-abuse checks, and make all supported E2E assertions unconditional in CI.
     risk: P0
     security: high
-    status: failing
+    status: passing
+    evidence: specs/verifications/e01s03-acceptance.md
+    note: Local checks and CI configuration accepted; fresh hosted CI remains the task-5 publication gate.
     verify: >-
       (cd backend && python3 -m pytest --cov-fail-under=95 && python3 -m ruff check . && python3 -m pip_audit -r requirements.txt && TEXGEN_REQUIRE_POSTGRES_CONCURRENCY=1 python3 -m pytest --no-cov tests/test_compile_quota_postgres.py) &&
       (cd frontend && npm test -- --run && npm run lint && npm run build && npm run test:e2e)
@@ -38,7 +42,8 @@ tasks:
     description: Create the bounded no-download production verification script and prove startup, migrations, static serving, readiness, and offline compilation under enforced limits.
     risk: P0
     security: high
-    status: failing
+    status: passing
+    evidence: specs/verifications/e01s03-round4-checks.md
     verify: bash -n scripts/verify-production.sh && bash scripts/verify-production.sh
     prerequisites: The script has been created and reviewed; approved local images and verified compiler assets are available.
     review_gate: No new security findings in affected paths; validate network, filesystem, CPU, memory, swap, process, timeout, output, and restart controls.

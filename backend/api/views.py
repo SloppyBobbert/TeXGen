@@ -21,6 +21,7 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 from .models import Template, CheatSheet, PracticeProblem
+from .request_throttle import SharedRequestThrottle
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_classes_with_details
@@ -87,6 +88,17 @@ class CompileUserThrottle(UserRateThrottle):
 
     def get_rate(self):
         return settings.COMPILER_USER_RATE
+
+    def allow_request(self, request, view):
+        shared = SharedRequestThrottle()
+        self.shared_wait = None
+        if not shared.allow_request(request, view):
+            self.shared_wait = shared.wait()
+            return False
+        return super().allow_request(request, view)
+
+    def wait(self):
+        return self.shared_wait or super().wait()
 
 
 def get_compile_limits():
@@ -321,6 +333,7 @@ class RegisterView(CreateAPIView):
 
 
 @api_view(["GET"])
+@throttle_classes([])
 def health_check(request):
     return Response({"status": "ok"})
 

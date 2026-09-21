@@ -166,6 +166,7 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ],
     "NUM_PROXIES": DJANGO_NUM_PROXIES,
+    "DEFAULT_THROTTLE_CLASSES": ["api.request_throttle.SharedRequestThrottle"],
 }
 
 SIMPLE_JWT = {

@@ -1,9 +1,9 @@
-phase: build
+phase: verify
 active_flow: continuous_execution
 status: in_progress
 active_epic_id: e01
 active_story_id: e01s03
-next_task: 1
+next_task: 5
 source_worktree: /Users/brandontran/TeXGen/.slim/worktrees/refactor-backend
 implementation_worktree: >-
   /Users/brandontran/TeXGen/.slim/worktrees/document-sections
@@ -18,9 +18,11 @@ last_completed: >-
   and two independent reviews at 100%. Backend: 422 passes, five PostgreSQL-only
   skips, 96.71% coverage, clean static and migration checks.
 next_action: >-
-  Publish the verified e01s02 checkpoint, then implement e01s03 production
-  readiness and shared throttling with isolated-stack verification.
-blockers: []
+  Publish the accepted round-4 candidate to draft PR 8 and verify fresh GitHub CI.
+  Preserve the reviewed implementation fingerprint. Reconcile final task status
+  only after CI succeeds. Do not merge, enable auto-merge or deploy.
+blockers:
+  - Fresh GitHub CI for the production candidate is pending.
 execution_mode: parent_session
 execution_mode_reason: >-
   Owner approved direct e01s02 continuation after worker 45ff9e0b failed
@@ -30,7 +32,20 @@ validation:
   bundled_checker: blocked_missing_pyyaml
   evidence: specs/verifications/PLAN_CHECK.md
   application_checks: e01s02_244_tests_lint_build_31_browser_passed
-  current_browser_evidence: specs/verifications/e01s02-browser.md
+  current_browser_evidence: specs/verifications/e01s03-frontend-update-proposal.md
+  production_runtime_evidence: specs/verifications/e01s03-runtime.md
+  production_dependency_evidence: specs/verifications/e01s03-dependencies.md
+  production_runtime_recheck: b5cc8b906_36_tests_and_runtime_socket_checks_passed
+  production_frontend_recheck: b18c0d012_244_tests_lint_build_audit_passed
+  production_browser_recheck: bbdbd1815_39_passed_test_budget_600_restored_60
+  production_final_review: round_4_dual_pass_95_zero_must_fix
+  production_review_evidence: specs/verifications/e01s03-acceptance.md
+  production_repair_targeted: b633687dd_19_passed_ruff_shell_passed
+  production_repair_full_check: b521f1ad8_passed
+  production_current_evidence: specs/verifications/e01s03-round4-checks.md
+  production_source_manifest: specs/verifications/e01s03-review-round4-manifest.json
+  production_source_sha256: 6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8
+  production_pre_repair_checks: specs/verifications/e01s03-final-checks.md
   e01s02_independent_review: dual_pass_100
   e01s02_acceptance: specs/verifications/e01s02-acceptance.md
   editor_evidence: specs/verifications/e01s02-parent-recovery.md

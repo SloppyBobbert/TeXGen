@@ -35,9 +35,11 @@ _FAILURES = {
 
 
 class SidecarCompilerClient:
-    def __init__(self, socket_path: str, connect_timeout: float = 1.0) -> None:
+    def __init__(self, socket_path: str, connect_timeout: float = 1.0,
+                 admission_timeout: float | None = None) -> None:
         self.socket_path = socket_path
         self.connect_timeout = connect_timeout
+        self.admission_timeout = connect_timeout if admission_timeout is None else admission_timeout
 
     def compile(self, request: CompileRequest) -> CompileResult:
         with self.prepare(request) as execute:
@@ -57,6 +59,8 @@ class SidecarCompilerClient:
                 connection.settimeout(self.connect_timeout)
                 connection.connect(self.socket_path)
                 send_message(connection, request_id, payload)
+                # A live peer may still be completing its bounded health probe.
+                connection.settimeout(self.admission_timeout)
                 receive_control(connection, request_id, READY)
             except (OSError, ProtocolError) as error:
                 raise CompilerUnavailable("compiler sidecar is unavailable before acceptance") from error

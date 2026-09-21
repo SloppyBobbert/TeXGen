@@ -30,6 +30,7 @@ test.describe('Create Cheat Sheet Flow', () => {
     await page.fill('#login-username', 'testuser');
     await page.fill('#login-password', 'correctpassword');
     await page.click('button[type="submit"]');
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('can save a newly created cheat sheet', async ({ page }) => {
@@ -45,22 +46,28 @@ test.describe('Create Cheat Sheet Flow', () => {
       }
     });
 
-    await page.goto('/');
-
-    // Input title
-    const titleInput = page.locator('input[placeholder="Enter cheat sheet title"]');
-    if (await titleInput.isVisible()) {
-        await titleInput.fill('My Test Cheat Sheet');
-    }
-    
-    // Save button
-    const saveBtn = page.locator('button', { hasText: 'Save Cheat Sheet' });
-    if (await saveBtn.isVisible()) {
-        await saveBtn.click();
-        
-        // Wait for potential toast or success message
-        await expect(page.locator('text=successfully saved').or(page.locator('text=Saved'))).toBeVisible({ timeout: 5000 }).catch(() => {});
-    }
+    // Stay on the login redirect: a full navigation clears the memory-only token.
+    const titleInput = page.locator('#title');
+    await expect(titleInput).toBeVisible();
+    await titleInput.fill('My Test Cheat Sheet');
+    const saveBtn = page.getByTitle('Save (Ctrl + S)');
+    await expect(saveBtn).toBeVisible();
+    const saved = page.waitForResponse(response => response.url().endsWith('/api/cheatsheets/')
+      && response.request().method() === 'POST');
+    let message;
+    page.once('dialog', async dialog => {
+      message = dialog.message();
+      await dialog.accept();
+    });
+    await saveBtn.click();
+    const response = await saved;
+    expect(response.status()).toBe(201);
+    expect(response.request().postDataJSON().title).toBe('My Test Cheat Sheet');
+    await expect.poll(() => message).toBe('Progress saved!');
+    await expect(page.getByText('Cheat sheet saved successfully!', { exact: true })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.save-status')).toContainText('Saved');
+    await page.reload();
+    await expect(titleInput).toHaveValue('My Test Cheat Sheet');
   });
 
   test('compiles selected formulas with the authenticated session', async ({ page }) => {

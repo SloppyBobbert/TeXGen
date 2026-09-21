@@ -129,6 +129,12 @@ class PracticeProblem(models.Model):
         return f"Problem {self.order} - {self.cheat_sheet.title}"
 
 
+class RequestThrottleWindow(models.Model):
+    key = models.CharField(max_length=64, primary_key=True)
+    window_start = models.PositiveBigIntegerField(db_index=True)
+    count = models.PositiveIntegerField(default=0)
+
+
 class CompileQuotaWindow(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
