@@ -4,7 +4,7 @@ import json
 import subprocess
 import sys
 from urllib.error import HTTPError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 
 def docker(*args):
@@ -14,6 +14,9 @@ def docker(*args):
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
+
+
+OPENER = build_opener(ProxyHandler({}), NoRedirect)
 
 
 def main(project):
@@ -58,11 +61,10 @@ def main(project):
     assert binding["HostIp"] == "127.0.0.1"
     base = "http://127.0.0.1:" + str(int(binding["HostPort"]))
     backend = services["backend"]["Id"]
-    opener = build_opener(NoRedirect)
 
     def request(path, headers=None):
         try:
-            with opener.open(Request(base + path, headers=headers or {}), timeout=10) as response:
+            with OPENER.open(Request(base + path, headers=headers or {}), timeout=10) as response:
                 return response.status
         except HTTPError as error:
             status = error.code

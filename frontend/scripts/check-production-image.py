@@ -9,10 +9,13 @@ import sys
 import time
 from uuid import UUID, uuid4
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen
+from urllib.request import ProxyHandler, build_opener
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
 from verification_support import LABEL, cleanup, interrupted
+
+
+OPENER = build_opener(ProxyHandler({}))
 
 
 def docker(*args):
@@ -42,7 +45,7 @@ def main():
         deadline = time.monotonic() + 15
         while True:
             try:
-                with urlopen(base + "/healthz", timeout=2) as response:
+                with OPENER.open(base + "/healthz", timeout=2) as response:
                     assert response.read() == b"ok\n"
                 break
             except (OSError, URLError):
@@ -51,7 +54,7 @@ def main():
                 time.sleep(0.1)
 
         for path in ("/", "/client-route"):
-            with urlopen(base + path, timeout=5) as response:
+            with OPENER.open(base + path, timeout=5) as response:
                 assert response.headers.get_content_type() == "text/html"
                 assert b"<!doctype html>" in response.read().lower()
                 assert response.headers["Cache-Control"] == "no-store"
@@ -59,7 +62,7 @@ def main():
 
         for path, status in (("/.env", 403), ("/assets/missing.js", 404)):
             try:
-                with urlopen(base + path, timeout=5):
+                with OPENER.open(base + path, timeout=5):
                     raise AssertionError(f"Unexpected success for {path}")
             except HTTPError as error:
                 assert error.code == status, (path, error.code)
@@ -69,7 +72,7 @@ def main():
                          "-name", "*.mjs", "-type", "f").splitlines()
         assert workers, "PDF module worker is missing"
         for worker in workers:
-            with urlopen(base + "/assets/" + PurePosixPath(worker).name, timeout=5) as response:
+            with OPENER.open(base + "/assets/" + PurePosixPath(worker).name, timeout=5) as response:
                 assert response.headers.get_content_type() in ("application/javascript", "text/javascript"), response.headers
                 assert "immutable" in response.headers["Cache-Control"]
                 assert response.headers["X-Content-Type-Options"] == "nosniff"

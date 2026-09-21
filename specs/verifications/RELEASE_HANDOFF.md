@@ -1,16 +1,16 @@
-# Release handoff — VERIFIED DRAFT
+# Release handoff — REVIEWED DRAFT
 
-The reviewed editor and production candidate is published in draft PR [#8](https://github.com/SloppyBobbert/TeXGen/pull/8). Local verification, independent review and fresh CI passed. Do not merge, enable auto-merge, or deploy without fresh owner approval.
+The reviewed editor and production candidate is delivered through draft PR [#8](https://github.com/SloppyBobbert/TeXGen/pull/8). Local verification and independent review passed. Require successful backend, frontend and browser-e2e CI on the exact published PR head; previous CI does not cover new changes. Do not merge, enable auto-merge, or deploy without fresh owner approval.
 
 ## Scope and source
 
 - Branch: `fix/document-sections`.
-- Reviewed implementation commit: `c238dd2de041525214cb383d67080d080aab5524`.
-- Subsequent handoff-only changes preserve the accepted implementation hashes.
+- Previous verified implementation: `c238dd2de041525214cb383d67080d080aab5524`; handoff-only base: `e3c0fcd4fee80cc4a4d574243efd021761573974`.
+- The owner then requested both verifier follow-ups. The round-5 manifest identifies the new accepted implementation.
 - Worktree: `.slim/worktrees/document-sections` under the main checkout.
 - Editor acceptance: `e01s02-acceptance.md`; both independent reviewers passed at 100%.
-- Production code acceptance: round 4, both independent reviewers 95%, zero must-fix. See `e01s03-acceptance.md` and both round-4 reports.
-- Accepted manifest: `e01s03-review-round4-manifest.json`; source SHA-256 `6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8`.
+- Production code acceptance: round 5, both independent reviewers 100%, zero findings. See `e01s03-followup-acceptance.md` and both round-5 reports.
+- Accepted manifest: `e01s03-review-round5-manifest.json`; 36 files; source SHA-256 `b2830fb5e12a722808022db000da2b5a9ff51af901d4754485218db3fdd0d7a8`.
 - [CI 35576550902](https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902): backend, frontend and browser-e2e succeeded for `c238dd2`.
 
 ## Local verification
@@ -67,17 +67,17 @@ The browser phase temporarily uses anonymous budget **600**. The default is **60
 
 See `e01s03-runtime.md`, `e01s03-dependencies.md`, `e01s03-frontend-update-proposal.md` and `e01s03-browser-throttle.json` for task IDs, failures and later repairs.
 
-Local checks and the independent review gate passed; see `e01s03-round4-checks.md` and `e01s03-acceptance.md`. The final local run passed 478 backend tests (96.88% coverage), all seven PostgreSQL cases separately, 244 frontend tests, and all 39 browser tests, plus lint/build/migration/runtime/recovery checks.
+Local checks and the independent review gate passed; see `e01s03-round5-checks.md` and `e01s03-followup-acceptance.md`. The follow-up run passed 482 backend tests (96.93% coverage), all seven PostgreSQL cases separately, 244 frontend tests, and all 39 browser tests, plus lint/build/migration/runtime/recovery checks. All 23 focused verifier tests passed.
 
-The candidate is committed and pushed, draft PR #8 is updated, and fresh CI passed for the production commit. All 15 tasks in the approved three-story execution plan are verified. Historical checkpoint files retain their older results; this handoff and the acceptance record state the current result.
+All 15 tasks in the approved three-story execution plan were verified at the previous handoff. The owner-requested follow-ups are also locally verified and independently accepted. Use the [PR checks](https://github.com/SloppyBobbert/TeXGen/pull/8/checks) for exact-head hosted CI evidence. Historical checkpoint files retain their older results; this handoff and the round-5 acceptance record supersede the previous follow-up list.
 
 Remaining decision: owner approval before merge, auto-merge or deployment. The separate development stack and unrelated worktree files are preserved; local test resources have not been removed.
 
-## Non-blocking follow-up work
+## Completed verifier follow-ups
 
-- Two loopback probes still honor ambient urllib proxy settings. Use a verification environment without external HTTP proxy routing for loopback requests. Add explicit proxy-disabled openers in separate work.
-- Cancellation during the outage probe can leave its unusable-password synthetic account/quota row in the retained disposable database. Add exact run-ID fixture cleanup in separate work; do not delete unrelated test data.
+- Both loopback probes now use explicit proxy-disabled openers.
+- Outage cleanup uses the exact verification-run account name and requires an unusable password. Outer recovery cleans the fixture after dependency restoration if probe cleanup was interrupted. Tests verify quota cascade deletion and preservation of unrelated accounts.
 
-Both findings are documented in `e01s03-acceptance.md`. They were non-blocking review findings, not silently fixed or omitted.
+The original non-blocking findings remain recorded in `e01s03-acceptance.md`. Their repairs passed full verification and both round-5 reviews.
 
 Local HTTP checks do not prove public TLS, secure-cookie admin login over HTTPS, full WCAG compliance, load capacity or production certification. Public TLS, backups/restore, operational monitoring and deployment approval remain separate release concerns.

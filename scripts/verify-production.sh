@@ -70,6 +70,8 @@ restore() {
   compose=(docker compose --project-directory "$PWD" -p "$project" -f "$snapshot/60.json")
   # Never remove application volumes. Restore dependencies and the approved request budget.
   REQUEST_THROTTLE_ANON_LIMIT=60 run "${compose[@]}" up -d --no-build --pull never --wait --wait-timeout 180 || result=1
+  # Delete only this run's unusable-password fixture, after database recovery.
+  run "${compose[@]}" exec -T backend python -c 'import django,sys;django.setup();from uuid import UUID;from django.contrib.auth import get_user_model;run_id=UUID(sys.argv[1]).hex;assert run_id == sys.argv[1];get_user_model().objects.filter(username="readiness_"+run_id,password__startswith="!").delete();print("PASS: exact outage fixture cleaned")' "$TEXGEN_VERIFICATION_ID" || result=1
   run "${compose[@]}" exec -T backend python -c 'import django;django.setup();from django.conf import settings;assert settings.REQUEST_THROTTLE_ANON_LIMIT == 60;print("PASS: live anonymous request budget restored to 60")' || result=1
   rm -rf -- "$snapshot"
   if (( result == 0 )); then

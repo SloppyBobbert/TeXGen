@@ -2,13 +2,17 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
 import time
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
-from uuid import uuid4
+from uuid import UUID, uuid4
+
+from verification_support import interrupted
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -72,13 +76,15 @@ def main(project):
                                 capture_output=True, text=True, timeout=40)
         assert result.returncode != 0 and f"AssertionError: {name}" in result.stderr
 
-    username = "readiness_" + uuid4().hex
-    fixture = python("from django.contrib.auth import get_user_model;"
-                     "from rest_framework_simplejwt.tokens import AccessToken;"
-                     f"u=get_user_model().objects.create_user(username={username!r});"
-                     "print(json.dumps({'id':u.pk,'token':str(AccessToken.for_user(u))}))")
+    run_id = os.getenv("TEXGEN_VERIFICATION_ID", uuid4().hex)
+    assert UUID(run_id).hex == run_id
+    username = "readiness_" + run_id
     stopped = set()
     try:
+        fixture = python("from django.contrib.auth import get_user_model;"
+                         "from rest_framework_simplejwt.tokens import AccessToken;"
+                         f"u=get_user_model().objects.create_user(username={username!r});"
+                         "print(json.dumps({'id':u.pk,'token':str(AccessToken.for_user(u))}))")
         compiler = services["compiler"]["Id"]
         stopped.add(compiler)
         docker("stop", "--time", "10", compiler)
@@ -135,11 +141,13 @@ def main(project):
         if failures:
             raise RuntimeError(f"Could not restore test dependencies: {failures}")
         python("from django.contrib.auth import get_user_model;"
-               f"get_user_model().objects.filter(pk={fixture['id']},username={username!r}).delete();"
+               f"get_user_model().objects.filter(username={username!r},password__startswith='!').delete();"
                "print(json.dumps(True))")
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, interrupted)
+    signal.signal(signal.SIGINT, interrupted)
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python3 scripts/check-production-failures.py OWNED_PROJECT")
     main(sys.argv[1])
