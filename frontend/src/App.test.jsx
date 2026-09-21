@@ -4,11 +4,13 @@ import { BrowserRouter, Link } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import AuthContext from './context/AuthContext';
+import { planSectionRemoval } from './storage/documentSections';
 
 const mocks = vi.hoisted(() => ({ childMount: vi.fn() }));
 
 vi.mock('framer-motion', () => ({
   motion: new Proxy({}, { get: () => 'div' }),
+  MotionConfig: ({ children }) => children,
 }));
 
 vi.mock('lucide-react', () => ({
@@ -85,6 +87,11 @@ vi.mock('./components/CreateCheatSheet', () => ({
         <button onClick={() => onSave({
           selectedFormulas: [{ formula_id: 'formula-c', class: 'Math', category: 'Algebra', name: 'C', nested: { text: 'blob:local' } }],
         }, false)}>Save formula C locally</button>
+        <button onClick={() => onSave({
+          content: 'custom content after removal', contentSource: 'manual',
+          selectedFormulas: [], formulaSelections: [], generatedSections: null,
+        }, false)}>Persist atomic removal</button>
+        <button onClick={() => onRestoreSnapshot(initialData.compileHistory[0])}>Restore first snapshot</button>
         <button onClick={() => onRestoreSnapshot({ orientation: 'landscape' })}>Restore orientation</button>
         <button onClick={() => onRestoreSnapshot({ formulaSelections: [{ formula_id: 'canonical-first' }, { formula_id: 'canonical-second' }] })}>Restore canonical formulas</button>
         <button onClick={() => onRestoreSnapshot({ selectedFormulas: [{ id: 'legacy-first' }, { formula_id: 'legacy-second' }] })}>Restore legacy formulas</button>
@@ -306,6 +313,33 @@ describe('App save lifecycle regressions', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['logout', null, 2, false],
+    ['account switch', { access: 'second' }, 2, false],
+    ['token refresh', { access: 'renewed' }, 1, true],
+  ])('reconciles a pending save only within its session after %s', async (_change, tokens, version, accept) => {
+    const save = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => save.promise));
+    const view = (authTokens, authSessionVersion) => <BrowserRouter><AuthContext.Provider value={{ user: authTokens ? { username: 'tester' } : null, authTokens, authSessionVersion, logoutUser: vi.fn() }}><App /></AuthContext.Provider></BrowserRouter>;
+    const rendered = render(view({ access: 'first' }, 1));
+    fireEvent.click(screen.getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const localDraft = storedSheet();
+    const signal = fetch.mock.calls[0][1].signal;
+    rendered.rerender(view(tokens, version));
+    await act(async () => save.resolve(response({ id: 99, title: 'remote result', latex_content: 'remote source' })));
+    if (accept) {
+      expect(storedSheet().id).toBe(99);
+      expect(alert).toHaveBeenCalledWith('Progress saved!');
+      expect(signal.aborted).toBe(false);
+    } else {
+      expect(storedSheet()).toEqual(localDraft);
+      expect(alert).not.toHaveBeenCalled();
+      expect(signal.aborted).toBe(true);
+    }
+    expect(screen.getByTestId('saving-state')).toHaveTextContent('false');
+  });
+
   it('reports browser reconciliation failure after a successful server save', async () => {
     const save = deferred();
     vi.stubGlobal('fetch', vi.fn(() => save.promise));
@@ -386,6 +420,23 @@ describe('App save lifecycle regressions', () => {
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore orientation' }));
     await waitFor(() => expect(storedSheet().orientation).toBe('landscape'));
+  });
+
+  it.each([true, false])('restores snapshot section metadata without inheriting current metadata (present: %s)', async (hasMetadata) => {
+    const baseline = ['c', 'g', 'f'].map((kind) => `% @texgen-section v1 begin ${kind}:algebra-i.slope-formula\n`).join('') + 'slope\n' + ['f', 'g', 'c'].map((kind) => `% @texgen-section v1 end ${kind}:algebra-i.slope-formula\n`).join('');
+    const metadata = { version: 1, baseline };
+    localStorage.setItem('currentCheatSheet', JSON.stringify({
+      draftId: 'snapshot-sections', title: 'Current', content: 'current source',
+      contentSource: 'generated', generatedSections: { version: 1, baseline: baseline.replace('slope\n', 'current slope\n') },
+      selectedFormulas: [], compileHistory: [{ content: baseline, contentSource: 'generated',
+        ...(hasMetadata ? { generatedSections: metadata } : {}), selectedFormulas: [] }],
+    }));
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore first snapshot' }));
+    expect(storedSheet()).toMatchObject({ content: baseline,
+      generatedSections: hasMetadata ? metadata : null,
+      contentSource: hasMetadata ? 'generated' : 'manual' });
+    if (hasMetadata) expect(planSectionRemoval(storedSheet().content, storedSheet().generatedSections, ['algebra-i.slope-formula']).safe).toBe(true);
   });
 
   it('restores canonical-only snapshot selections in order', async () => {
@@ -507,6 +558,17 @@ describe('App save lifecycle regressions', () => {
     expect(containsTransientBlob(storedSheet())).toBe(false);
   });
 
+  it('does not overwrite source or selections when a server save resolves after atomic removal', async () => {
+    const save = deferred();
+    vi.stubGlobal('fetch', vi.fn(() => save.promise));
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Persist atomic removal' }));
+    await act(async () => save.resolve(response({ id: 88, schema_version: 1, revision: 1, source_mode: 'raw', source_latex: 'formula content', formula_selections: [{ formula_id: 'formula-a' }], generated_sections: null })));
+    await waitFor(() => expect(storedSheet()).toMatchObject({ id: 88, content: 'custom content after removal', selectedFormulas: [], formulaSelections: [], generatedSections: null }));
+  });
+
   it('retains an intervening local formula selection when a save response arrives', async () => {
     const save = deferred();
     localStorage.setItem('currentCheatSheet', JSON.stringify({
@@ -565,9 +627,63 @@ describe('App recovery and remote persistence integration', () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     localStorage.clear();
+  });
+
+  it.each(['save', 'compile', 'undo/redo'])('keeps edited removal recovery after immediate %s and reload before debounce', async (action) => {
+    const block = (kind, id, body) => `% @texgen-section v1 begin ${kind}:${id}\n${body}% @texgen-section v1 end ${kind}:${id}\n`;
+    const baseline = block('c', 'algebra-i.slope-formula', block('g', 'algebra-i.slope-formula', block('f', 'algebra-i.slope-formula', 'slope\n')));
+    const source = `% custom note\n${baseline.replace('slope\n', 'manual slope\n')}`;
+    const metadata = { version: 1, baseline };
+    const selection = { formula_id: 'algebra-i.slope-formula' };
+    localStorage.setItem('currentCheatSheet', JSON.stringify({
+      draftId: 'recovery-save', title: 'Recovery', content: source, contentSource: 'generated',
+      generatedSections: metadata, selectedFormulas: [selection], formulaSelections: [selection], compileHistory: [],
+      columns: 4, fontSize: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait',
+    }));
+    localStorage.setItem('cheatSheetLatex:recovery-save', localStorage.getItem('currentCheatSheet'));
+    vi.stubGlobal('fetch', vi.fn((url) => {
+      if (url === '/api/classes/') return Promise.resolve({ ok: true, json: async () => ({ classes: [{ name: 'Algebra I', categories: [{ name: 'Linear Equations', formulas: [{ id: selection.formula_id, name: 'Slope Formula' }] }] }] }) });
+      if (url === '/api/compile/') return Promise.resolve({ ok: true, blob: async () => new Blob(['pdf'], { type: 'application/pdf' }) });
+      if (url === '/api/cheatsheets/') return Promise.resolve(response({ id: 42 }));
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    vi.doUnmock('./components/CreateCheatSheet');
+    vi.resetModules();
+    const [{ default: RealApp }, { default: RealAuthContext }] = await Promise.all([import('./App'), import('./context/AuthContext')]);
+    const mount = () => render(<BrowserRouter><RealAuthContext.Provider value={{ user: { username: 'tester' }, authTokens: { access: 'token' }, logoutUser: vi.fn() }}><RealApp /></RealAuthContext.Provider></BrowserRouter>);
+    const first = mount();
+    await screen.findByLabelText('Algebra I');
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByLabelText(/Linear Equations \(1 formulas\)/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove edited topics' }));
+    const storedLatex = () => JSON.parse(localStorage.getItem('cheatSheetLatex:recovery-save'));
+    if (action === 'undo/redo') {
+      fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+      expect(storedSheet()).toMatchObject({ content: source, generatedSections: metadata, formulaSelections: [selection] });
+      fireEvent.click(screen.getByRole('button', { name: 'Forward', exact: true }));
+      expect(storedSheet().content).not.toContain('manual slope');
+    } else {
+      await act(async () => {
+        fireEvent.click(action === 'save'
+          ? screen.getByTitle('Save (Ctrl + S)')
+          : screen.getByTitle('Compile the current editor source. If the editor is empty, generate from selected formulas first.'));
+      });
+    }
+    if (action === 'save') expect(alert).toHaveBeenCalledWith('Progress saved!');
+    if (action === 'compile') expect(storedSheet().compileHistory).toHaveLength(1);
+    first.unmount();
+    vi.useRealTimers();
+    expect(storedLatex()?.history).toHaveLength(2);
+    mount();
+    await screen.findByLabelText('Algebra I');
+    expect(screen.getByRole('button', { name: 'Back', exact: true })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back', exact: true }));
+    await waitFor(() => expect(storedSheet()).toMatchObject({ content: source, contentSource: 'generated', generatedSections: metadata, formulaSelections: [selection] }));
+    expect(screen.getByLabelText(/Linear Equations \(1 formulas\)/i)).toBeChecked();
   });
 
   it('saves a matching recovered draft through the API and reloads its mapped server state', async () => {
@@ -656,6 +772,7 @@ describe('App recovery and remote persistence integration', () => {
         title: savedResponse.title,
         source_mode: 'raw',
         source_latex: savedResponse.source_latex,
+        generated_sections: null,
         layout: { columns: 2, font_size: '10pt', spacing: 'medium', margins: '0.25in', orientation: 'landscape' },
         formula_selections: [{ formula_id: 'newton-second-law' }],
         template_id: null,

@@ -3,6 +3,7 @@
 import socket
 import tempfile
 import threading
+import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -186,6 +187,26 @@ def test_accepted_jobs_are_charged_and_never_run_before_admission(client, failur
     assert response.status_code == status
     quota.assert_called_once()
     assert len(calls) == 1
+    assert CompileQuotaWindow.objects.get().count == 1
+
+
+def test_production_admission_wait_keeps_quota_after_ready(client):
+    def respond(connection):
+        request_id, _ = receive_request(connection)
+        # The approved health probe can hold the slot beyond the one-second connect deadline.
+        time.sleep(1.2)
+        quota.assert_not_called()
+        send_control(connection, request_id, READY)
+        receive_control(connection, request_id, START)
+        quota.assert_called_once()
+        connection.sendall(encode_response(request_id, {"diagnostics": ""}, b"%PDF-1.7"))
+
+    with peer(respond), override_settings(COMPILER_ADMISSION_TIMEOUT_SECONDS=5.0), patch(
+        "api.views.admit_compile", wraps=admit_compile
+    ) as quota:
+        response = client.post("/api/compile/", {"content": "x"}, format="json")
+    assert response.status_code == 200
+    quota.assert_called_once()
     assert CompileQuotaWindow.objects.get().count == 1
 
 

@@ -1,0 +1,98 @@
+[
+  {
+    "line": 21,
+    "length": 98,
+    "baseline_unchanged": true,
+    "text": "        image: postgres:15@sha256:9b1d34adbce1dd07ee6e94b4a2cf698884b89bd44a6c9c12f5da8f3acbfe4957"
+  },
+  {
+    "line": 43,
+    "length": 84,
+    "baseline_unchanged": true,
+    "text": "        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0"
+  },
+  {
+    "line": 83,
+    "length": 82,
+    "baseline_unchanged": true,
+    "text": "        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0"
+  },
+  {
+    "line": 110,
+    "length": 82,
+    "baseline_unchanged": true,
+    "text": "        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0"
+  },
+  {
+    "line": 129,
+    "length": 83,
+    "baseline_unchanged": true,
+    "text": "            --connect-timeout 10 --max-time 120 --retry 3 --max-filesize 25255835 \\"
+  },
+  {
+    "line": 131,
+    "length": 162,
+    "baseline_unchanged": true,
+    "text": "            https://github.com/SloppyBobbert/TeXGen/releases/download/compiler-assets-0.15.0-238864f4e9df/texgen-compiler-assets-0.15.0-corpus-238864f4e9df.tar.gz"
+  },
+  {
+    "line": 132,
+    "length": 132,
+    "baseline_unchanged": true,
+    "text": "          printf '%s  %s\\n' add28e26a3af62f800b8171070501bf1ecb4f5b0f79244c5f14b11023fe9bce3 \"$archive\" | sha256sum --check --strict"
+  },
+  {
+    "line": 134,
+    "length": 101,
+    "baseline_unchanged": true,
+    "text": "          tar --extract --gzip --file \"$archive\" --directory backend/.compiler-assets --no-same-owner"
+  },
+  {
+    "line": 135,
+    "length": 97,
+    "baseline_unchanged": true,
+    "text": "          python3 -S backend/compiler_sidecar/container/verify_assets.py backend/.compiler-assets"
+  },
+  {
+    "line": 139,
+    "length": 168,
+    "baseline_unchanged": true,
+    "text": "          printf '%s\\n' 'services:' '  backend:' '    environment:' '      DJANGO_SECRET_KEY: ci-only-django-secret-key-not-for-production' > /tmp/texgen-ci-compose.yml"
+  },
+  {
+    "line": 140,
+    "length": 90,
+    "baseline_unchanged": true,
+    "text": "          docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml up -d --build"
+  },
+  {
+    "line": 144,
+    "length": 103,
+    "baseline_unchanged": true,
+    "text": "            # 30 attempts \u00d7 (2-second request + 2-second delay) bounds each probe to about 120 seconds."
+  },
+  {
+    "line": 146,
+    "length": 96,
+    "baseline_unchanged": true,
+    "text": "              if curl --fail --silent --show-error --connect-timeout 1 --max-time 2 \"$url\"; then"
+  },
+  {
+    "line": 154,
+    "length": 100,
+    "baseline_unchanged": true,
+    "text": "            printf 'Timed out waiting for %s at %s after about 120 seconds.\\n' \"$service\" \"$url\" >&2"
+  },
+  {
+    "line": 181,
+    "length": 84,
+    "baseline_unchanged": true,
+    "text": "        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml logs"
+  },
+  {
+    "line": 185,
+    "length": 111,
+    "baseline_unchanged": true,
+    "text": "        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml down --volumes --remove-orphans"
+  }
+]

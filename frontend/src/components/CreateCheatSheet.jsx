@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
 import { Link } from 'react-router-dom';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useDndContext, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFormulas } from '../hooks/formulas';
+import { EditorSessionContext, useEditorSession } from '../hooks/editorSession';
 import { useLatex } from '../hooks/latex';
 import { useYouTubeResources } from '../hooks/youtubeResources';
 import { getCuratedVideosForTopics } from '../data/subjectVideos';
@@ -102,9 +103,11 @@ const samePanelLayout = (a, b) => (
 
 
 function SortableFormulaItem({ id, formula, onRemove, className }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+  const { active } = useDndContext();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
     id,
-    data: { type: 'formula', class: formula.class }
+    data: { type: 'formula', class: formula.class },
+    disabled: { droppable: Boolean(active && (active.data.current?.type !== 'formula' || active.data.current?.class !== formula.class)) },
   });
   
   const style = {
@@ -117,12 +120,13 @@ function SortableFormulaItem({ id, formula, onRemove, className }) {
 
   return (
     <div ref={setNodeRef} style={style} className={`sortable-formula-item ${className || ''}`}>
-      <span className="drag-handle" {...attributes} {...listeners}>⋮⋮</span>
+      <button type="button" ref={setActivatorNodeRef} className="drag-handle" {...attributes} {...listeners} aria-label={`Move formula ${formula.name} in ${formula.class}`}>⋮⋮</button>
       <span className="formula-name" style={{ fontStyle: 'italic' }}>{formula.name}</span>
       <span className="formula-class" style={{ fontStyle: 'italic' }}>{formula.class}</span>
       <button 
         type="button" 
-        className="remove-formula" 
+        className="remove-formula"
+        aria-label={`Remove ${formula.name} from ${formula.category}`}
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
@@ -165,9 +169,11 @@ function CollapsiblePanelSection({ title, isOpen, onToggle, children, countBadge
 }
 
 function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClass, onRemoveFormula }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ 
+  const { active } = useDndContext();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useSortable({
     id: `class-${group.class}`,
-    data: { type: 'class' }
+    data: { type: 'class' },
+    disabled: { droppable: Boolean(active && active.data.current?.type !== 'class') },
   });
   
   const style = {
@@ -180,25 +186,27 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
 
   return (
     <div ref={setNodeRef} style={style} className={`formula-class-group ${isCollapsed ? 'collapsed' : ''}`}>
-      <div 
-        className="class-group-header" 
-        onClick={onToggleCollapse}
-        {...attributes} 
-        {...listeners}
-      >
-        <div className="class-group-main">
-          <span className="drag-handle">⋮⋮</span>
-          <span className="collapse-icon">{isCollapsed ? '▶' : '▼'}</span>
+      <div className="class-group-header">
+        <button type="button" ref={setActivatorNodeRef} className="drag-handle" {...attributes} {...listeners} aria-label={`Move class ${group.class}`}>⋮⋮</button>
+        <button
+          type="button"
+          className="class-group-main"
+          onClick={onToggleCollapse}
+          aria-expanded={!isCollapsed}
+          aria-label={`${isCollapsed ? 'Show' : 'Hide'} formulas in ${group.class}`}
+        >
+          <span className="collapse-icon" aria-hidden="true">{isCollapsed ? '▶' : '▼'}</span>
           <span 
             className="class-group-title" 
           >
             {group.class} ({group.formulas.length})
           </span>
-        </div>
+        </button>
         <div className="class-group-actions">
           <button 
             type="button" 
-            className="class-group-btn remove" 
+            className="class-group-btn remove"
+            aria-label={`Remove all formulas from ${group.class}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -220,7 +228,7 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
                 id={`formula-${group.class}-${f.category}-${f.name}`}
                 formula={f}
                 className="nested"
-                onRemove={() => onRemoveFormula(f.category, f.name)}
+                onRemove={() => onRemoveFormula(f.category, f.name, f.formula_id ?? f.id)}
               />
             ))}
           </SortableContext>
@@ -233,7 +241,7 @@ function SortableClassGroup({ group, isCollapsed, onToggleCollapse, onRemoveClas
 function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula, onRemoveClass, onRemoveFormula }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates, scrollBehavior: 'auto' })
   );
 
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -279,7 +287,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
   return (
     <div className="formula-reorder-panel">
       <div className="reorder-instructions subtle-copy">
-        <span>Click the bar to collapse. Click and hold to move.</span>
+        <span>Show or hide formulas with the class button. Use a move handle to reorder.</span>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={groupedFormulas.map(g => `class-${g.class}`)} strategy={verticalListSortingStrategy}>
@@ -290,7 +298,7 @@ function FormulaReorderPanel({ groupedFormulas, onReorderClass, onReorderFormula
               isCollapsed={!expandedGroups[group.class]}
               onToggleCollapse={() => toggleGroup(group.class)}
               onRemoveClass={onRemoveClass}
-              onRemoveFormula={(categoryName, formulaName) => onRemoveFormula(group.class, categoryName, formulaName)}
+              onRemoveFormula={(categoryName, formulaName, id) => onRemoveFormula(group.class, categoryName, formulaName, id)}
             />
           ))}
         </SortableContext>
@@ -544,12 +552,9 @@ const FormulaSelection = ({
                     checked={cls.categories.every(cat => selectedCategories[`${cls.name}:${cat.name}`])}
                     onChange={() => {
                       const allSelected = cls.categories.every(cat => selectedCategories[`${cls.name}:${cat.name}`]);
-                      cls.categories.forEach(cat => {
-                        if (allSelected) {
-                          toggleCategory(cls.name, cat.name);
-                        } else if (!selectedCategories[`${cls.name}:${cat.name}`]) {
-                          toggleCategory(cls.name, cat.name);
-                        }
+                      if (allSelected) toggleClass(cls.name);
+                      else cls.categories.forEach(cat => {
+                        if (!selectedCategories[`${cls.name}:${cat.name}`]) toggleCategory(cls.name, cat.name);
                       });
                     }}
                   />
@@ -795,7 +800,8 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
   }, [cancelPendingScrollFrame, pdfBlob]);
 
   const scrollToTop = () => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    scrollRef.current?.scrollTo({ top: 0, behavior });
   };
 
   const clampZoom = (value) => Math.min(2, Math.max(0.5, value));
@@ -1112,7 +1118,36 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
   );
 };
 
-const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity, isSaving = false }) => {
+function SectionRemovalDialog({ pending, onConfirm, onCancel }) {
+  const dialogRef = useRef(null);
+  const cancelRef = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    const dialog = dialogRef.current;
+    if (dialog.showModal) dialog.showModal();
+    else dialog.setAttribute('open', '');
+    cancelRef.current?.focus();
+    return () => {
+      if (dialog.open) dialog.close?.();
+      if (previous?.isConnected) previous.focus?.();
+      else document.getElementById('content')?.focus();
+    };
+  }, []);
+  return <dialog ref={dialogRef} aria-labelledby="remove-topic-title" onCancel={(event) => { event.preventDefault(); onCancel(); }}>
+    <h2 id="remove-topic-title">Remove edited topics?</h2>
+    <p>This removes your edits in the selected topics. Undo can restore them.</p>
+    <p>Document revision {pending.revision}</p>
+    <button type="button" ref={cancelRef} onClick={onCancel}>Cancel removal</button>
+    <button type="button" onClick={onConfirm}>Remove edited topics</button>
+  </dialog>;
+}
+
+const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity, isSaving = false }) => {
+  const removalHandlerRef = useRef(null);
+  const guardRemoval = useCallback((ids, apply, next) => {
+    if (removalHandlerRef.current) removalHandlerRef.current(ids, apply, next);
+    else apply();
+  }, []);
   const {
     classesData,
     selectedClasses,
@@ -1133,7 +1168,8 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     selectedCount,
     hasSelectedClasses,
     isFormulaSelectionInitialized,
-  } = useFormulas(initialData, draftIdentity);
+    restoreSelections,
+  } = useFormulas(initialData, draftIdentity, guardRemoval);
 
   const {
     title,
@@ -1141,6 +1177,13 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     content,
     contentModified,
     contentSource,
+    generatedSections,
+    requestRemoval,
+    pendingRemoval,
+    confirmRemoval,
+    cancelRemoval,
+    sectionMessage,
+    useRawSource,
     hasLayoutChanges,
     handleContentChange,
     columns,
@@ -1168,7 +1211,13 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     handleDownloadTex,
     handlePrintPDF,
     clearLatex
-  } = useLatex(initialData, draftIdentity, getSelectedFormulasList() || []);
+  } = useLatex(initialData, draftIdentity, getSelectedFormulasList() || [], {
+    restoreSelections,
+    formulaSelections,
+    onDocumentChange: (snapshot) => onSave?.(snapshot, false),
+    knownIds: new Set(classesData.flatMap((cls) => (cls.categories || []).flatMap((category) => (category.formulas || []).map((formula) => formula.id)))),
+  });
+  removalHandlerRef.current = requestRemoval;
 
   const isAuthenticationCompileError = authenticationRequired
     && rawCompileError?.includes(AUTHENTICATION_REQUIRED_MESSAGE);
@@ -1402,7 +1451,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
     setLastSavedAt(Date.now());
     onSave({
       ...lastCompileSnapshot,
-      formulaSelections,
+      formulaSelections: lastCompileSnapshot.formulaSelections ?? formulaSelections,
       compileSnapshot: lastCompileSnapshot,
     }, false)
       .then(() => {
@@ -1524,10 +1573,11 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
   }, []);
 
   const handleGenerateClick = useCallback(() => {
+    if (content.trim() && !window.confirm('Replace the source with the selected formulas? Back restores the previous source.')) return;
     prepareFirstActionLayout();
     const selectedFormulas = getSelectedFormulasList();
     handleGenerateSheet(selectedFormulas);
-  }, [getSelectedFormulasList, handleGenerateSheet, prepareFirstActionLayout]);
+  }, [content, getSelectedFormulasList, handleGenerateSheet, prepareFirstActionLayout]);
 
   const handleCompileClick = useCallback(() => {
     prepareFirstActionLayout();
@@ -1543,6 +1593,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
         title,
         content,
         contentSource,
+        generatedSections,
         columns,
         fontSize,
         spacing,
@@ -1558,7 +1609,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
       setSaveStatus('offline');
       showToast('Failed to save. Please try again.', 'error');
     }
-  }, [columns, content, contentSource, fontSize, getFormulaSelectionsList, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
+  }, [columns, content, contentSource, generatedSections, fontSize, getFormulaSelectionsList, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -1598,6 +1649,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
 
   return (
     <>
+      {pendingRemoval && <SectionRemovalDialog pending={pendingRemoval} onConfirm={confirmRemoval} onCancel={cancelRemoval} />}
       <div className="app-shell">
 
        <div className="app-body" ref={appBodyRef} style={{ '--app-body-columns': appBodyGridTemplate }}>
@@ -1692,6 +1744,10 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
               <p className="subtle-copy">
                 Generate replaces editor source. Compile keeps it.
               </p>
+              {contentSource === 'generated' && <button type="button" onClick={useRawSource} className="btn history-btn">Use raw source</button>}
+              {sectionMessage && <p role="status">{sectionMessage}</p>}
+              {(generatedSections || contentSource === 'manual') && <p className="subtle-copy">Regenerate to apply layout options to this source.</p>}
+              {pdfBlob && lastCompileSnapshot && lastCompileSnapshot.content !== content && !compileError && <p role="status">The PDF shows the previous source. Compile to update it.</p>}
 
               <div className="button-row">
                 <button
@@ -1750,7 +1806,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
             <div className="panel-resizer-slot panel-resizer-left" aria-hidden="true" />
           )}
           {/* ══ CENTER PANEL — PDF main focus ══ */}
-          <main className="center-panel" ref={centerPanelRef}>
+          <section className="center-panel" aria-label="Editor workspace" ref={centerPanelRef}>
             <div className="workspace-topbar">
               <div className="workspace-topbar-group">
                 <button
@@ -1881,7 +1937,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
                  </>
                )}
              </div>
-          </main>
+          </section>
 
           {rightPanelVisible ? (
             <button
@@ -1960,7 +2016,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
             aria-labelledby="video-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <button className="modal-close" onClick={handleCloseVideo} autoFocus>✕</button>
+            <button type="button" className="modal-close" aria-label="Close video" onClick={handleCloseVideo} autoFocus>✕</button>
             <h4 id="video-modal-title">{modalVideo.title}</h4>
             <iframe
               width="100%"
@@ -1995,4 +2051,7 @@ const CreateCheatSheet = ({ onSave, onReset, onRestoreSnapshot, initialData, dra
   );
 };
 
-export default CreateCheatSheet;
+export default function CreateCheatSheet(props) {
+  const session = useEditorSession(props.initialData ?? {});
+  return <EditorSessionContext.Provider value={session}><Editor {...props} /></EditorSessionContext.Provider>;
+}

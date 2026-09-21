@@ -1,14 +1,16 @@
 import { useState, useEffect, useContext, useRef } from 'react'
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, MotionConfig } from 'framer-motion';
 import { Home, LayoutDashboard, LogIn, LogOut, Palette } from 'lucide-react';
 import AuthContext from './context/AuthContext';
+import { useApiRequest } from './hooks/useApiRequest';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
 import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
-import { migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
+import { EditorSessionContext, useEditorSession } from './hooks/editorSession';
+import { getLegacyStorageKeys, migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
 import { fromServerDocument, toCanonicalDocument } from './storage/documentAdapter';
 
 const CURRENT_SHEET_STORAGE_KEY = 'currentCheatSheet';
@@ -59,6 +61,7 @@ const toDraftEnvelope = (sheet) => {
     base_revision: Number.isSafeInteger(sheet.revision) && sheet.revision > 0 ? sheet.revision : null,
     source_mode: document.source_mode,
     source_latex: document.source_latex,
+    generated_sections: document.generated_sections ?? null,
     formula_selections: document.formula_selections,
     layout: document.layout,
     title: document.title,
@@ -82,10 +85,11 @@ const persistSheet = (sheet) => {
     }
     const existing = readDraft(localStorage, identity);
     if (!existing.ok) return existing;
+    const recovery = sanitizeSheet(JSON.parse(localStorage.getItem(getLegacyStorageKeys(identity).latex) || '{}'));
     return writeDraft(localStorage, toDraftEnvelope(sanitized), {
       legacy: {
         formulas: sanitized.selectedFormulas,
-        latex: { title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
+        latex: { history: recovery.history, historyIndex: recovery.historyIndex, title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, generatedSections: sanitized.generatedSections ?? null, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
         history: sanitized.compileHistory,
         source: sanitized.contentSource,
         currentSheet: sanitized,
@@ -99,6 +103,7 @@ const fromDraftEnvelope = (draft, fallback = {}) => sanitizeSheet({
   ...fallback,
   title: draft.title,
   content: draft.source_latex,
+  generatedSections: draft.generated_sections ?? null,
   contentSource: draft.source_mode === 'raw' ? 'manual' : draft.source_mode,
   columns: draft.layout.columns,
   fontSize: draft.layout.font_size,
@@ -190,7 +195,8 @@ const buildRestoredSheet = (baseSheet, snapshot) => {
   ...baseSheet,
   title: snapshot.title ?? baseSheet.title,
   content: snapshot.content ?? '',
-  contentSource: snapshot.contentSource ?? baseSheet.contentSource ?? 'generated',
+  contentSource: snapshot.generatedSections ? (snapshot.contentSource ?? 'generated') : (snapshot.content?.trim() ? 'manual' : 'empty'),
+  generatedSections: snapshot.generatedSections ?? null,
   columns: snapshot.columns ?? baseSheet.columns,
   fontSize: snapshot.fontSize ?? baseSheet.fontSize,
   spacing: snapshot.spacing ?? baseSheet.spacing,
@@ -320,7 +326,7 @@ function App() {
     return THEMES.find(t => t.id === value ) ? value : 'light';
   };
 
-  const [cheatSheet, setCheatSheet] = useState(() => {
+  const session = useEditorSession(() => {
     try {
       const saved = localStorage.getItem(CURRENT_SHEET_STORAGE_KEY);
       if (saved) {
@@ -343,6 +349,7 @@ function App() {
     return sheet;
   });
 
+  const { document: cheatSheet, replace: setCheatSheet } = session;
   const [editorSessionKey, setEditorSessionKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const cheatSheetRef = useRef(cheatSheet);
@@ -367,9 +374,7 @@ function App() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    cheatSheetRef.current = cheatSheet;
-  }, [cheatSheet]);
+  cheatSheetRef.current = cheatSheet;
 
   useEffect(() => () => {
     saveEpochRef.current += 1;
@@ -379,7 +384,17 @@ function App() {
   }, []);
 
   
-  const { user, authTokens, logoutUser } = useContext(AuthContext);
+  const { user, authTokens, logoutUser, authSessionVersion } = useContext(AuthContext);
+  const authSession = authSessionVersion ?? authTokens?.access ?? null;
+  const apiRequest = useApiRequest();
+
+  useEffect(() => {
+    saveEpochRef.current += 1;
+    saveControllerRef.current?.abort();
+    saveControllerRef.current = null;
+    pendingCreatePromiseRef.current = null;
+    setIsSaving(false);
+  }, [authSession]);
 
   const handleReset = () => {
     saveEpochRef.current += 1;
@@ -394,14 +409,6 @@ function App() {
     safeStorageRemove('cheatSheetLatex');
     try { removeDraft(localStorage, getDraftIdentity(cheatSheetRef.current)); } catch (error) { console.error('Failed to remove draft', error); }
   };
-
-  useEffect(() => {
-    const savedSheet = loadStoredSheet();
-    if (savedSheet) {
-      const storedDraft = readDraft(localStorage, getDraftIdentity(savedSheet));
-      setCheatSheet(storedDraft.ok && storedDraft.draft ? fromDraftEnvelope(storedDraft.draft, savedSheet) : savedSheet);
-    }
-  }, []);
 
   const handleSave = async (data, showFeedback = true) => {
     const saveEpoch = showFeedback ? ++saveEpochRef.current : saveEpochRef.current;
@@ -428,7 +435,8 @@ function App() {
     const submittedSelectedFormulas = stripTransientPdfBlobs(nextSheet.selectedFormulas ?? []);
 
     cheatSheetRef.current = nextSheet;
-    setCheatSheet(nextSheet);
+    // A destructive transition may have queued newer recovery state in this event.
+    session.update((current) => ({ ...nextSheet, history: current.history, historyIndex: current.historyIndex }));
     const localPersistence = persistSaveBoundary(nextSheet, nextHistory, nextSheet.contentSource);
 
     if (!localPersistence.ok) {
@@ -465,11 +473,10 @@ function App() {
 
       const canonicalPayload = toCanonicalDocument({ ...nextSheet, selectedFormulas: submittedSelectedFormulas });
       delete canonicalPayload.revision;
-      const requestPromise = fetch(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
+      const requestPromise = apiRequest(sheetId ? `/api/cheatsheets/${sheetId}/` : '/api/cheatsheets/', {
         method: sheetId ? 'PATCH' : 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...(authTokens?.access ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -525,7 +532,7 @@ function App() {
       }
       persistedSheet = sanitizeSheet(persistedSheet);
       cheatSheetRef.current = persistedSheet;
-      setCheatSheet(persistedSheet);
+      session.update((current) => ({ ...persistedSheet, history: current.history, historyIndex: current.historyIndex }));
       const reconciliationPersistence = persistSheet(persistedSheet);
       const reconciliationSidecars = [
         saveStoredCompileHistory(persistedSheet.id, persistedSheet.compileHistory),
@@ -593,7 +600,10 @@ function App() {
   };
 
   return (
+    <MotionConfig reducedMotion="user">
+    <EditorSessionContext.Provider value={session}>
     <div className="App">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="app-header">
         <div className="app-header-inner">
           <div className="app-header-nav">
@@ -659,7 +669,7 @@ function App() {
           </div>
         </div>
       </header>
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <Routes>
           <Route path="/" element={
             <CreateCheatSheet 
@@ -690,6 +700,8 @@ function App() {
         </a>
       </footer>
     </div>
+    </EditorSessionContext.Provider>
+    </MotionConfig>
   );
 }
 

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useContext } from 'react';
 import AuthContext from '../context/AuthContext';
+import { useApiRequest } from './useApiRequest';
+import { useEditorFields, useEditorSession } from './editorSession';
+import { planSectionRemoval, validSectionMetadata } from '../storage/documentSections';
 
 const STORAGE_KEY = 'cheatSheetLatex';
 const SAVE_DEBOUNCE_MS = 500;
@@ -44,8 +47,10 @@ function loadLatexStorage(storageKey) {
 function saveLatexStorage(storageKey, data) {
   try {
     localStorage.setItem(storageKey, JSON.stringify(data));
+    return true;
   } catch (e) {
     console.error('Failed to save latex storage', e);
+    return false;
   }
 }
 
@@ -104,18 +109,25 @@ async function readErrorResponse(response) {
   }
 }
 
-export function useLatex(initialData, draftIdentity, currentSelectedFormulas = []) {
+export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [], selectionOptions = {}) {
   const storageKey = storageKeyFor(initialData, draftIdentity);
-  const { authTokens } = useContext(AuthContext);
-  const [title, setTitle] = useState(initialData?.title ?? '');
-  const [content, setContent] = useState(initialData?.content ?? '');
+  const { authTokens, authSessionVersion } = useContext(AuthContext);
+  const authSession = authSessionVersion ?? authTokens?.access ?? null;
+  const apiRequest = useApiRequest();
+  const session = useEditorSession(initialData ?? {});
+  const { update } = session;
+  const { title = '', content = '', generatedSections = null, contentSource = getInitialContentSource(initialData),
+    columns = DEFAULT_LAYOUT.columns, fontSize = DEFAULT_LAYOUT.fontSize, spacing = DEFAULT_LAYOUT.spacing,
+    margins = DEFAULT_LAYOUT.margins, orientation = DEFAULT_LAYOUT.orientation, history = [], historyIndex = -1 } = session.document;
+  const { title: setTitle, content: setContent, generatedSections: setGeneratedSections, contentSource: setContentSource,
+    columns: setColumns, fontSize: setFontSize, spacing: setSpacing, margins: setMargins, orientation: setOrientation,
+    history: setHistory, historyIndex: setHistoryIndex } = useEditorFields(session, 'title content generatedSections contentSource columns fontSize spacing margins orientation history historyIndex');
   const [contentModified, setContentModified] = useState(false);
-  const [contentSource, setContentSource] = useState(() => getInitialContentSource(initialData));
-  const [columns, setColumns] = useState(initialData?.columns ?? DEFAULT_LAYOUT.columns);
-  const [fontSize, setFontSize] = useState(initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize);
-  const [spacing, setSpacing] = useState(initialData?.spacing ?? DEFAULT_LAYOUT.spacing);
-  const [margins, setMargins] = useState(initialData?.margins ?? DEFAULT_LAYOUT.margins);
-  const [orientation, setOrientation] = useState(initialData?.orientation ?? DEFAULT_LAYOUT.orientation);
+  const generatedSectionsRef = useRef(generatedSections);
+  const updateGeneratedSections = useCallback((value) => {
+    generatedSectionsRef.current = value;
+    setGeneratedSections(value);
+  }, [setGeneratedSections]);
   const [pdfBlob, setPdfBlob] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
@@ -123,8 +135,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   const [compileError, setCompileError] = useState(null);
   const [authenticationRequired, setAuthenticationRequired] = useState(false);
   const [lastCompileSnapshot, setLastCompileSnapshot] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [pendingRemoval, setPendingRemoval] = useState(null);
+  const [sectionMessage, setSectionMessage] = useState('');
+  const selectionOptionsRef = useRef(selectionOptions);
+  selectionOptionsRef.current = selectionOptions;
   
   const isCompilingRef = useRef(false);
   const isGeneratingRef = useRef(false);
@@ -180,6 +194,11 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     return operationEpochRef.current;
   }, []);
 
+  useEffect(() => {
+    clearAutoCompileTimer();
+    beginOperation();
+  }, [authSession, clearAutoCompileTimer, beginOperation]);
+
   const requireAuthentication = useCallback(() => {
     setAuthenticationRequired(true);
     setCompileError(AUTHENTICATION_ERROR);
@@ -195,65 +214,99 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     setter(value);
   }, [beginOperation, clearAutoCompileTimer]);
 
-  const handleSetColumns = useCallback((value) => updateLayout(setColumns, value), [updateLayout]);
-  const handleSetFontSize = useCallback((value) => updateLayout(setFontSize, value), [updateLayout]);
-  const handleSetSpacing = useCallback((value) => updateLayout(setSpacing, value), [updateLayout]);
-  const handleSetMargins = useCallback((value) => updateLayout(setMargins, value), [updateLayout]);
-  const handleSetOrientation = useCallback((value) => updateLayout(setOrientation, value), [updateLayout]);
+  const handleSetColumns = useCallback((value) => updateLayout(setColumns, value), [updateLayout, setColumns]);
+  const handleSetFontSize = useCallback((value) => updateLayout(setFontSize, value), [updateLayout, setFontSize]);
+  const handleSetSpacing = useCallback((value) => updateLayout(setSpacing, value), [updateLayout, setSpacing]);
+  const handleSetMargins = useCallback((value) => updateLayout(setMargins, value), [updateLayout, setMargins]);
+  const handleSetOrientation = useCallback((value) => updateLayout(setOrientation, value), [updateLayout, setOrientation]);
 
-  const request = useCallback(async (url, options, epoch) => {
+  // Callers can rebuild equivalent selection arrays on every render.
+  // Compare values so only actual title/selection edits invalidate pending work.
+  const documentInputKey = JSON.stringify([title, currentSelectedFormulas, selectionOptions.formulaSelections]);
+  useEffect(() => {
+    clearAutoCompileTimer();
+    beginOperation();
+  }, [documentInputKey, clearAutoCompileTimer, beginOperation]);
+
+  const request = useCallback(async (url, options, epoch, bodyType) => {
     const controller = new globalThis.AbortController();
     controllersRef.current.add(controller);
     try {
-      const response = await fetch(url, { ...options, signal: controller.signal });
-      return epoch === operationEpochRef.current ? response : null;
+      const response = await apiRequest(url, { ...options, signal: controller.signal });
+      if (epoch !== operationEpochRef.current) return null;
+      if (!response.ok) {
+        const errorData = await readErrorResponse(response);
+        if (url === '/api/compile/' && response.status === 401) throw new Error(AUTHENTICATION_ERROR);
+        throw new Error(formatCompileError(errorData));
+      }
+      const body = await response[bodyType]();
+      return epoch === operationEpochRef.current ? body : null;
     } finally {
       controllersRef.current.delete(controller);
     }
-  }, []);
+  }, [apiRequest]);
+
+  const notifyDocumentChange = useCallback((snapshot) => {
+    Promise.resolve(selectionOptionsRef.current.onDocumentChange?.({ title, columns, fontSize, spacing, margins, orientation, ...snapshot }))
+      .catch(() => setSectionMessage('The document is still open, but browser persistence failed. Save a copy before leaving.'));
+  }, [title, columns, fontSize, spacing, margins, orientation]);
+
+  const persistHistory = useCallback((snapshot, entries, index) => {
+    const saved = saveLatexStorage(storageKey, {
+      title, columns, fontSize, spacing, margins, orientation,
+      ...snapshot, history: entries, historyIndex: index,
+    });
+    if (!saved) {
+      setSectionMessage('Recovery could not be saved in this browser. The current source was kept. Save a copy before trying again.');
+      return false;
+    }
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    update({ ...snapshot, history: entries, historyIndex: index });
+    generatedSectionsRef.current = snapshot.generatedSections ?? null;
+    return true;
+  }, [storageKey, title, columns, fontSize, spacing, margins, orientation, update]);
+
+  const restoreHistory = useCallback((index) => {
+    const snapshot = history[index];
+    if (!snapshot || typeof snapshot.content !== 'string' || (snapshot.selectedFormulas !== undefined && !Array.isArray(snapshot.selectedFormulas))) {
+      setSectionMessage('This history entry is damaged. The current source was kept.');
+      return;
+    }
+    const restored = {
+      ...snapshot,
+      contentSource: snapshot.contentSource === 'generated' && !snapshot.generatedSections ? 'manual' : (snapshot.contentSource ?? 'manual'),
+    };
+    if (!persistHistory(restored, history, index)) return;
+    clearAutoCompileTimer();
+    beginOperation();
+    contentRevisionRef.current += 1;
+    if (snapshot?.selectedFormulas) selectionOptionsRef.current.restoreSelections?.(snapshot.selectedFormulas, snapshot.formulaSelections);
+    setPendingRemoval(null);
+    setCompileError(null);
+    clearAuthenticationRequired();
+    setContentModified(true);
+    notifyDocumentChange(restored);
+  }, [beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, history, notifyDocumentChange, persistHistory]);
 
   const goBack = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      clearAutoCompileTimer();
-      beginOperation();
-      contentRevisionRef.current += 1;
-      setHistoryIndex(newIndex);
-      setContent(history[newIndex]?.content || '');
-      setContentSource('manual');
-      setCompileError(null);
-      clearAuthenticationRequired();
-      setContentModified(true);
-    }
-  }, [beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, historyIndex, history]);
+    if (historyIndex > 0) restoreHistory(historyIndex - 1);
+  }, [historyIndex, restoreHistory]);
 
   const goForward = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      clearAutoCompileTimer();
-      beginOperation();
-      contentRevisionRef.current += 1;
-      setHistoryIndex(newIndex);
-      setContent(history[newIndex]?.content || '');
-      setContentSource('manual');
-      setCompileError(null);
-      clearAuthenticationRequired();
-      setContentModified(true);
-    }
-  }, [beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, historyIndex, history]);
+    if (historyIndex < history.length - 1) restoreHistory(historyIndex + 1);
+  }, [historyIndex, history.length, restoreHistory]);
 
-  const saveToHistory = useCallback((newContent) => {
-    setHistory((previousHistory) => {
-      const baseHistory = previousHistory.slice(0, historyIndex + 1);
-      const nextHistory = [
-        ...baseHistory,
-        { content: newContent, timestamp: Date.now() },
-      ].slice(-MAX_HISTORY_ENTRIES);
-
-      setHistoryIndex(nextHistory.length - 1);
-      return nextHistory;
-    });
-  }, [historyIndex]);
+  const saveToHistory = useCallback((newContent, metadata) => {
+    const selections = { selectedFormulas: currentSelectedFormulasRef.current, formulaSelections: selectionOptionsRef.current.formulaSelections, title, columns, fontSize, spacing, margins, orientation };
+    const after = { content: newContent, contentSource: 'generated', generatedSections: metadata, ...selections, timestamp: Date.now() };
+    const nextHistory = [
+      ...history.slice(0, historyIndex + 1),
+      { content, contentSource, generatedSections, ...selections, timestamp: Date.now() },
+      after,
+    ].slice(-MAX_HISTORY_ENTRIES);
+    return persistHistory(after, nextHistory, nextHistory.length - 1);
+  }, [history, historyIndex, content, contentSource, generatedSections, title, columns, fontSize, spacing, margins, orientation, persistHistory]);
 
   useEffect(() => {
     if (initialLoaded.current) return;
@@ -264,6 +317,13 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       setTitle(saved.title ?? '');
       setContent(saved.content ?? '');
       setContentSource(getInitialContentSource(saved));
+      updateGeneratedSections(saved.generatedSections ?? null);
+      if (Array.isArray(saved.history)) {
+        const restored = saved.history.slice(-MAX_HISTORY_ENTRIES);
+        const index = Number.isInteger(saved.historyIndex) ? saved.historyIndex - Math.max(0, saved.history.length - MAX_HISTORY_ENTRIES) : -1;
+        setHistory(restored);
+        setHistoryIndex(Math.max(-1, Math.min(index, restored.length - 1)));
+      }
       setColumns(saved.columns ?? DEFAULT_LAYOUT.columns);
       setFontSize(saved.fontSize ?? DEFAULT_LAYOUT.fontSize);
       setSpacing(saved.spacing ?? DEFAULT_LAYOUT.spacing);
@@ -281,6 +341,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       setTitle(initialData.title ?? '');
       setContent(initialData.content ?? '');
       setContentSource(getInitialContentSource(initialData));
+      updateGeneratedSections(initialData.generatedSections ?? null);
       setColumns(initialData.columns ?? DEFAULT_LAYOUT.columns);
       setFontSize(initialData.fontSize ?? DEFAULT_LAYOUT.fontSize);
       setSpacing(initialData.spacing ?? DEFAULT_LAYOUT.spacing);
@@ -294,63 +355,105 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         orientation: initialData.orientation ?? DEFAULT_LAYOUT.orientation,
       };
     }
-  }, [initialData, storageKey]);
+  }, [initialData, storageKey, updateGeneratedSections, setTitle, setContent, setContentSource, setHistory, setHistoryIndex, setColumns, setFontSize, setSpacing, setMargins, setOrientation]);
 
   const handleContentChange = useCallback((newContent) => {
     clearAutoCompileTimer();
     beginOperation();
     contentRevisionRef.current += 1;
-    setContent(newContent);
-    setContentSource(newContent.trim() ? 'manual' : 'empty');
+    update({ content: newContent, contentSource: contentSource === 'generated' && generatedSections && validSectionMetadata(generatedSections)
+      ? 'generated' : (newContent.trim() ? 'manual' : 'empty') });
     setCompileError(null);
     clearAuthenticationRequired();
     setContentModified(true);
-  }, [beginOperation, clearAuthenticationRequired, clearAutoCompileTimer]);
+  }, [beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, contentSource, generatedSections, update]);
+
+  const documentSignature = JSON.stringify([title, content, contentSource, generatedSections, columns, fontSize, spacing, margins, orientation, currentSelectedFormulas, selectionOptions.formulaSelections]);
+  const signatureRef = useRef(documentSignature);
+  signatureRef.current = documentSignature;
+
+  const recordTransition = (after) => {
+    const layout = { title, columns, fontSize, spacing, margins, orientation };
+    const before = { ...layout, content, contentSource, generatedSections, selectedFormulas: currentSelectedFormulasRef.current, formulaSelections: selectionOptionsRef.current.formulaSelections };
+    const next = [...history.slice(0, historyIndex + 1), before, { ...layout, ...after }].slice(-MAX_HISTORY_ENTRIES);
+    return persistHistory({ ...layout, ...after }, next, next.length - 1);
+  };
+
+  const applyRemoval = (pending) => {
+    if (pending.signature !== signatureRef.current || pending.revision !== contentRevisionRef.current) {
+      setPendingRemoval(null);
+      setSectionMessage('The document changed. Review the removal again.');
+      return;
+    }
+    const after = { content: pending.plan.source, contentSource: contentSource === 'generated' && !pending.plan.metadata ? (pending.plan.source.trim() ? 'manual' : 'empty') : contentSource, generatedSections: pending.plan.metadata, selectedFormulas: pending.nextSelections?.records ?? currentSelectedFormulasRef.current.filter((item) => !pending.ids.includes(item.formula_id ?? item.id)), formulaSelections: pending.nextSelections?.canonical };
+    if (!recordTransition(after)) return;
+    clearAutoCompileTimer();
+    beginOperation();
+    contentRevisionRef.current += 1;
+    setContentModified(true);
+    pending.apply();
+    notifyDocumentChange(after);
+    setPendingRemoval(null);
+  };
+
+  const requestRemoval = (ids, apply, nextSelections) => {
+    setSectionMessage('');
+    const structured = contentSource === 'generated';
+    const plan = structured ? planSectionRemoval(content, generatedSections, ids, selectionOptionsRef.current.knownIds)
+      : { safe: true, edited: false, source: content, metadata: generatedSections };
+    if (!plan.safe) { setSectionMessage(plan.message); return; }
+    if (!structured) setSectionMessage('Source was kept unchanged. Edit raw source or explicitly regenerate to remove its text.');
+    const pending = { plan, apply, ids, nextSelections, signature: signatureRef.current, revision: contentRevisionRef.current };
+    if (plan.edited) setPendingRemoval(pending);
+    else applyRemoval(pending);
+  };
+
+  const confirmRemoval = () => { if (pendingRemoval) applyRemoval(pendingRemoval); };
+  const cancelRemoval = () => setPendingRemoval(null);
+  const useRawSource = () => {
+    if (!recordTransition({ content, contentSource: content.trim() ? 'manual' : 'empty', generatedSections, selectedFormulas: currentSelectedFormulasRef.current, formulaSelections: selectionOptionsRef.current.formulaSelections })) return;
+    clearAutoCompileTimer();
+    beginOperation();
+    contentRevisionRef.current += 1;
+    setPendingRemoval(null);
+    notifyDocumentChange({ content, contentSource: content.trim() ? 'manual' : 'empty', generatedSections, selectedFormulas: currentSelectedFormulasRef.current, formulaSelections: selectionOptionsRef.current.formulaSelections });
+    setSectionMessage('Raw source is authoritative. Selection changes will not rewrite it.');
+  };
 
   const saveTimerRef = useRef(null);
 
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      saveLatexStorage(storageKey, { title, content, contentSource, columns, fontSize, spacing, margins, orientation });
+      saveLatexStorage(storageKey, { title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation });
     }, SAVE_DEBOUNCE_MS);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [title, content, contentSource, columns, fontSize, spacing, margins, orientation, storageKey]);
+  }, [title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation, storageKey]);
 
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}, epoch) => {
     if (!authTokens?.access) throw new Error(AUTHENTICATION_ERROR);
-    const response = await request('/api/compile/', {
+    const blob = await request('/api/compile/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
-      },
-      body: JSON.stringify({ content: latexContent, ...layoutOptions }),
-    }, epoch);
-    if (!response) return null;
-
-    if (!response.ok) {
-      if (response.status === 401) throw new Error(AUTHENTICATION_ERROR);
-      const errorData = await readErrorResponse(response);
-      throw new Error(formatCompileError(errorData));
-    }
-
-    const blob = await response.blob();
-    if (epoch !== operationEpochRef.current) return null;
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: latexContent, ...layoutOptions, ...(generatedSectionsRef.current || contentSource === 'manual' ? { source_mode: 'raw' } : {}) }),
+    }, epoch, 'blob');
+    if (!blob || epoch !== operationEpochRef.current) return null;
     if (pdfBlobUrlRef.current) {
       URL.revokeObjectURL(pdfBlobUrlRef.current);
     }
     pdfBlobUrlRef.current = URL.createObjectURL(blob);
     setPdfBlob(pdfBlobUrlRef.current);
     return { pdfBlob: pdfBlobUrlRef.current };
-  }, [authTokens, request]);
+  }, [authTokens, contentSource, request]);
 
   const publishCompileSnapshot = useCallback((compiled, snapshot) => {
     if (!compiled) return;
     setLastCompileSnapshot({
       ...snapshot,
+      generatedSections: generatedSectionsRef.current,
+      formulaSelections: (snapshot.selectedFormulas || []).map((item) => ({ formula_id: item.formula_id ?? item.id })).filter((item) => typeof item.formula_id === 'string'),
       compiledAt: Date.now(),
       pdfBlob: compiled.pdfBlob,
     });
@@ -373,7 +476,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         ? { formulas: legacyFormulas }
         : null;
     if (!formulaPayload) throw new Error(SELECTION_RESOLUTION_ERROR);
-    const response = await request('/api/generate-sheet/', {
+    const data = await request('/api/generate-sheet/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -384,27 +487,17 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         margins,
         orientation,
       }),
-    }, epoch);
-    if (!response) return null;
-
-    if (!response.ok) {
-      const errorData = await readErrorResponse(response);
-      throw new Error(formatCompileError(errorData));
-    }
-
-    const data = await response.json();
-    if (epoch !== operationEpochRef.current) return null;
-    return data.tex_code;
+    }, epoch, 'json');
+    if (!data || epoch !== operationEpochRef.current) return null;
+    return { content: data.tex_code, generatedSections: data.generated_sections ?? null };
   }, [columns, fontSize, spacing, margins, orientation, request]);
 
   const normalizeLatexContent = useCallback(async (latexContent, epoch) => {
+    if (contentSource === 'manual' || generatedSectionsRef.current) return latexContent;
     if (!authTokens?.access) throw new Error(AUTHENTICATION_ERROR);
-    const response = await request('/api/compile/', {
+    const data = await request('/api/compile/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content: latexContent,
         columns,
@@ -414,19 +507,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         orientation,
         normalize_only: true,
       }),
-    }, epoch);
-    if (!response) return null;
-
-    if (!response.ok) {
-      if (response.status === 401) throw new Error(AUTHENTICATION_ERROR);
-      const errorData = await readErrorResponse(response);
-      throw new Error(formatCompileError(errorData));
-    }
-
-    const data = await response.json();
-    if (epoch !== operationEpochRef.current) return null;
+    }, epoch, 'json');
+    if (!data || epoch !== operationEpochRef.current) return null;
     return data.tex_code || latexContent;
-  }, [authTokens, columns, fontSize, margins, spacing, orientation, request]);
+  }, [authTokens, columns, fontSize, margins, spacing, orientation, request, contentSource]);
 
   const hasLayoutChanges =
     lastCompiledLayoutRef.current.columns !== columns ||
@@ -473,12 +557,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       let contentToCompile = content;
 
       if (!hasContent) {
-        const generatedContent = await generateLatexContent(operationSelectedFormulas, epoch);
-        if (!generatedContent || epoch !== operationEpochRef.current) return;
-        if (content) saveToHistory(generatedContent);
-        contentToCompile = generatedContent;
-        setContent(generatedContent);
-        setContentSource('generated');
+        const generated = await generateLatexContent(operationSelectedFormulas, epoch);
+        if (!generated?.content || epoch !== operationEpochRef.current) return;
+        if (!saveToHistory(generated.content, generated.generatedSections)) return;
+        contentToCompile = generated.content;
       }
 
       if (hasContent && hasLayoutChanges) {
@@ -552,11 +634,9 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     if (regenerateOptions) {
       try {
         const data = await generateLatexContent(regenerateOptions.formulas, epoch);
-        if (data && epoch === operationEpochRef.current) {
-          contentToCompile = data;
-          setContent(data);
-          setContentSource('generated');
-          if (content) saveToHistory(data);
+        if (data?.content && epoch === operationEpochRef.current) {
+          if (!saveToHistory(data.content, data.generatedSections)) return;
+          contentToCompile = data.content;
         }
       } catch (e) {
         if (epoch === operationEpochRef.current && e.name !== 'AbortError') setCompileError(e.message);
@@ -621,11 +701,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     isGeneratingRef.current = true;
     setIsGenerating(true);
     try {
-      const generatedContent = await generateLatexContent(selectedList, epoch);
-      if (!generatedContent || epoch !== operationEpochRef.current) return;
-      if (content) saveToHistory(generatedContent);
-      setContent(generatedContent);
-      setContentSource('generated');
+      const generation = await generateLatexContent(selectedList, epoch);
+      if (!generation?.content || epoch !== operationEpochRef.current) return;
+      const generatedContent = generation.content;
+      if (!saveToHistory(generatedContent, generation.generatedSections)) return;
       setContentModified(false);
       generated = true;
       isGeneratingRef.current = false;
@@ -678,29 +757,20 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         : content;
       if (!normalizedContent || epoch !== operationEpochRef.current) return;
 
-      const response = await request('/api/compile/', {
+      const blob = await request('/api/compile/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authTokens ? { 'Authorization': `Bearer ${authTokens.access}` } : {})
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: normalizedContent,
+          ...(generatedSectionsRef.current || contentSource === 'manual' ? { source_mode: 'raw' } : {}),
           columns,
           font_size: fontSize,
           spacing,
           margins,
           orientation,
         }),
-      }, epoch);
-      if (!response || epoch !== operationEpochRef.current) return;
-      if (!response.ok) {
-        if (response.status === 401) throw new Error(AUTHENTICATION_ERROR);
-        const errorData = await readErrorResponse(response);
-        throw new Error(formatCompileError(errorData));
-      }
-      const blob = await response.blob();
-      if (epoch !== operationEpochRef.current) return;
+      }, epoch, 'blob');
+      if (!blob || epoch !== operationEpochRef.current) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -731,7 +801,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
 
     const epoch = beginOperation();
     try {
-      if (hasLayoutChanges && !authTokens?.access) {
+      if (hasLayoutChanges && !generatedSectionsRef.current && contentSource !== 'manual' && !authTokens?.access) {
         requireAuthentication();
         return;
       }
@@ -793,6 +863,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     setTitle(initialData?.title ?? '');
     setContent('');
     setContentSource('empty');
+    updateGeneratedSections(null);
     setContentModified(false);
     setColumns(initialData?.columns ?? DEFAULT_LAYOUT.columns);
     setFontSize(initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize);
@@ -801,6 +872,9 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     setOrientation(initialData?.orientation ?? DEFAULT_LAYOUT.orientation);
     setHistory([]);
     setHistoryIndex(-1);
+    setPendingRemoval(null);
+    setSectionMessage('');
+    contentRevisionRef.current += 1;
     lastCompiledLayoutRef.current = {
       columns: initialData?.columns ?? DEFAULT_LAYOUT.columns,
       fontSize: initialData?.fontSize ?? DEFAULT_LAYOUT.fontSize,
@@ -826,6 +900,13 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     setContent,
     contentModified,
     contentSource,
+    generatedSections,
+    requestRemoval,
+    pendingRemoval,
+    confirmRemoval,
+    cancelRemoval,
+    sectionMessage,
+    useRawSource,
     canRegenerateFromSelections,
     hasLayoutChanges,
     handleContentChange,

@@ -1,0 +1,13 @@
+{
+  "run": "b9821dc56",
+  "result": "38 passed; final browser journey failed at login after successful registration",
+  "networkEvidence": {
+    "registration": {"method": "POST", "path": "/api/register/", "status": 201},
+    "login": {"method": "POST", "path": "/api/token/", "status": 429, "retryAfterSeconds": 36}
+  },
+  "defaultAnonymousBudgetPerMinute": 60,
+  "localTrace": ".pi/e01s03-throttle-trace.zip",
+  "traceSha256": "644be773545f29b0ba3a5296a98adbfe54e33889601e2e192c8fdabfa544a6a2",
+  "scope": "Synthetic local test accounts only. Trace stays local and must not be committed.",
+  "followUp": "bdc516557 passed all 39 unchanged browser tests in 29.6 seconds with a test-only anonymous budget of 600. Its EXIT trap restored 60 and healthy services. A separate live Django settings assertion confirmed the restored limit is 60. No production default, test assertion, timeout, or retry policy was changed. This is a functional regression pass under the test budget, not a 39-test pass under the default budget."
+}

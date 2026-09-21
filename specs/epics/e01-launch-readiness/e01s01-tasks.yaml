@@ -1,0 +1,95 @@
+story_id: e01s01
+title: Remove generated topics without losing manual edits
+spec: e01s01-safe-removal.md
+status: passing
+bcps: 8
+tasks:
+  - id: 1
+    description: >-
+      Create the isolated baseline, check runtime prerequisites,
+      and record existing failures before edits.
+    risk: P0
+    security: low
+    status: passing
+    evidence: specs/verifications/e01s01-task1.md
+    verify: >-
+      (cd backend && python3 -m pytest --cov-fail-under=95 &&
+      python3 -m ruff check . && python3 manage.py check &&
+      python3 manage.py makemigrations --check --dry-run) &&
+      (cd frontend && npm test -- --run && npm run lint && npm run build)
+    allure: {severity: critical, categories: [baseline]}
+  - id: 2
+    description: >-
+      Add a regression first; persist versioned stable sections and their
+      generated baselines through template creation and save/reload.
+    risk: P0
+    security: medium
+    status: passing
+    evidence: specs/verifications/e01s01-task2.md
+    verify: >-
+      (cd backend && python3 -m pytest --no-cov api/test_catalog.py
+      api/test_rendering_boundary.py api/test_document_contract.py
+      api/test_document_migrations.py api/test_revision_api.py
+      api/test_generation_contract.py) &&
+      (cd frontend && npm test -- --run src/storage
+      src/App.test.jsx src/Phase1Journey.test.jsx)
+    review_gate: >-
+      No new security findings in affected paths; validate all incoming
+      section metadata and source limits.
+    allure: {severity: critical, categories: [persistence, Security Review]}
+  - id: 3
+    description: >-
+      Implement atomic safe removal for formulas, categories, and classes,
+      including confirmation, cancellation, revision checks, and undo.
+    risk: P0
+    security: low
+    status: passing
+    evidence: specs/verifications/e01s01-task3.md
+    verify: >-
+      cd frontend && npm test -- --run src/hooks/formulas.test.js
+      src/hooks/latex.test.jsx src/components/CreateCheatSheet.test.jsx
+      src/Phase1Journey.test.jsx
+    allure: {severity: critical, categories: [editor, data-retention]}
+  - id: 4
+    description: >-
+      Add raw, legacy, damaged-marker, catalog-change, stale-confirmation,
+      and recovery regressions; preserve content on unsafe input.
+    risk: P0
+    security: medium
+    status: passing
+    evidence: specs/verifications/e01s01-task4.md
+    verify: >-
+      (cd backend && python3 -m pytest --no-cov
+      api/test_rendering_boundary.py api/test_document_contract.py
+      api/test_document_migrations.py api/test_compilation_permissions.py
+      api/test_sidecar_admission.py) &&
+      (cd frontend && npm test -- --run src/hooks/latex.test.jsx src/storage
+      src/App.test.jsx src/Phase1Journey.test.jsx)
+    review_gate: >-
+      No new security findings in affected paths; malformed metadata
+      must never authorize source deletion.
+    allure: {severity: critical, categories: [recovery, Security Review]}
+  - id: 5
+    description: >-
+      Extend the real-stack journey for removal confirmation and reload;
+      run complete checks and obtain an independent review.
+    risk: P0
+    security: medium
+    status: passing
+    implementation_verification: passing
+    independent_review: dual_review_passed
+    evidence: specs/verifications/e01s01-task5.md
+    repair_evidence: specs/verifications/e01s01-immediate-save-repair.md
+    verify: >-
+      (cd backend && python3 -m pytest --cov-fail-under=95 &&
+      python3 -m ruff check . &&
+      python3 manage.py makemigrations --check --dry-run) &&
+      (cd frontend && npm test -- --run && npm run lint && npm run build &&
+      npm run test:e2e -- e2e/real-stack.spec.js)
+    prerequisites: >-
+      Approved installed browser/compiler assets, running real stack,
+      and an available independent reviewer.
+    review_gate: >-
+      No new security findings in affected paths and no unresolved
+      blocking review findings.
+    allure: {severity: critical, categories: [integration, Security Review]}

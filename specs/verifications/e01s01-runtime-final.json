@@ -1,0 +1,59 @@
+{
+  "images": [
+    {
+      "Id": "sha256:194889db4ab16c7f868e2eaf0c7fe7a23e239c99ab5aa36cfdf39e1a39eb15a4",
+      "RepoTags": [
+        "texgen-e01s01-document-sections-compiler:latest"
+      ],
+      "RepoDigests": [
+        "texgen-e01s01-document-sections-compiler@sha256:194889db4ab16c7f868e2eaf0c7fe7a23e239c99ab5aa36cfdf39e1a39eb15a4"
+      ],
+      "Size": 70726972,
+      "Architecture": "arm64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:6eb0add3b77c081df18aa518ce43df58fdcc40f2e6d868a6fd08038dc7acd425",
+      "RepoTags": [
+        "postgres:15"
+      ],
+      "RepoDigests": [
+        "postgres@sha256:6eb0add3b77c081df18aa518ce43df58fdcc40f2e6d868a6fd08038dc7acd425"
+      ],
+      "Size": 156736250,
+      "Architecture": "arm64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:bcfe8ba81994e7268abb456fbb9da0b1c43a87f65c1dfab7957dd040b449e421",
+      "RepoTags": [
+        "texgen-e01s01-document-sections-backend:latest"
+      ],
+      "RepoDigests": [
+        "texgen-e01s01-document-sections-backend@sha256:bcfe8ba81994e7268abb456fbb9da0b1c43a87f65c1dfab7957dd040b449e421"
+      ],
+      "Size": 447683746,
+      "Architecture": "arm64",
+      "Os": "linux"
+    },
+    {
+      "Id": "sha256:d3eb0f082a32c908952b929bf44fd9a59881ddf8631459a0eddb91f8664150cd",
+      "RepoTags": [
+        "texgen-e01s01-document-sections-frontend:latest"
+      ],
+      "RepoDigests": [
+        "texgen-e01s01-document-sections-frontend@sha256:d3eb0f082a32c908952b929bf44fd9a59881ddf8631459a0eddb91f8664150cd"
+      ],
+      "Size": 189825794,
+      "Architecture": "arm64",
+      "Os": "linux"
+    }
+  ],
+  "disk_kib": "132320\tbackend/.venv\n270496\tfrontend/node_modules\n540268\t.pi/playwright-browsers\n81680\tbackend/.compiler-assets",
+  "host_python": "Python 3.14.4",
+  "host_node": "v24.15.0",
+  "host_npm": "11.12.1",
+  "container_python_django": "3.14.3 6.1.1",
+  "container_node": "v24.15.0",
+  "tectonic": "tectonic 0.15.0Tectonic 0.15.0"
+}

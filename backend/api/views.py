@@ -21,6 +21,7 @@ from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
 
 from .models import Template, CheatSheet, PracticeProblem
+from .request_throttle import SharedRequestThrottle
 from .serializers import TemplateSerializer, CheatSheetSerializer, PracticeProblemSerializer, UserSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .formula_data import get_classes_with_details
@@ -87,6 +88,17 @@ class CompileUserThrottle(UserRateThrottle):
 
     def get_rate(self):
         return settings.COMPILER_USER_RATE
+
+    def allow_request(self, request, view):
+        shared = SharedRequestThrottle()
+        self.shared_wait = None
+        if not shared.allow_request(request, view):
+            self.shared_wait = shared.wait()
+            return False
+        return super().allow_request(request, view)
+
+    def wait(self):
+        return self.shared_wait or super().wait()
 
 
 def get_compile_limits():
@@ -321,6 +333,7 @@ class RegisterView(CreateAPIView):
 
 
 @api_view(["GET"])
+@throttle_classes([])
 def health_check(request):
     return Response({"status": "ok"})
 
@@ -368,13 +381,13 @@ def generate_sheet(request):
     if len(selections) > 1000 or len({selection["formula_id"] for selection in selections}) != len(selections):
         return Response({"formula_selections": "Duplicate formula selection or too many selections."}, status=400)
     selected_formulas = [
-        {"class_name": record["class"], "category": record["category"], "name": record["name"], "latex": record["latex"]}
+        {"id": record["id"], "class_name": record["class"], "category": record["category"], "name": record["name"], "latex": record["latex"]}
         for selection in selections
         if (record := get_formula_by_id(selection["formula_id"]))
     ]
     
     tex_code = build_latex_for_formulas(selected_formulas, columns, font_size, margins, spacing, orientation)
-    return Response({"tex_code": tex_code})
+    return Response({"tex_code": tex_code, "generated_sections": {"version": 1, "baseline": tex_code} if selected_formulas else None})
 
 
 @api_view(["POST"])
@@ -387,8 +400,8 @@ def compile_latex(request):
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
     source_mode, source_mode_error = get_compile_source_mode(request.data)
-    if source_mode_error:
-        return Response({"error": source_mode_error}, status=400)
+    if source_mode_error or not isinstance(source_mode, str):
+        return Response({"error": source_mode_error or "Invalid source mode"}, status=400)
     normalize_only = is_truthy(request.data.get("normalize_only"))
     columns = request.data.get("columns", DEFAULT_COLUMNS)
     font_size = request.data.get("font_size", DEFAULT_FONT_SIZE)
@@ -656,6 +669,7 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
             "template_id": template.pk,
             "source_latex": template.latex_content,
             "source_mode": template.source_mode,
+            "generated_sections": template.generated_sections,
             "layout": {
                 "columns": template.default_columns,
                 "font_size": template.default_font_size,

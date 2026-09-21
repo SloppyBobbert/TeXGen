@@ -15,6 +15,7 @@ export const toCanonicalDocument = (sheet) => {
     title: sheet.title ?? '',
     source_mode: sheet.contentSource === 'manual' ? 'raw' : (sheet.contentSource ?? 'empty'),
     source_latex: sheet.content ?? '',
+    ...(has(sheet, 'generatedSections') ? { generated_sections: sheet.generatedSections } : {}),
     layout: {
       columns: sheet.columns ?? 4,
       font_size: sheet.fontSize ?? '9pt',
@@ -42,6 +43,7 @@ export const fromServerDocument = (document = {}) => {
     baseRevision: canonical ? document.revision : undefined,
     title: document.title,
     content: canonical && has(document, 'source_latex') ? document.source_latex : document.latex_content,
+    generatedSections: document.generated_sections ?? null,
     contentSource: canonical && has(document, 'source_mode')
       ? (document.source_mode === 'raw' ? 'manual' : document.source_mode)
       : document.content_source,

@@ -44,29 +44,39 @@ jobs:
         with:
           python-version: "3.14"
           cache: "pip"
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements.lock
+            backend/requirements-bootstrap.txt
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m venv .venv
+          .venv/bin/python -m pip install --only-binary=:all: --no-deps --require-hashes -r requirements-bootstrap.txt
+          .venv/bin/python -m pip install -r requirements.txt -c requirements.lock
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint Python
         run: ruff check .
 
       - name: Security audit
-        run: pip-audit -r requirements.txt
+        run: python -m pip_audit --local
 
       - name: Run tests
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/backend_db
         run: pytest -v --cov-fail-under=95
 
+      - name: Check migration drift
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/backend_db
+        run: python manage.py makemigrations --check --dry-run
+
       - name: Run PostgreSQL quota concurrency evidence
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/backend_db
           TEXGEN_REQUIRE_POSTGRES_CONCURRENCY: "1"
-        run: pytest -v tests/test_compile_quota_postgres.py
+        run: pytest --no-cov -v tests/test_compile_quota_postgres.py tests/test_request_throttle_postgres.py
 
   frontend:
     runs-on: ubuntu-latest
@@ -87,13 +97,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Security audit
+        run: npm audit --audit-level=low
 
       - name: Run tests
         run: npm test -- --run
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings=0
 
       - name: Build
         run: npm run build
@@ -101,6 +114,8 @@ jobs:
   browser-e2e:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.pi/playwright-browsers
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -115,11 +130,11 @@ jobs:
 
       - name: Install browser test dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Install Chromium
         working-directory: ./frontend
-        run: npx playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
 
       - name: Stage verified ARM64 compiler assets
         run: |
@@ -134,46 +149,54 @@ jobs:
           tar --extract --gzip --file "$archive" --directory backend/.compiler-assets --no-same-owner
           python3 -S backend/compiler_sidecar/container/verify_assets.py backend/.compiler-assets
 
-      - name: Build and start the real stack
-        run: |
-          printf '%s\n' 'services:' '  backend:' '    environment:' '      DJANGO_SECRET_KEY: ci-only-django-secret-key-not-for-production' > /tmp/texgen-ci-compose.yml
-          docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml up -d --build
-          wait_for_url() {
-            local url="$1"
-            local service="$2"
-            # 30 attempts × (2-second request + 2-second delay) bounds each probe to about 120 seconds.
-            for attempt in {1..30}; do
-              if curl --fail --silent --show-error --connect-timeout 1 --max-time 2 "$url"; then
-                return 0
-              fi
-              printf 'Waiting for %s (%d/30)...\n' "$service" "$attempt" >&2
-              if (( attempt < 30 )); then
-                sleep 2
-              fi
-            done
-            printf 'Timed out waiting for %s at %s after about 120 seconds.\n' "$service" "$url" >&2
-            return 1
-          }
-          wait_for_url http://localhost:8000/api/health/ backend &
-          backend_wait_pid=$!
-          wait_for_url http://localhost:5173/ frontend &
-          frontend_wait_pid=$!
-          backend_wait_status=0
-          frontend_wait_status=0
-          wait "$backend_wait_pid" || backend_wait_status=$?
-          wait "$frontend_wait_pid" || frontend_wait_status=$?
-          (( backend_wait_status == 0 && frontend_wait_status == 0 ))
+      - name: Validate the supported development topology after asset verification
+        run: docker compose -f docker-compose.yml config --quiet
 
-      - name: Run real browser journey
-        working-directory: ./frontend
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:5173
-        run: npx playwright test e2e/real-stack.spec.js
+      - name: Prepare disposable production fixtures and images
+        run: |
+          umask 077
+          mkdir -p .pi
+          python3 - <<'PY'
+          import os, secrets
+          from pathlib import Path
+          project = f"texgen-e01s03-ci-{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+          password = secrets.token_hex(24)
+          values = {
+              'DJANGO_SECRET_KEY': secrets.token_urlsafe(48),
+              'JWT_SIGNING_KEY': secrets.token_urlsafe(48),
+              'POSTGRES_PASSWORD': secrets.token_hex(24),
+              'POSTGRES_APP_PASSWORD': password,
+              'DATABASE_URL': f'postgres://texgen:{password}@db:5432/texgen',
+              'DJANGO_ALLOWED_HOSTS': 'localhost,127.0.0.1',
+              'TEXGEN_LOCAL_HTTP': '1',
+              'TEXGEN_HTTP_PORT': '5173',
+              'TEXGEN_BACKEND_IMAGE': 'texgen-e01s03-backend:test',
+              'TEXGEN_FRONTEND_IMAGE': 'texgen-e01s03-frontend:test',
+              'TEXGEN_COMPILER_IMAGE': 'texgen-e01s03-compiler:test',
+          }
+          Path('.pi/production-test.project').write_text(project + '\n')
+          Path('.pi/production-test.env').write_text(''.join(f'{key}={value}\n' for key, value in values.items()))
+          PY
+          docker pull postgres@sha256:6eb0add3b77c081df18aa518ce43df58fdcc40f2e6d868a6fd08038dc7acd425
+          docker build --target production -t texgen-e01s03-backend:test backend
+          docker build --target production -t texgen-e01s03-frontend:test frontend
+          docker build -f backend/compiler_sidecar/Dockerfile -t texgen-e01s03-compiler:test backend
+
+      - name: Verify production runtime and all browser journeys without downloads
+        run: bash scripts/verify-production.sh
 
       - name: Show stack logs on failure
         if: failure()
-        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml logs
+        run: |
+          if test -s .pi/production-test.project && test -s .pi/production-test.env; then
+            docker compose --env-file .pi/production-test.env -p "$(<.pi/production-test.project)" -f docker-compose.production.yml logs --tail=100
+          fi
 
-      - name: Tear down real stack
+      - name: Tear down the owned test stack
         if: always()
-        run: docker compose -f docker-compose.yml -f /tmp/texgen-ci-compose.yml down --volumes --remove-orphans
+        run: |
+          if test -s .pi/production-test.project && test -s .pi/production-test.env; then
+            project=$(<.pi/production-test.project)
+            [[ "$project" == texgen-e01s03-ci-* ]]
+            docker compose --env-file .pi/production-test.env -p "$project" -f docker-compose.production.yml down --volumes --remove-orphans
+          fi

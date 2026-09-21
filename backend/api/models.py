@@ -21,6 +21,7 @@ class Template(models.Model):
     revision = models.PositiveBigIntegerField(default=1)
     source_mode = models.CharField(max_length=20, choices=SOURCE_MODE_CHOICES, default="empty")
     formula_selections = models.JSONField(default=list, blank=True)
+    generated_sections = models.JSONField(null=True, blank=True, default=None)
     default_font_size = models.CharField(max_length=10, default="9pt")
     default_spacing = models.CharField(max_length=10, default="small")
     default_orientation = models.CharField(max_length=20, default="portrait")
@@ -74,6 +75,7 @@ class CheatSheet(models.Model):
     revision = models.PositiveBigIntegerField(default=1)
     source_mode = models.CharField(max_length=20, choices=SOURCE_MODE_CHOICES, default="empty")
     formula_selections = models.JSONField(default=list, blank=True)
+    generated_sections = models.JSONField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -125,6 +127,12 @@ class PracticeProblem(models.Model):
 
     def __str__(self):
         return f"Problem {self.order} - {self.cheat_sheet.title}"
+
+
+class RequestThrottleWindow(models.Model):
+    key = models.CharField(max_length=64, primary_key=True)
+    window_start = models.PositiveBigIntegerField(db_index=True)
+    count = models.PositiveIntegerField(default=0)
 
 
 class CompileQuotaWindow(models.Model):

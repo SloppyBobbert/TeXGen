@@ -1,0 +1,12 @@
+{
+  "head": "65a4938f11bd3b3817e3ba98b2b5e8fe1afa9783",
+  "tracked_diff_sha256": "27ef2b42fe10c31a99a22248985e49ab445bac5e8695971107b277a1e5c1d195",
+  "new_source_files": {
+    "backend/api/document_sections.py": "1138c3569b0864a56ba69d4be9c4ef34b8ef3acc3b0fbc85b054f83da4860716",
+    "backend/api/migrations/0015_cheatsheet_generated_sections_and_more.py": "dd68d8e32539c5768904e813d84edc0145048d33128c57b998606301284f8927",
+    "backend/api/test_document_sections.py": "d80f1b58aad4ee8508a9073bcdf5859736f69457f9597c6ea8fb312e1505ecb0",
+    "frontend/src/storage/documentSections.js": "f1813dd2ce8f3958819f34e67b4bbfc6c593c340c6fc29fa58f359ec668b34f4",
+    "frontend/src/storage/documentSections.test.js": "29462bc2c228aad6128101220635980c5c884334a3ac73c7a469ad61c0cde833"
+  },
+  "combined_identity": "986ff58569ab9d047eab543822bb001cb8341a13b28bbf383b080eb0b5e5810d"
+}

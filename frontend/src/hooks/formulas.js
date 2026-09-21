@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useEditorSession } from './editorSession';
+import { useApiRequest } from './useApiRequest';
 import { migrateLegacyDraft, readDraft } from '../storage/draftStore';
 
 const STORAGE_KEY = 'cheatSheetData';
@@ -116,14 +118,14 @@ function hasArray(object, key) {
   return Array.isArray(object?.[key]);
 }
 
-export function useFormulas(initialData, draftIdentity) {
+export function useFormulas(initialData, draftIdentity, onRemove) {
+  const apiRequest = useApiRequest();
   const identity = draftIdentityFor(initialData, draftIdentity);
   const storageKey = storageKeyFor(initialData, draftIdentity);
   const [classesData, setClassesData] = useState([]);
-  const [selectedClasses, setSelectedClasses] = useState({});
-  const [selectedCategories, setSelectedCategories] = useState({});
-  const [groupedFormulas, setGroupedFormulas] = useState([]);
-  const [formulaSelections, setFormulaSelections] = useState([]);
+  const { document, update } = useEditorSession({ selectedFormulas: [], formulaSelections: [] });
+  const { selectedFormulas = [], formulaSelections = [] } = document;
+  const { selectedClasses, selectedCategories, groupedFormulas } = useMemo(() => buildSelectionState(selectedFormulas), [selectedFormulas]);
   const [formulaSelectionError, setFormulaSelectionError] = useState(null);
   const [isFormulaSelectionInitialized, setIsFormulaSelectionInitialized] = useState(false);
   const initialLoadDone = useRef(false);
@@ -141,7 +143,7 @@ export function useFormulas(initialData, draftIdentity) {
       : (hasArray(initialData, 'selected_formulas') ? initialData.selected_formulas : null);
     let classesRequest = classesRequestRef.current;
     if (!classesRequest) {
-      classesRequest = fetch('/api/classes/').then((res) => res.json());
+      classesRequest = apiRequest('/api/classes/').then((res) => res.json());
       classesRequestRef.current = classesRequest;
       const clearRequest = () => {
         if (classesRequestRef.current === classesRequest) classesRequestRef.current = null;
@@ -195,13 +197,9 @@ export function useFormulas(initialData, draftIdentity) {
           else if (records.length) error = error || { code: 'unresolved_legacy_formula', message: 'Legacy formula selections could not be resolved to stable formula IDs.', recoverable: true };
         }
 
-        const restored = buildSelectionState(records);
         initialLoadDone.current = true;
         setClassesData(classes);
-        setSelectedClasses(restored.selectedClasses);
-        setSelectedCategories(restored.selectedCategories);
-        setGroupedFormulas(restored.groupedFormulas);
-        setFormulaSelections(source === 'canonical' ? selections : (legacyRecordsResolved ? canonicalSelections(records) : []));
+        update({ selectedFormulas: records, formulaSelections: source === 'canonical' ? selections : (legacyRecordsResolved ? canonicalSelections(records) : []) });
         setFormulaSelectionError(error);
         setIsFormulaSelectionInitialized(true);
       })
@@ -209,16 +207,12 @@ export function useFormulas(initialData, draftIdentity) {
         if (cancelled || initialLoadDone.current) return;
         console.error('Failed to fetch classes', cause);
         const fallback = initialLegacy || [];
-        const restored = buildSelectionState(fallback);
         initialLoadDone.current = true;
-        setSelectedClasses(restored.selectedClasses);
-        setSelectedCategories(restored.selectedCategories);
-        setGroupedFormulas(restored.groupedFormulas);
-        setFormulaSelections(initialCanonical || canonicalSelections(fallback));
+        update({ selectedFormulas: fallback, formulaSelections: initialCanonical || canonicalSelections(fallback) });
         setIsFormulaSelectionInitialized(true);
       });
     return () => { cancelled = true; };
-  }, [initialData, storageKey, identity]);
+  }, [initialData, storageKey, identity, update, apiRequest]);
 
   useEffect(() => {
     if (!initialLoadDone.current || identity == null) return;
@@ -230,14 +224,14 @@ export function useFormulas(initialData, draftIdentity) {
     saveToStorage(storageKey, { selectedClasses, selectedCategories, groupedFormulas });
   }, [selectedClasses, selectedCategories, groupedFormulas, storageKey, identity]);
 
-  const updateFromGrouped = useCallback((next) => {
-    const derived = buildSelectionState(flattenGroupedFormulas(next));
-    setSelectedClasses(derived.selectedClasses);
-    setSelectedCategories(derived.selectedCategories);
-    const ids = knownFormulaIds(classesData);
-    setFormulaSelections((previous) => selectionsForVisibleFormulas(previous, flattenGroupedFormulas(next), ids));
-    return next;
-  }, [classesData]);
+  const setGroupedFormulas = useCallback((value) => {
+    update((state) => {
+      const previous = buildSelectionState(state.selectedFormulas ?? []).groupedFormulas;
+      const next = typeof value === 'function' ? value(previous) : value;
+      const records = flattenGroupedFormulas(next);
+      return { selectedFormulas: records, formulaSelections: selectionsForVisibleFormulas(state.formulaSelections ?? [], records, knownFormulaIds(classesData)) };
+    });
+  }, [classesData, update]);
 
   const addFormulasToOrder = useCallback((className, categoryName, formulas) => {
     setGroupedFormulas((prev) => {
@@ -248,28 +242,36 @@ export function useFormulas(initialData, draftIdentity) {
       group.formulas.push(...formulas.filter((formula) => !group.formulas.some((item) => formulaId(item) === formulaId(formula)))
         .map((formula) => ({ ...formula, id: formula.id, formula_id: formula.id, class: className, category: categoryName, name: formula.name })));
       next[index] = group;
-      const derived = buildSelectionState(flattenGroupedFormulas(next));
-      setSelectedClasses(derived.selectedClasses);
-      setSelectedCategories(derived.selectedCategories);
-      const ids = knownFormulaIds(classesData);
-      setFormulaSelections((previous) => selectionsForVisibleFormulas(previous, flattenGroupedFormulas(next), ids));
       return next;
     });
-  }, [classesData]);
+  }, [setGroupedFormulas]);
+
+  const requestRemoval = useCallback((next) => {
+    const records = flattenGroupedFormulas(next);
+    const remaining = new Set(records.map(formulaId));
+    const removed = flattenGroupedFormulas(groupedFormulas).map(formulaId).filter((id) => !remaining.has(id));
+    const canonical = selectionsForVisibleFormulas(formulaSelections, records, knownFormulaIds(classesData));
+    const apply = () => setGroupedFormulas(next);
+    if (onRemove && removed.length) onRemove(removed, apply, { records, canonical });
+    else apply();
+  }, [classesData, formulaSelections, groupedFormulas, onRemove, setGroupedFormulas]);
+
+  const restoreSelections = useCallback((records, canonical) => {
+    update({ selectedFormulas: records, formulaSelections: canonical ?? canonicalSelections(records) });
+  }, [update]);
 
   const removeFormulasFromOrder = useCallback((className, categoryName) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.map((group) => group.class === className
-      ? { ...group, formulas: group.formulas.filter((formula) => formula.category !== categoryName) } : group).filter((group) => group.formulas.length)));
-  }, [updateFromGrouped]);
+    requestRemoval(groupedFormulas.map((group) => group.class === className
+      ? { ...group, formulas: group.formulas.filter((formula) => formula.category !== categoryName) } : group).filter((group) => group.formulas.length));
+  }, [groupedFormulas, requestRemoval]);
 
   const toggleClass = (className) => {
     if (selectedClasses[className]) {
-      setGroupedFormulas((prev) => updateFromGrouped(prev.filter((group) => group.class !== className)));
+      requestRemoval(groupedFormulas.filter((group) => group.class !== className));
       return;
     }
     const cls = classesData.find((item) => item.name === className);
     if (!cls) return;
-    setSelectedClasses((prev) => ({ ...prev, [className]: true }));
     cls.categories?.forEach((category) => addFormulasToOrder(className, category.name, category.formulas || []));
   };
 
@@ -281,35 +283,31 @@ export function useFormulas(initialData, draftIdentity) {
   };
 
   const removeClassFromOrder = useCallback((className) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.filter((group) => group.class !== className)));
-  }, [updateFromGrouped]);
-  const removeSingleFormula = useCallback((className, categoryName, formulaName) => {
-    setGroupedFormulas((prev) => updateFromGrouped(prev.map((group) => group.class !== className ? group : {
-      ...group, formulas: group.formulas.filter((formula) => !(formula.category === categoryName && formula.name === formulaName)),
-    }).filter((group) => group.formulas.length)));
-  }, [updateFromGrouped]);
+    requestRemoval(groupedFormulas.filter((group) => group.class !== className));
+  }, [groupedFormulas, requestRemoval]);
+  const removeSingleFormula = useCallback((className, categoryName, formulaName, id) => {
+    requestRemoval(groupedFormulas.map((group) => group.class !== className ? group : {
+      ...group, formulas: group.formulas.filter((formula) => id ? formulaId(formula) !== id : !(formula.category === categoryName && formula.name === formulaName)),
+    }).filter((group) => group.formulas.length));
+  }, [groupedFormulas, requestRemoval]);
   const selectAllClasses = useCallback(() => {
     const next = classesData.map((cls) => ({ class: cls.name, formulas: (cls.categories || []).flatMap((category) => (category.formulas || []).map((formula) => ({ ...formula, id: formula.id, formula_id: formula.id, class: cls.name, category: category.name, name: formula.name }))) })).filter((group) => group.formulas.length);
-    setGroupedFormulas(updateFromGrouped(next));
-  }, [classesData, updateFromGrouped]);
-  const deselectAllClasses = useCallback(() => { setGroupedFormulas(updateFromGrouped([])); }, [updateFromGrouped]);
+    setGroupedFormulas(next);
+  }, [classesData, setGroupedFormulas]);
+  const deselectAllClasses = useCallback(() => { requestRemoval([]); }, [requestRemoval]);
   const reorderClass = useCallback((oldIndex, newIndex) => setGroupedFormulas((prev) => {
     const next = [...prev]; const [removed] = next.splice(oldIndex, 1); next.splice(newIndex, 0, removed);
-    const ids = knownFormulaIds(classesData);
-    setFormulaSelections((previous) => selectionsForVisibleFormulas(previous, flattenGroupedFormulas(next), ids));
     return next;
-  }), [classesData]);
+  }), [setGroupedFormulas]);
   const reorderFormula = useCallback((className, oldIndex, newIndex) => setGroupedFormulas((prev) => {
     const next = prev.map((group) => group.class !== className ? group : { ...group, formulas: [...group.formulas] });
     const group = next.find((item) => item.class === className); if (!group) return prev;
     const [removed] = group.formulas.splice(oldIndex, 1); group.formulas.splice(newIndex, 0, removed);
-    const ids = knownFormulaIds(classesData);
-    setFormulaSelections((previous) => selectionsForVisibleFormulas(previous, flattenGroupedFormulas(next), ids));
     return next;
-  }), [classesData]);
+  }), [setGroupedFormulas]);
   const getSelectedFormulasList = () => flattenGroupedFormulas(groupedFormulas);
   const getFormulaSelectionsList = () => formulaSelections;
-  const clearSelections = () => { skipNextPersist.current = true; setGroupedFormulas(updateFromGrouped([])); setFormulaSelections([]); if (identity != null) localStorage.removeItem(storageKey); };
+  const clearSelections = () => { skipNextPersist.current = true; update({ selectedFormulas: [], formulaSelections: [] }); if (identity != null) localStorage.removeItem(storageKey); };
 
-  return { classesData, selectedClasses, selectedCategories, groupedFormulas, formulaSelections, formulaSelectionError, toggleClass, toggleCategory, getSelectedFormulasList, getFormulaSelectionsList, clearSelections, reorderClass, reorderFormula, removeClassFromOrder, removeSingleFormula, selectAllClasses, deselectAllClasses, selectedCount: getSelectedFormulasList().length, hasSelectedClasses: Object.keys(selectedClasses).length > 0, isFormulaSelectionInitialized };
+  return { restoreSelections, classesData, selectedClasses, selectedCategories, groupedFormulas, formulaSelections, formulaSelectionError, toggleClass, toggleCategory, getSelectedFormulasList, getFormulaSelectionsList, clearSelections, reorderClass, reorderFormula, removeClassFromOrder, removeSingleFormula, selectAllClasses, deselectAllClasses, selectedCount: getSelectedFormulasList().length, hasSelectedClasses: Object.keys(selectedClasses).length > 0, isFormulaSelectionInitialized };
 }

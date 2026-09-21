@@ -6,6 +6,22 @@ Approved: August 25, 2026
 
 Prepare TeXGen for a small public production launch without a full rewrite. The work should make template editing, topic removal, manual LaTeX editing, compilation, saving, and reloading deterministic while improving security, maintainability, accessibility, and deployment safety.
 
+## Verified PR8 handoff
+
+The approved execution checklist is `specs/CONTINUOUS_PLAN.md` and its three e01 stories. It supersedes the historical checklist below; it explicitly avoids cosmetic rewrites of working code.
+
+Implementation commit: `c238dd2de041525214cb383d67080d080aab5524`, draft [PR #8](https://github.com/SloppyBobbert/TeXGen/pull/8). [CI 35576550902](https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902) passed backend, frontend and browser-e2e for that exact commit.
+
+- e01s01: stable section identities, conservative removal/confirmation, raw authority and durable history/save/reload. Evidence: `specs/verifications/e01s01-task5.md`.
+- e01s02: shared editor ownership, request cancellation/replay policy, mobile/keyboard workflows and reduced motion. Evidence: `specs/verifications/e01s02-acceptance.md`.
+- e01s03: private production runtime, restricted database role, shared throttling, unchanged compiler isolation, dependency controls, no-download verification and failure recovery. Evidence: `specs/verifications/e01s03-acceptance.md` and `e01s03-round4-checks.md` in that directory.
+- Final local checks: 478 backend passes, 96.88% coverage, seven required PostgreSQL cases separately, 244 frontend tests and 39 browser tests. The functional browser budget was 600 and was restored/checked at 60. The seven SQLite skips were not counted as passes.
+- Production independent review: both 95%, zero must-fix. Accepted source fingerprint: `6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8`.
+
+The shared rendering implementation already met the service-boundary requirement; no extra refactor was needed. Broader component/CSS reshaping in the old checklist is not a reason to rewrite verified behavior. Two non-blocking verifier findings remain: ambient proxy handling and exact temporary-user cleanup after cancellation. Both are recorded in the acceptance and handoff documents.
+
+The authorized release-candidate work is complete. **No merge, auto-merge or public deployment is approved.** Public TLS, backups/restore, operational monitoring and deployment choices remain separate release concerns. The historical phase checklists and checkpoint claims below are retained for provenance, not as current task status.
+
 ## Product decisions
 
 - Require sign-in for PDF compilation and downloads.

@@ -1,0 +1,145 @@
+# Local production verification only. Images must already exist.
+x-app-environment: &app-environment
+  DJANGO_SETTINGS_MODULE: cheat_sheet.production
+  DJANGO_DEBUG: "False"
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY}
+  JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY}
+  DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Set DJANGO_ALLOWED_HOSTS}
+  TEXGEN_LOCAL_HTTP: ${TEXGEN_LOCAL_HTTP:-0}
+  REQUEST_THROTTLE_ANON_LIMIT: ${REQUEST_THROTTLE_ANON_LIMIT:-60}
+  REQUEST_THROTTLE_USER_LIMIT: ${REQUEST_THROTTLE_USER_LIMIT:-600}
+  COMPILER_BACKEND: sidecar
+  COMPILER_SIDECAR_SOCKET: /run/texgen/compiler.sock
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+
+x-app: &app
+  image: ${TEXGEN_BACKEND_IMAGE:?Set the prepared backend image}
+  pull_policy: never
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 64
+  mem_limit: 512m
+  memswap_limit: 512m
+  cpus: "1.0"
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700
+  environment: *app-environment
+  networks: [application]
+
+services:
+  db:
+    image: postgres@sha256:6eb0add3b77c081df18aa518ce43df58fdcc40f2e6d868a6fd08038dc7acd425
+    pull_policy: never
+    restart: "on-failure:3"
+    environment:
+      POSTGRES_DB: texgen
+      POSTGRES_USER: texgen_bootstrap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the database setup password}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set the application database password}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./scripts/init-production-db.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    networks: [application]
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 128
+    cpus: "1.0"
+    healthcheck:
+      test: [CMD, pg_isready, -U, texgen_bootstrap, -d, texgen]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: [sh, -c, "python manage.py migrate --noinput && python manage.py collectstatic --noinput"]
+    volumes:
+      - django_static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    <<: *app
+    restart: "on-failure:3"
+    stop_grace_period: 35s
+    volumes:
+      - proxy_socket:/run/texgen-web
+      - compiler_socket:/run/texgen:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      compiler:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --show-error, --max-time, "4", --unix-socket, /run/texgen-web/app.sock, "http://localhost/api/health/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  compiler:
+    image: ${TEXGEN_COMPILER_IMAGE:?Set the prepared compiler image}
+    pull_policy: never
+    restart: "on-failure:3"
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /work:rw,noexec,nosuid,nodev,size=64m,mode=700,uid=10001,gid=10001
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: "0.50"
+    volumes:
+      - compiler_socket:/run/texgen
+    healthcheck:
+      test: [CMD, python, -S, -m, compiler_sidecar.container.healthcheck, /run/texgen/compiler.sock]
+      interval: 30s
+      timeout: 45s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    image: ${TEXGEN_FRONTEND_IMAGE:?Set the prepared frontend image}
+    pull_policy: never
+    user: "10001:10001"
+    restart: "on-failure:3"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 16
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: "0.50"
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,uid=10001,gid=10001,mode=0700
+    ports:
+      - "127.0.0.1:${TEXGEN_HTTP_PORT:-0}:8080"
+    volumes:
+      - proxy_socket:/run/texgen-web:ro
+      - django_static:/srv/django-static:ro
+    networks: [edge]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  application:
+  edge:
+
+volumes:
+  database:
+  proxy_socket:
+  compiler_socket:
+  django_static:

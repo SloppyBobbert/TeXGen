@@ -1,0 +1,19 @@
+id: e01
+title: Complete safe editing and launch readiness
+status: passing
+stories:
+  - id: e01s01
+    title: Remove generated topics without losing manual edits
+    bcps: 8
+    delta: MODIFIED
+    depends_on: []
+  - id: e01s02
+    title: Make editor actions consistent and accessible
+    bcps: 8
+    delta: MODIFIED
+    depends_on: [e01s01]
+  - id: e01s03
+    title: Verify production readiness and prepare handoff
+    bcps: 8
+    delta: MODIFIED
+    depends_on: [e01s02]

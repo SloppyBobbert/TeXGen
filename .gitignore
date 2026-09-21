@@ -36,7 +36,8 @@ frontend/dist/
 **/.DS_Store
 Thumbs.db
 
-# Agent/Session files
+# Agent/Session files (includes local verification credentials and browser traces)
+.pi/
 AGENTS.md
 session-*.md
 

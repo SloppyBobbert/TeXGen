@@ -1,3 +1,19 @@
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10000;
+  padding: 0.75rem 1rem;
+  color: #111;
+  background: #fff;
+  border: 2px solid #111;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 /* ==========================================================================
    DESIGN TOKENS
    ========================================================================== */
@@ -1433,7 +1449,22 @@ label {
   background: color-mix(in srgb, var(--box-bg) 86%, var(--primary) 14%);
 }
 
-.class-group-header:active {
+.class-group-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drag-handle:active {
   cursor: grabbing;
 }
 
@@ -1485,10 +1516,10 @@ label {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  cursor: grab;
-  touch-action: none;
+  cursor: default;
+  touch-action: pan-y;
   user-select: none;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .sortable-formula-item:hover {
@@ -1507,6 +1538,12 @@ label {
 }
 
 .drag-handle {
+  border: 0;
+  background: transparent;
+  min-width: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
+  touch-action: none;
   padding: 0 0.4rem;
   color: var(--text-muted);
   font-size: 1rem;
@@ -3585,4 +3622,13 @@ select:focus:not(:focus-visible) {
 
 .pdf-scroll-top-btn:active {
   transform: translateX(-40px) scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

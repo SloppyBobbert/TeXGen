@@ -1,0 +1,41 @@
+feature_name: TeXGen launch readiness
+core_value: Users can edit, remove topics, compile, and recover sheets without losing manual content.
+summary: >-
+  Complete the unfinished document, editor, accessibility, and production-readiness work.
+  Preserve the merged compiler security controls and existing working behavior.
+  Prepare a verified release candidate without publishing or deploying it.
+in_scope:
+  - story: e01s01
+    outcome: Safe topic removal, stable content identity, manual-edit confirmation, and lossless save/reload.
+  - story: e01s02
+    outcome: Consistent editor actions and requests, with usable mobile and keyboard workflows.
+  - story: e01s03
+    outcome: Verified production build controls, CI coverage, and a release handoff.
+out_of_scope:
+  - item: Framework replacement, general LaTeX parsing, and broad visual redesign.
+    reason: Not needed for the supported workflows.
+  - item: Anonymous compilation.
+    reason: The current approved product requires sign-in.
+  - item: New queues, microservices, or state-management packages without demonstrated need.
+    reason: Existing tools should cover this work.
+  - item: Commit, push, PR publication, merge, and deployment.
+    reason: Require separate approval.
+  - item: Unapproved installations, downloads, paid services, and production data changes.
+    reason: Require explicit owner control.
+constraints:
+  - Preserve manual edits and require confirmation before deleting edited topic content.
+  - Keep raw source authoritative and retain legacy documents without silent conversion.
+  - Preserve ownership, staff-only template writes, compiler isolation, and quota admission.
+  - Preserve unrelated worktree changes.
+  - Recheck existing behavior before implementing unchecked items from the old plan.
+success_criteria:
+  - Untouched topic content can be removed without changing unrelated content.
+  - Edited topic removal requires confirmation; cancellation changes nothing; removal is reversible.
+  - Content, layout, selections, and recovery state survive save and reload.
+  - Stale asynchronous work cannot restore cleared or replaced content.
+  - Mobile and keyboard journeys pass.
+  - Final tests and production checks pass on the final source revision.
+references:
+  - ../CONTINUOUS_PLAN.md
+  - ../../docs/REFACTORING_PLAN.md
+  - ../../docs/COMPILER_SUPPORT.md

@@ -4,8 +4,15 @@ from pathlib import Path
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 
-
 SETTINGS_PATH = Path(__file__).parents[1] / "cheat_sheet" / "settings.py"
+
+
+@pytest.mark.parametrize(("debug", "connection_age"), [("True", 0), ("False", 600)])
+def test_database_connections_close_per_request_in_development_only(monkeypatch, debug, connection_age):
+    monkeypatch.setenv("DJANGO_DEBUG", debug)
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "settings-regression-test-only")
+    loaded = runpy.run_path(str(SETTINGS_PATH))
+    assert loaded["DATABASES"]["default"]["CONN_MAX_AGE"] == connection_age
 
 
 @pytest.mark.parametrize(

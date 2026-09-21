@@ -45,7 +45,10 @@ class SettingsCompilerSelector:
         if backend == "disabled":
             raise CompilerUnavailable("compiler is disabled")
         if backend == "sidecar":
-            return SidecarCompilerClient(settings.COMPILER_SIDECAR_SOCKET)
+            return SidecarCompilerClient(
+                settings.COMPILER_SIDECAR_SOCKET,
+                admission_timeout=getattr(settings, "COMPILER_ADMISSION_TIMEOUT_SECONDS", None),
+            )
         if backend == "local":
             if not settings.DEBUG:
                 raise CompilerUnavailable("local compiler is disabled outside DEBUG")
