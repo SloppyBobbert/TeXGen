@@ -82,10 +82,28 @@ def test_unknown_or_duplicate_formula_ids_are_rejected(auth_client):
 
 
 @pytest.mark.django_db
-def test_classes_include_stable_formula_ids(auth_client):
-    response = auth_client.get("/api/classes/")
-    formulas = [formula for class_data in response.data["classes"] for category in class_data.get("categories", []) for formula in category.get("formulas", [])]
+def test_public_classes_include_stable_ids_and_normal_and_special_shapes():
+    response = APIClient().get("/api/classes/")
+    assert response.status_code == 200
+    classes = response.data["classes"]
+    formulas = [formula for class_data in classes for category in class_data.get("categories", []) for formula in category.get("formulas", [])]
     assert formulas and all("id" in formula for formula in formulas)
+    algebra = next(item for item in classes if item["name"] == "ALGEBRA I")
+    assert "is_special" not in algebra
+    assert isinstance(algebra["categories"], list)
+    linear = next(item for item in algebra["categories"] if item["name"] == "Linear Equations")
+    slope = next(item for item in linear["formulas"] if item["name"] == "Slope Formula")
+    assert slope["id"] == "algebra-i.slope-formula"
+    assert slope["latex"] == r"m=\frac{y_2-y_1}{x_2-x_1}"
+    unit_circle = next(item for item in classes if item["name"] == "UNIT CIRCLE")
+    assert unit_circle["is_special"] is True
+    assert len(unit_circle["categories"]) == 1
+    category = unit_circle["categories"][0]
+    assert category["name"] == "UNIT CIRCLE"
+    assert len(category["formulas"]) == 1
+    formula = category["formulas"][0]
+    assert formula["name"] == "Unit Circle (Key Angles)"
+    assert "tabular" in formula["latex"]
 
 
 @pytest.mark.django_db

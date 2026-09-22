@@ -90,6 +90,19 @@ def test_formula_rendering_preserves_legacy_structure_except_marker():
 \\end{document}"""
 
 
+def test_formula_group_headings_appear_once_and_preserve_formula_order():
+    rendered = build_latex_for_formulas([
+        {"class_name": "ALGEBRA I", "category": "Linear", "name": "First", "latex": "x=1"},
+        {"class_name": "ALGEBRA I", "category": "Linear", "name": "Second", "latex": "x=2"},
+        {"class_name": "ALGEBRA I", "category": "Quadratics", "name": "Third", "latex": "x^2=3"},
+    ])
+    for heading in ("ALGEBRA I", "Linear", "Quadratics"):
+        assert rendered.count(r"\noindent " + heading + r"\par") == 1
+    assert rendered.index("% Formula Block: First") < rendered.index("% Formula Block: Second")
+    assert rendered.index("% Formula Block: Second") < rendered.index("% Formula Block: Third")
+    assert rendered.count(r"\begin{flushleft}") == rendered.count(r"\end{flushleft}") == 2
+
+
 def test_complete_raw_document_is_preserved_byte_for_byte_without_problems():
     source = "\\documentclass{article}\n\\begin{document}\nRaw $x_1$ & text\n\\end{document}"
 

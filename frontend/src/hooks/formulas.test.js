@@ -249,6 +249,9 @@ describe('useFormulas hook', () => {
     await vi.waitFor(() => expect(result.current.groupedFormulas).toHaveLength(1));
 
     expect(result.current.groupedFormulas[0].formulas[0].name).toBe('Quadratic Formula');
+    expect(result.current.selectedClasses.Algebra).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Quadratics']).toBe(true);
+    expect(result.current.selectedCount).toBe(1);
     expect(mockLocalStorage.getItem('cheatSheetData:unrelated')).toContain('Area of Circle');
   });
 
@@ -335,6 +338,10 @@ describe('useFormulas hook', () => {
     await vi.waitFor(() => expect(result.current.isFormulaSelectionInitialized).toBe(true));
 
     expect(result.current.getSelectedFormulasList()[0]).toMatchObject({ id: 'quadratic', category: 'Quadratics' });
+    expect(result.current.selectedClasses.Algebra).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Quadratics']).toBe(true);
+    expect(result.current.selectedCategories['Algebra:Old Quadratics']).toBeUndefined();
+    expect(result.current.selectedCount).toBe(1);
   });
 
   it('honors an explicit empty canonical selection array', async () => {
@@ -426,8 +433,13 @@ describe('useFormulas hook', () => {
     ]);
     act(() => { result.current.deselectAllClasses(); });
     expect(result.current.getFormulaSelectionsList()).toEqual([{ formula_id: 'gone' }]);
+    expect(mockLocalStorage.getItem('cheatSheetData:draft-a')).not.toBeNull();
     act(() => { result.current.clearSelections(); });
     expect(result.current.getFormulaSelectionsList()).toEqual([]);
+    expect(result.current.selectedClasses).toEqual({});
+    expect(result.current.selectedCategories).toEqual({});
+    expect(result.current.groupedFormulas).toEqual([]);
+    expect(mockLocalStorage.getItem('cheatSheetData:draft-a')).toBeNull();
   });
 
   it('does not refetch classes after hydration when parent rerenders with new input', async () => {

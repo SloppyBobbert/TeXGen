@@ -161,7 +161,16 @@ def test_owner_scope_and_compiler_status_mapping(authenticated_client):
 
 
 @pytest.mark.django_db
-def test_compile_returns_pdf_once(authenticated_client):
+@pytest.mark.parametrize("stored", [False, True])
+def test_compile_returns_pdf_once(authenticated_client, stored):
+    source = "\\documentclass{article}\n\\begin{document}\nOwned source\n\\end{document}"
+    payload = {"content": source, "source_mode": "raw"}
+    if stored:
+        sheet = CheatSheet.objects.create(
+            title="Owned", latex_content=source, source_mode="raw", content_source="manual",
+            user=authenticated_client.handler._force_user,
+        )
+        payload = {"cheat_sheet_id": sheet.id}
     adapter = Mock()
     adapter.compile.return_value = CompileResult(pdf=b"%PDF-1.7\nbody")
     service = Mock()
@@ -169,13 +178,15 @@ def test_compile_returns_pdf_once(authenticated_client):
     with patch("api.views.admit_compile", return_value=admitted()), patch(
         "api.views.get_compiler_service", return_value=service
     ):
-        response = authenticated_client.post("/api/compile/", {"content": "x"}, format="json")
+        response = authenticated_client.post("/api/compile/", payload, format="json")
 
     assert response.status_code == 200
     assert response["Content-Type"] == "application/pdf"
+    assert response["Content-Disposition"] == 'inline; filename="document.pdf"'
     assert response.content == b"%PDF-1.7\nbody"
     service.prepare.assert_called_once()
     adapter.compile.assert_called_once()
+    assert adapter.compile.call_args.args[0].source == source
 
 
 @pytest.mark.parametrize("source_mode", [None, "raw", "generated"])

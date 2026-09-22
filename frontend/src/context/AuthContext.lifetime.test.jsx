@@ -27,6 +27,46 @@ afterEach(() => {
 });
 
 describe('authentication request lifetime', () => {
+  it('refreshes credentials after four minutes and publishes the renewed user', async () => {
+    vi.useFakeTimers();
+    const renewed = tokens('renewed', 1);
+    fetch.mockResolvedValueOnce(response(tokens('first')))
+      .mockResolvedValueOnce(response(renewed));
+    const { result } = renderHook(() => useContext(AuthContext), { wrapper });
+    await act(async () => { await result.current.loginUser('first', 'password'); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(239999); });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(fetch).toHaveBeenLastCalledWith('/api/token/refresh/', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ refresh: 'refresh-first' }),
+    }));
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.authTokens).toEqual(renewed);
+    expect(result.current.user.username).toBe('renewed');
+  });
+
+  it('clears the authenticated user when periodic refresh fails', async () => {
+    vi.useFakeTimers();
+    fetch.mockResolvedValueOnce(response(tokens('first')))
+      .mockResolvedValueOnce(response({ detail: 'expired' }, 401));
+    const { result } = renderHook(() => useContext(AuthContext), { wrapper });
+    await act(async () => { await result.current.loginUser('first', 'password'); });
+    expect(result.current.user.username).toBe('first');
+    await act(async () => { await vi.advanceTimersByTimeAsync(240000); });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.authTokens).toBeNull();
+    expect(result.current.user).toBeNull();
+  });
+
+  it('does not request a periodic refresh while signed out', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useContext(AuthContext), { wrapper });
+    await act(async () => { await vi.advanceTimersByTimeAsync(240000); });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.authTokens).toBeNull();
+    expect(result.current.user).toBeNull();
+  });
+
   it('refreshes a read with new credentials without storing tokens in browser storage', async () => {
     const write = vi.spyOn(globalThis.Storage.prototype, 'setItem');
     const renewed = { ...tokens('first', 1), refresh: 'rotated-refresh' };

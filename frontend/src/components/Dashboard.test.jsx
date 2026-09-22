@@ -73,6 +73,45 @@ describe('Dashboard Component', () => {
     expect(signal?.aborted).toBe(true);
   });
 
+  it('renders an empty dashboard without requesting sheets when signed out', async () => {
+    renderWithContext(<Dashboard />, {});
+    expect(await screen.findByText(/you haven't saved any cheat sheets yet/i)).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('shows a failed sheet-list request', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    expect(await screen.findByText('Error: Failed to load cheat sheets')).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the sheet and reports a failed deletion', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockSheets })
+      .mockResolvedValueOnce({ ok: false, status: 500 });
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    await screen.findByText('Math Formulas');
+    fireEvent.click(screen.getAllByRole('button', { name: /delete/i })[0]);
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to delete cheat sheet'));
+    expect(fetch).toHaveBeenLastCalledWith('/api/cheatsheets/1/', expect.objectContaining({ method: 'DELETE' }));
+    expect(screen.getByText('Math Formulas')).toBeInTheDocument();
+  });
+
+  it('reports the server error when downloading a PDF fails', async () => {
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => mockSheets })
+      .mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: 'Compile failed' }) });
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    await screen.findByText('Math Formulas');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Download PDF' })[0]);
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Compile failed'));
+    expect(fetch).toHaveBeenLastCalledWith('/api/compile/', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ cheat_sheet_id: 1 }),
+    }));
+  });
+
   it('renders loading state initially', () => {
     global.fetch.mockImplementationOnce(() => new Promise(() => {})); // pending promise
     renderWithContext(<Dashboard />, { authTokens: { access: 'fake-token' } });

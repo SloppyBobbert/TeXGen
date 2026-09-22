@@ -498,7 +498,9 @@ function App() {
             ...nextSheet,
             id: savedSheet.id,
             ...fromServerDocument(savedSheet),
-          })) };
+          }))
+          // The request below reports errors; this shared ID lookup can have no waiter.
+          .catch(() => null) };
       }
       const response = await requestPromise;
 

@@ -1718,6 +1718,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               <button
                 type="button"
                 onClick={handleGenerateClick}
+                aria-describedby="source-action-help"
                 className={`btn-compile ${isGenerating || isCompiling ? 'is-compiling' : ''}`}
                 disabled={isGenerating || isCompiling || selectedCount === 0}
                 title="Replace the editor source with a sheet from the selected formulas, then compile it."
@@ -1735,13 +1736,14 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 ref={compileBtnRef}
                 type="button"
                 onClick={handleCompileClick}
+                aria-describedby="source-action-help"
                 className={`btn history-btn ${isCompiling ? 'is-compiling' : ''}`}
                 disabled={isGenerating || isCompiling || (!content.trim() && selectedCount === 0)}
                 title="Compile the current editor source. If the editor is empty, generate from selected formulas first."
               >
                 {isCompiling ? 'Compiling…' : <>Compile PDF <span className="btn-compile-hint">Ctrl + ↵</span></>}
               </button>
-              <p className="subtle-copy">
+              <p id="source-action-help" className="subtle-copy">
                 Generate replaces editor source. Compile keeps it.
               </p>
               {contentSource === 'generated' && <button type="button" onClick={useRawSource} className="btn history-btn">Use raw source</button>}
