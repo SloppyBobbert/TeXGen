@@ -185,6 +185,9 @@ jobs:
       - name: Verify production runtime and all browser journeys without downloads
         run: bash scripts/verify-production.sh
 
+      - name: Verify optional public TLS on owned loopback containers
+        run: python3 scripts/check-public-https.py
+
       - name: Show stack logs on failure
         if: failure()
         run: |
