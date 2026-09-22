@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/classes/', async route => {
     await route.fulfill({
       status: 200,
-      body: JSON.stringify([]), // Return empty array or mock classes data
+      body: JSON.stringify({ classes: [] }),
     });
   });
 });
@@ -43,7 +43,7 @@ test.describe('Authentication Flow', () => {
     await dialog.dismiss();
   });
 
-  test('successful login navigates to dashboard', async ({ page }) => {
+  test('successful login navigates to dashboard', async ({ page, baseURL }) => {
     // Mock the backend token generation
     await page.route('**/api/token/', async route => {
       await route.fulfill({
@@ -67,6 +67,6 @@ test.describe('Authentication Flow', () => {
     await page.waitForURL('**/');
 
     // Default route points to CreateCheatSheet or Dashboard
-    await expect(page).toHaveURL('http://localhost:5173/');
+    await expect(page).toHaveURL(new URL('/', baseURL).href);
   });
 });

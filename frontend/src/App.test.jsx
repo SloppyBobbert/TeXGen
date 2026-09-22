@@ -377,6 +377,24 @@ describe('App save lifecycle regressions', () => {
     expect(alert).not.toHaveBeenCalled();
   });
 
+  it('silently handles an aborted save rejection after reset', async () => {
+    let rejectSave;
+    const pending = new Promise((_resolve, reject) => { rejectSave = reject; });
+    vi.stubGlobal('fetch', vi.fn(() => pending));
+    renderApp();
+    fireEvent.click(screen.getByRole('button', { name: 'Save first' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    const signal = fetch.mock.calls[0][1].signal;
+    expect(screen.getByTestId('saving-state')).toHaveTextContent('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset sheet' }));
+    const resetSheet = storedSheet();
+    expect(signal.aborted).toBe(true);
+    await act(async () => { rejectSave(new globalThis.DOMException('Aborted', 'AbortError')); });
+    expect(screen.getByTestId('saving-state')).toHaveTextContent('false');
+    expect(storedSheet()).toEqual(resetSheet);
+    expect(alert).not.toHaveBeenCalled();
+  });
+
   it('keeps the newest feedback save data, ID, and loading state when responses resolve out of order', async () => {
     localStorage.setItem('currentCheatSheet', JSON.stringify({
       id: 5, draftId: 'sheet-5', title: 'existing', content: '', contentSource: 'empty', columns: 4,

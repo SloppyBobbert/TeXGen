@@ -108,6 +108,10 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByText(/Select a subject, pick categories, then compile/i)).toBeInTheDocument();
     expect(screen.getByText(/Your PDF will appear here/i)).toBeInTheDocument();
     expect(screen.getByText(/Compile will generate the first draft if the editor is still empty/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generate \/ Regenerate/i }))
+      .toHaveAccessibleDescription('Generate replaces editor source. Compile keeps it.');
+    expect(screen.getByRole('button', { name: /Compile PDF/i }))
+      .toHaveAccessibleDescription('Generate replaces editor source. Compile keeps it.');
   });
 
   it('generates selected formulas from the explicit generate action', () => {

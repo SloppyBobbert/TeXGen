@@ -1579,6 +1579,61 @@ class TestPhaseOneTransfer:
         assert client.get(f"/api/problems/{sample_problem.id}/").status_code == 404
         assert client.post("/api/problems/", {"cheat_sheet": sample_problem.cheat_sheet_id, "question_latex": "No"}, format="json").status_code == 400
 
+    def test_owner_can_update_and_delete_problem(self, auth_client, sample_problem):
+        url = f"/api/problems/{sample_problem.id}/"
+        response = auth_client.patch(url, {"question_latex": "Updated question"}, format="json")
+        assert response.status_code == 200
+        sample_problem.refresh_from_db()
+        assert sample_problem.question_latex == "Updated question"
+        assert auth_client.delete(url).status_code == 204
+        assert not PracticeProblem.objects.filter(pk=sample_problem.pk).exists()
+
+    @pytest.mark.parametrize("method", ["patch", "delete"])
+    def test_foreign_problem_mutations_preserve_the_record(self, sample_problem, method):
+        other = User.objects.create_user(username="foreign-mutator", password="testpass123")
+        client = APIClient()
+        client.force_authenticate(user=other)
+        original = PracticeProblem.objects.values().get(pk=sample_problem.pk)
+        response = getattr(client, method)(
+            f"/api/problems/{sample_problem.id}/", {"question_latex": "Forbidden"}, format="json"
+        )
+        assert response.status_code == 404
+        assert PracticeProblem.objects.values().get(pk=sample_problem.pk) == original
+
+    def test_problem_cannot_be_reassigned_to_a_foreign_sheet(self, auth_client, sample_problem):
+        other = User.objects.create_user(username="foreign-sheet-owner", password="testpass123")
+        foreign_sheet = CheatSheet.objects.create(title="Private", user=other)
+        original = PracticeProblem.objects.values().get(pk=sample_problem.pk)
+        response = auth_client.patch(
+            f"/api/problems/{sample_problem.id}/",
+            {"cheat_sheet": foreign_sheet.id, "question_latex": "Forbidden"}, format="json",
+        )
+        assert response.status_code == 400
+        assert "cheat_sheet" in response.data
+        assert PracticeProblem.objects.values().get(pk=sample_problem.pk) == original
+
+    def test_anonymous_detail_reads_require_authentication(self, api_client, sample_problem):
+        assert api_client.get(f"/api/problems/{sample_problem.id}/").status_code == 401
+        assert api_client.get(f"/api/cheatsheets/{sample_problem.cheat_sheet_id}/").status_code == 401
+
+    @pytest.mark.parametrize("method", ["patch", "delete"])
+    @pytest.mark.parametrize("authenticated", [False, True])
+    def test_nonstaff_template_mutations_preserve_the_record(self, api_client, auth_client, sample_template, method, authenticated):
+        client = auth_client if authenticated else api_client
+        original = Template.objects.values().get(pk=sample_template.pk)
+        response = getattr(client, method)(
+            f"/api/templates/{sample_template.id}/", {"revision": 1, "name": "Forbidden"}, format="json"
+        )
+        assert response.status_code == (403 if authenticated else 401)
+        assert Template.objects.values().get(pk=sample_template.pk) == original
+
+    def test_staff_can_delete_template(self, auth_client, sample_template):
+        user = auth_client.handler._force_user
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        assert auth_client.delete(f"/api/templates/{sample_template.id}/").status_code == 204
+        assert not Template.objects.filter(pk=sample_template.pk).exists()
+
     @pytest.mark.parametrize("cheat_sheet_id", ["0", "-1", "01", "1.0", "invalid"])
     def test_problem_sheet_filter_rejects_noncanonical_ids(self, auth_client, cheat_sheet_id):
         response = auth_client.get(f"/api/problems/?cheat_sheet={cheat_sheet_id}")

@@ -619,6 +619,60 @@ describe('useLatex hook', () => {
     expect(mockElement.download).toBe('FileTitle.tex');
   });
 
+  test('reports a failed generation request without replacing the source', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useLatex({ content: 'manual source' }), { wrapper });
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Generation failed' });
+    await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'test.formula' }]); });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith('/api/generate-sheet/', expect.objectContaining({ method: 'POST' }));
+    expect(alert).toHaveBeenCalledWith('Failed to generate LaTeX. Is the backend running?');
+    expect(result.current.content).toBe('manual source');
+    expect(result.current.isGenerating).toBe(false);
+  });
+
+  test('reports a failed PDF download and clears loading state', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useLatex({ content: 'manual source' }), { wrapper });
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Compile failed' });
+    await act(async () => { await result.current.handleDownloadPDF(); });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith('/api/compile/', expect.objectContaining({ method: 'POST' }));
+    expect(alert).toHaveBeenCalledWith('Failed to generate PDF. Check console for details.');
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  test('revokes a published PDF when clearing the document', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'manual source' }), { wrapper });
+    fetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    act(() => { result.current.clearLatex(); });
+    expect(URL.revokeObjectURL).toHaveBeenCalledExactlyOnceWith('blob:test-url');
+    expect(result.current.pdfBlob).toBeNull();
+    expect(result.current.content).toBe('');
+  });
+
+  test('keeps generated source and the previous PDF when the new preview fails', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'manual source' }), { wrapper });
+    fetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['old pdf']) });
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'new generated source' }) })
+      .mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'Preview failed' });
+    await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'test.formula' }]); });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(result.current.content).toBe('new generated source');
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.compileError).toBe('Preview failed');
+    expect(result.current.isGenerating).toBe(false);
+    expect(result.current.isCompiling).toBe(false);
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    expect(alert).not.toHaveBeenCalled();
+  });
+
   test('keeps raw source and the existing PDF when compilation fails', async () => {
     const { result } = renderHook(() => useLatex({
       content: 'manual source',
@@ -658,6 +712,8 @@ describe('useLatex hook', () => {
 
     expect(result.current.content).toBe('first source');
     expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(result.current.isGenerating).toBe(false);
+    expect(result.current.isCompiling).toBe(true);
 
     await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'second' }]); });
     await act(async () => {

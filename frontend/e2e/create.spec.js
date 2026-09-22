@@ -62,7 +62,11 @@ test.describe('Create Cheat Sheet Flow', () => {
     await saveBtn.click();
     const response = await saved;
     expect(response.status()).toBe(201);
-    expect(response.request().postDataJSON().title).toBe('My Test Cheat Sheet');
+    expect(response.request().postDataJSON()).toMatchObject({
+      title: 'My Test Cheat Sheet', schema_version: 1, source_mode: 'empty', source_latex: '',
+      formula_selections: [],
+      layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' },
+    });
     await expect.poll(() => message).toBe('Progress saved!');
     await expect(page.getByText('Cheat sheet saved successfully!', { exact: true })).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.save-status')).toContainText('Saved');
