@@ -7,8 +7,9 @@ for (const [size, width, height] of [
   test(`keyboard skip link and editor controls fit the viewport (${size})`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto('/');
-    await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Skip to main content' });
+    await expect(skip).toBeAttached();
+    await page.keyboard.press('Tab');
     await expect(skip).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.locator('#main-content')).toBeFocused();
