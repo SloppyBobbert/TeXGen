@@ -33,14 +33,16 @@ test.describe('Authentication Flow', () => {
     await page.fill('#login-username', 'wronguser'); // Adjust selector
     await page.fill('#login-password', 'wrongpassword'); // Adjust selector
     
-    // Wait for the dialog and the submit click concurrently so the assertion
-    // is deterministic (fails if no dialog is shown).
-    const [dialog] = await Promise.all([
-      page.waitForEvent('dialog'),
+    // Dismiss the dialog before waiting for the click, which it can block.
+    const [message] = await Promise.all([
+      page.waitForEvent('dialog').then(async (dialog) => {
+        const message = dialog.message();
+        await dialog.dismiss();
+        return message;
+      }),
       page.click('button[type="submit"]'), // Adjust selector if needed
     ]);
-    expect(dialog.message()).toContain('No active account');
-    await dialog.dismiss();
+    expect(message).toContain('No active account');
   });
 
   test('successful login navigates to dashboard', async ({ page, baseURL }) => {
