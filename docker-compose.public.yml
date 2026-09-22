@@ -1,0 +1,39 @@
+# Optional direct TLS. Requires Compose >=2.24.4 for !override.
+# Use with docker-compose.production.yml; images remain pre-provisioned.
+services:
+  backend:
+    environment:
+      TEXGEN_LOCAL_HTTP: "0"
+      DJANGO_ALLOWED_HOSTS: >-
+        ${TEXGEN_PUBLIC_HOST:?Set one public DNS hostname},localhost
+  migrate:
+    environment:
+      TEXGEN_LOCAL_HTTP: "0"
+      DJANGO_ALLOWED_HOSTS: >-
+        ${TEXGEN_PUBLIC_HOST:?Set one public DNS hostname},localhost
+  frontend:
+    entrypoint: [sh, /opt/texgen/start-public-nginx.sh]
+    environment:
+      TEXGEN_PUBLIC_HOST: ${TEXGEN_PUBLIC_HOST:?Set one public DNS hostname}
+    ports: !override
+      - "${TEXGEN_PUBLIC_BIND:-127.0.0.1}:${TEXGEN_PUBLIC_HTTP_PORT:-0}:8081"
+      - "${TEXGEN_PUBLIC_BIND:-127.0.0.1}:${TEXGEN_PUBLIC_HTTPS_PORT:-0}:8443"
+    volumes:
+      - type: bind
+        source: ${TEXGEN_TLS_DIRECTORY:?Set the certificate directory}
+        target: /run/texgen-tls
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./frontend/nginx.public.conf.template
+        target: /etc/nginx/public.conf.template
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./scripts/start-public-nginx.sh
+        target: /opt/texgen/start-public-nginx.sh
+        read_only: true
+        bind:
+          create_host_path: false
