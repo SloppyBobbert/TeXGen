@@ -32,6 +32,14 @@ function saveToStorage(storageKey, data) {
   }
 }
 
+function removeFromStorage(storageKey) {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch (cause) {
+    console.error('Failed to clear formula storage', cause);
+  }
+}
+
 function flattenGroupedFormulas(groupedFormulas = []) {
   return groupedFormulas.flatMap((group) => group?.formulas || []);
 }
@@ -123,7 +131,7 @@ export function useFormulas(initialData, draftIdentity, onRemove) {
   const identity = draftIdentityFor(initialData, draftIdentity);
   const storageKey = storageKeyFor(initialData, draftIdentity);
   const [classesData, setClassesData] = useState([]);
-  const { document, update } = useEditorSession({ selectedFormulas: [], formulaSelections: [] });
+  const { document, update, persistenceManaged } = useEditorSession({ selectedFormulas: [], formulaSelections: [] });
   const { selectedFormulas = [], formulaSelections = [] } = document;
   const { selectedClasses, selectedCategories, groupedFormulas } = useMemo(() => buildSelectionState(selectedFormulas), [selectedFormulas]);
   const [formulaSelectionError, setFormulaSelectionError] = useState(null);
@@ -162,7 +170,13 @@ export function useFormulas(initialData, draftIdentity, onRemove) {
         let legacyRecordsResolved = false;
         let error = !v1.ok ? v1.error : null;
 
-        if (v1.ok && v1.draft) {
+        if (persistenceManaged && initialCanonical !== null) {
+          source = 'canonical';
+          selections = initialCanonical;
+        } else if (persistenceManaged && initialLegacy !== null) {
+          source = 'legacy';
+          records = initialLegacy;
+        } else if (v1.ok && v1.draft) {
           source = 'canonical';
           selections = v1.draft.formula_selections;
         } else {
@@ -212,17 +226,17 @@ export function useFormulas(initialData, draftIdentity, onRemove) {
         setIsFormulaSelectionInitialized(true);
       });
     return () => { cancelled = true; };
-  }, [initialData, storageKey, identity, update, apiRequest]);
+  }, [initialData, storageKey, identity, update, apiRequest, persistenceManaged]);
 
   useEffect(() => {
-    if (!initialLoadDone.current || identity == null) return;
+    if (persistenceManaged || !initialLoadDone.current || identity == null) return;
     if (skipNextPersist.current) {
       skipNextPersist.current = false;
-      localStorage.removeItem(storageKey);
+      removeFromStorage(storageKey);
       return;
     }
     saveToStorage(storageKey, { selectedClasses, selectedCategories, groupedFormulas });
-  }, [selectedClasses, selectedCategories, groupedFormulas, storageKey, identity]);
+  }, [selectedClasses, selectedCategories, groupedFormulas, storageKey, identity, persistenceManaged]);
 
   const setGroupedFormulas = useCallback((value) => {
     update((state) => {
@@ -307,7 +321,7 @@ export function useFormulas(initialData, draftIdentity, onRemove) {
   }), [setGroupedFormulas]);
   const getSelectedFormulasList = () => flattenGroupedFormulas(groupedFormulas);
   const getFormulaSelectionsList = () => formulaSelections;
-  const clearSelections = () => { skipNextPersist.current = true; update({ selectedFormulas: [], formulaSelections: [] }); if (identity != null) localStorage.removeItem(storageKey); };
+  const clearSelections = () => { skipNextPersist.current = true; update({ selectedFormulas: [], formulaSelections: [] }); if (!persistenceManaged && identity != null) removeFromStorage(storageKey); };
 
   return { restoreSelections, classesData, selectedClasses, selectedCategories, groupedFormulas, formulaSelections, formulaSelectionError, toggleClass, toggleCategory, getSelectedFormulasList, getFormulaSelectionsList, clearSelections, reorderClass, reorderFormula, removeClassFromOrder, removeSingleFormula, selectAllClasses, deselectAllClasses, selectedCount: getSelectedFormulasList().length, hasSelectedClasses: Object.keys(selectedClasses).length > 0, isFormulaSelectionInitialized };
 }

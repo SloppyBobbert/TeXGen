@@ -676,7 +676,7 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByLabelText(/Title:/i)).toBeInTheDocument();
   });
 
-  it('handles clearing data correctly', () => {
+  it.each([false, true])('delegates confirmed Clear to its owner, or clears standalone hooks (managed: %s)', (managed) => {
     const verifyConfirm = vi.spyOn(window, 'confirm').mockImplementation(() => true);
     const mockClearLatex = vi.fn();
     const mockClearSelections = vi.fn();
@@ -686,15 +686,15 @@ describe('CreateCheatSheet Component', () => {
     
     const mockReset = vi.fn();
 
-    render(<CreateCheatSheet onSave={vi.fn()} onReset={mockReset} />);
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={managed ? mockReset : undefined} />);
 
     // We have two buttons with "Clear". Use the one with the correct text. Look by button text
     const clearButton = screen.getAllByRole('button', { name: /Clear/i })[0];
     fireEvent.click(clearButton);
 
     expect(verifyConfirm).toHaveBeenCalled();
-    expect(mockClearLatex).toHaveBeenCalled();
-    expect(mockClearSelections).toHaveBeenCalled();
-    expect(mockReset).toHaveBeenCalled();
+    expect(mockClearLatex).toHaveBeenCalledTimes(managed ? 0 : 1);
+    expect(mockClearSelections).toHaveBeenCalledTimes(managed ? 0 : 1);
+    expect(mockReset).toHaveBeenCalledTimes(managed ? 1 : 0);
   });
 });

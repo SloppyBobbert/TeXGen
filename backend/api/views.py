@@ -129,7 +129,15 @@ def get_compile_source_mode(data):
         return legacy_mode, None
     return LEGACY_COMPILE_SOURCE_MODE, None
 
+def validate_object_body(data):
+    if not isinstance(data, dict):
+        raise ValidationError({"non_field_errors": ["Expected an object."]})
+
+
 def validate_layout_params(columns, font_size, margins, spacing, orientation="portrait"):
+    for field, value in (("font_size", font_size), ("margins", margins), ("spacing", spacing), ("orientation", orientation)):
+        if not isinstance(value, str):
+            raise ValidationError({field: "Must be a string."})
     try:
         columns = max(1, min(5, int(columns)))
     except (TypeError, ValueError):
@@ -364,6 +372,7 @@ def generate_sheet(request):
     Or for special classes (like UNIT CIRCLE): { "class": "UNIT CIRCLE", "name": "Unit Circle (Key Angles)" }
     Returns { "tex_code": "..." }
     """
+    validate_object_body(request.data)
     canonical = request.data.get("formula_selections", [])
     legacy = request.data.get("formulas", [])
     columns = request.data.get("columns", DEFAULT_COLUMNS)
@@ -397,6 +406,7 @@ def compile_latex(request):
     """
     POST /api/compile/
     """
+    validate_object_body(request.data)
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
     source_mode, source_mode_error = get_compile_source_mode(request.data)
@@ -587,6 +597,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
+        validate_object_body(request.data)
         if "revision" in request.data:
             return Response({"revision": ["Revision is assigned by the server."]}, status=400)
         return super().create(request, *args, **kwargs)
@@ -595,6 +606,7 @@ class TemplateViewSet(viewsets.ModelViewSet):
         return self._revision_update(request, *args, **kwargs)
 
     def _revision_update(self, request, *args, **kwargs):
+        validate_object_body(request.data)
         with transaction.atomic():
             try:
                 instance = self.get_queryset().select_for_update().get(pk=kwargs["pk"])
@@ -626,11 +638,13 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     def create(self, request, *args, **kwargs):
+        validate_object_body(request.data)
         if "revision" in request.data:
             return Response({"revision": ["Revision is assigned by the server."]}, status=400)
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
+        validate_object_body(request.data)
         with transaction.atomic():
             try:
                 instance = self.get_queryset().select_for_update().get(pk=kwargs["pk"])
@@ -651,6 +665,7 @@ class CheatSheetViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='from-template')
     def from_template(self, request):
+        validate_object_body(request.data)
         template_id = request.data.get("template_id")
         title = request.data.get("title", "Untitled")
         

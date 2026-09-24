@@ -1,6 +1,29 @@
 phase: release
-active_flow: awaiting_owner_decision
-status: completed
+active_flow: fix_bug
+status: preparing_pull_request
+api_bug_cycle:
+  current_step: 5
+  completed_steps: [1, 2, 3, 4]
+  plan: specs/bugs/BUG-api-validation.md
+  scope: expanded-audit B1-B3
+  validation: 636_passed_7_postgres_skips_97.23_percent_coverage_ruff_passed
+  self_review: passed
+  independent_review: dual_pass_95_no_must_fix
+  release: owner_authorized_pr_only
+bug_cycle:
+  current_step: 5
+  completed_steps: [1, 2, 3, 4]
+  plan: specs/bugs/BUG-editor-recovery.md
+  scope: expanded-audit F1-F5
+  release: owner_authorized_pr_only
+  validation: >-
+    280_frontend_tests_lint_build_636_backend_7_postgres_skips_ruff_passed
+  self_review: passed
+  browser_verification: 39_passed_anonymous_budget_restored_60
+  review_repair: >-
+    legacy_recovery_canonical_order_clear_new_and_numeric_history_cleanup
+  independent_review: dual_pass_95_no_must_fix
+  known_limit: earlier_mobile_login_timeout_unexplained_despite_later_full_passes
 active_epic_id: e01
 active_story_id: e01s03
 next_task: null
@@ -18,8 +41,9 @@ last_completed: >-
   35576550902 (backend, frontend, browser-e2e). Round-4 production reviews both
   scored 95% with zero must-fix; two non-blocking follow-ups are documented.
 next_action: >-
-  Await the owner's decision on draft PR 8. Do not merge, enable auto-merge
-  or deploy without fresh approval. Preserve unrelated worktrees and local data.
+  Recheck the audit fixes and open a pull request as authorized by the owner.
+  Do not merge, enable auto-merge or deploy without fresh approval.
+  Preserve unrelated worktrees and local data.
 blockers: []
 execution_mode: parent_session
 execution_mode_reason: >-
@@ -29,13 +53,16 @@ validation:
   plan_consistency: local_structural_checks_passed
   bundled_checker: blocked_missing_pyyaml
   evidence: specs/verifications/PLAN_CHECK.md
-  application_checks: e01s03_478_backend_7_postgres_244_frontend_39_browser_passed
+  application_checks: >-
+    e01s03_478_backend_7_postgres_244_frontend_39_browser_passed
   current_browser_evidence: specs/verifications/e01s03-round4-checks.md
-  production_ci: https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902
+  production_ci: >-
+    https://github.com/SloppyBobbert/TeXGen/actions/runs/35576550902
   production_ci_commit: c238dd2de041525214cb383d67080d080aab5524
   production_runtime_evidence: specs/verifications/e01s03-runtime.md
   production_dependency_evidence: specs/verifications/e01s03-dependencies.md
-  production_runtime_recheck: b5cc8b906_36_tests_and_runtime_socket_checks_passed
+  production_runtime_recheck: >-
+    b5cc8b906_36_tests_and_runtime_socket_checks_passed
   production_frontend_recheck: b18c0d012_244_tests_lint_build_audit_passed
   production_browser_recheck: bbdbd1815_39_passed_test_budget_600_restored_60
   production_final_review: round_4_dual_pass_95_zero_must_fix
@@ -43,8 +70,10 @@ validation:
   production_repair_targeted: b633687dd_19_passed_ruff_shell_passed
   production_repair_full_check: b521f1ad8_passed
   production_current_evidence: specs/verifications/e01s03-round4-checks.md
-  production_source_manifest: specs/verifications/e01s03-review-round4-manifest.json
-  production_source_sha256: 6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8
+  production_source_manifest: >-
+    specs/verifications/e01s03-review-round4-manifest.json
+  production_source_sha256: >-
+    6e1be0c83acce374df24c9b23effe8fb940774e757601f3daa25ef9d1a91bfe8
   production_pre_repair_checks: specs/verifications/e01s03-final-checks.md
   e01s02_independent_review: dual_pass_100
   e01s02_acceptance: specs/verifications/e01s02-acceptance.md
@@ -84,7 +113,7 @@ handoff:
   entry: specs/CONTINUOUS_PLAN.md
   tasks: specs/epics/e01-launch-readiness/e01s03-tasks.yaml
   release_document: specs/verifications/RELEASE_HANDOFF.md
-  draft_pr: https://github.com/SloppyBobbert/TeXGen/pull/8
+  previous_draft_pr: https://github.com/SloppyBobbert/TeXGen/pull/8
   production_project: texgen-e01s03-06457b505f
   owned_compose_project: texgen-e01s01-document-sections
   database_loopback_port: 55439

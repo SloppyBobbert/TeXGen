@@ -10,7 +10,7 @@ import Dashboard from './components/Dashboard';
 import './App.css'
 import CreateCheatSheet from './components/CreateCheatSheet';
 import { EditorSessionContext, useEditorSession } from './hooks/editorSession';
-import { getLegacyStorageKeys, migrateLegacyDraft, readDraft, removeDraft, writeDraft } from './storage/draftStore';
+import { getDraftStorageKey, getLegacyStorageKeys, migrateLegacyDraft, readDraft, writeDraft } from './storage/draftStore';
 import { fromServerDocument, toCanonicalDocument } from './storage/documentAdapter';
 
 const CURRENT_SHEET_STORAGE_KEY = 'currentCheatSheet';
@@ -53,11 +53,18 @@ const safeStorageRemove = (key) => {
   }
 };
 const getDraftIdentity = (sheet) => sheet?.draftId ?? sheet?.id;
+// Revisions alone cannot distinguish a clean cache from edits made at that revision.
+const documentSignature = (sheet) => {
+  const document = toCanonicalDocument({ ...sheet, generatedSections: sheet.generatedSections ?? null });
+  delete document.revision;
+  return JSON.stringify(document);
+};
 const toDraftEnvelope = (sheet) => {
   const document = toCanonicalDocument(sheet);
   return {
     schema_version: 1,
     draft_identity: getDraftIdentity(sheet),
+    recovery_identity: sheet.recoveryIdentity ?? getDraftIdentity(sheet),
     base_revision: Number.isSafeInteger(sheet.revision) && sheet.revision > 0 ? sheet.revision : null,
     source_mode: document.source_mode,
     source_latex: document.source_latex,
@@ -67,11 +74,14 @@ const toDraftEnvelope = (sheet) => {
     title: document.title,
     history: stripTransientPdfBlobs(sheet.compileHistory ?? []),
     template_id: document.template_id,
+    synced_signature: sheet.syncedSignature ?? null,
+    session_snapshot: true,
   };
 };
 const persistSheet = (sheet) => {
   try {
     const sanitized = sanitizeSheet(sheet);
+    if (sanitized.legacyRecovery) return storageFailure(new Error('Choose which recovery draft to keep before saving.'));
     const identity = getDraftIdentity(sanitized);
     if (identity === undefined || identity === null) {
       localStorage.setItem(CURRENT_SHEET_STORAGE_KEY, JSON.stringify(sanitized));
@@ -86,15 +96,18 @@ const persistSheet = (sheet) => {
     const existing = readDraft(localStorage, identity);
     if (!existing.ok) return existing;
     const recovery = sanitizeSheet(JSON.parse(localStorage.getItem(getLegacyStorageKeys(identity).latex) || '{}'));
-    return writeDraft(localStorage, toDraftEnvelope(sanitized), {
+    const written = writeDraft(localStorage, toDraftEnvelope(sanitized), {
       legacy: {
         formulas: sanitized.selectedFormulas,
-        latex: { history: recovery.history, historyIndex: recovery.historyIndex, title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, generatedSections: sanitized.generatedSections ?? null, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
+        latex: { history: sanitized.history ?? recovery.history, historyIndex: sanitized.historyIndex ?? recovery.historyIndex, title: sanitized.title, content: sanitized.content, contentSource: sanitized.contentSource, generatedSections: sanitized.generatedSections ?? null, columns: sanitized.columns, fontSize: sanitized.fontSize, spacing: sanitized.spacing, margins: sanitized.margins, orientation: sanitized.orientation },
         history: sanitized.compileHistory,
         source: sanitized.contentSource,
         currentSheet: sanitized,
       },
     });
+    if (!written.ok || !sanitized.id || identity === `sheet-${sanitized.id}`) return written;
+    // Saved new drafts keep their mounted identity; Dashboard uses the server alias.
+    return writeDraft(localStorage, { ...toDraftEnvelope(sanitized), draft_identity: `sheet-${sanitized.id}` });
   } catch (error) {
     return storageFailure(error);
   }
@@ -116,7 +129,36 @@ const fromDraftEnvelope = (draft, fallback = {}) => sanitizeSheet({
   revision: draft.base_revision,
   schemaVersion: draft.schema_version,
   compileHistory: draft.history,
+  syncedSignature: draft.synced_signature ?? null,
+  recoveryIdentity: draft.recovery_identity ?? draft.draft_identity,
 });
+
+const recoverSplitStorage = (draft, fallback) => {
+  const sheet = draft ? fromDraftEnvelope(draft, fallback) : fallback;
+  if (draft?.session_snapshot) return sheet;
+  // Old hooks and App wrote independently, without timestamps. Never guess freshness.
+  try {
+    const keys = getLegacyStorageKeys(draft?.draft_identity ?? getDraftIdentity(sheet));
+    const latex = JSON.parse(localStorage.getItem(keys.latex) || 'null');
+    const formulas = JSON.parse(localStorage.getItem(keys.formulas) || 'null');
+    const records = Array.isArray(formulas) ? formulas
+      : (Array.isArray(formulas?.groupedFormulas) ? formulas.groupedFormulas.flatMap((group) => group.formulas ?? []) : null);
+    const recovery = { ...sheet };
+    for (const key of ['title', 'content', 'contentSource', 'generatedSections', 'columns', 'fontSize', 'spacing', 'margins', 'orientation', 'history', 'historyIndex']) {
+      if (latex && Object.hasOwn(latex, key)) recovery[key] = latex[key];
+    }
+    if (records) {
+      recovery.selectedFormulas = records;
+      recovery.formulaSelections = undefined;
+    }
+    if (records?.some((record) => !(record?.formula_id ?? record?.id))
+      || documentSignature(recovery) !== documentSignature(sheet)) return { ...sheet, legacyRecovery: recovery };
+    return { ...sheet, history: recovery.history, historyIndex: recovery.historyIndex };
+  } catch (error) {
+    console.error('Unable to inspect older-format recovery', error);
+    return sheet;
+  }
+};
 
 const getNextUntitledTitle = () => {
   let currentValue = 0;
@@ -333,10 +375,11 @@ function App() {
         const sheet = withDraftIdentity(sanitizeSheet(JSON.parse(saved)));
         const identity = getDraftIdentity(sheet);
         const storedDraft = identity === undefined ? null : readDraft(localStorage, identity);
-        if (storedDraft?.ok && storedDraft.draft) return fromDraftEnvelope(storedDraft.draft, sheet);
+        if (storedDraft?.ok && storedDraft.draft) return recoverSplitStorage(storedDraft.draft, sheet);
         if (storedDraft?.ok && !storedDraft.draft) {
           const migrated = migrateLegacyDraft(localStorage, identity);
-          if (migrated.ok && migrated.draft) return fromDraftEnvelope(migrated.draft, sheet);
+          if (migrated.ok && migrated.draft) return recoverSplitStorage(migrated.draft, sheet);
+          if (migrated.error?.code === 'unresolved_legacy_formula') return recoverSplitStorage(null, sheet);
         }
         persistSheet(sheet);
         return sheet;
@@ -376,6 +419,13 @@ function App() {
 
   cheatSheetRef.current = cheatSheet;
 
+  // Persist the live session here; route unmounts must not cancel recovery.
+  useEffect(() => {
+    if (cheatSheet.legacyRecovery) return;
+    const result = persistSheet(cheatSheet);
+    if (!result.ok) console.error('Failed to persist editor recovery', result.error);
+  }, [cheatSheet]);
+
   useEffect(() => () => {
     saveEpochRef.current += 1;
     saveControllerRef.current?.abort();
@@ -404,10 +454,24 @@ function App() {
     const nextSheet = withDraftIdentity(createDefaultSheet());
     setCheatSheet(nextSheet);
     setEditorSessionKey((prev) => prev + 1);
-    persistSheet(nextSheet);
-    safeStorageRemove('cheatSheetData');
-    safeStorageRemove('cheatSheetLatex');
-    try { removeDraft(localStorage, getDraftIdentity(cheatSheetRef.current)); } catch (error) { console.error('Failed to remove draft', error); }
+    return persistSheet(nextSheet);
+  };
+
+  const handleClear = () => {
+    const sheet = cheatSheetRef.current;
+    const identities = new Set([getDraftIdentity(sheet), sheet.recoveryIdentity, ...(sheet.id ? [`sheet-${sheet.id}`] : [])].filter((identity) => getDraftStorageKey(identity)));
+    const keys = [...identities].flatMap((identity) => {
+      const legacy = getLegacyStorageKeys(identity);
+      return [legacy.formulas, legacy.latex, legacy.history, legacy.source, getDraftStorageKey(identity)];
+    });
+    if (sheet.id) keys.push(getCompileHistoryStorageKey(sheet.id), getContentSourceStorageKey(sheet.id));
+    for (const key of [...keys, CURRENT_SHEET_STORAGE_KEY]) {
+      if (!safeStorageRemove(key).ok) {
+        alert('Unable to discard all browser recovery data. Your edits are still open; recovery data may remain. Please retry Clear.');
+        return;
+      }
+    }
+    if (!handleReset().ok) alert('Browser recovery was removed, but the new empty draft could not be saved in this browser.');
   };
 
   const handleSave = async (data, showFeedback = true) => {
@@ -442,7 +506,7 @@ function App() {
     if (!localPersistence.ok) {
       console.error('Failed to persist canonical draft', localPersistence.error);
       if (showFeedback) alert('Failed to save progress: Unable to save this browser draft.');
-      return nextSheet;
+      throw new Error('Unable to save this browser draft.');
     }
 
     if (!showFeedback) {
@@ -532,6 +596,10 @@ function App() {
         persistedSheet.baseRevision = serverFields.revision;
         persistedSheet.schemaVersion = serverFields.schemaVersion ?? 1;
       }
+      persistedSheet.syncedSignature = documentSignature({
+        ...nextSheet,
+        ...Object.fromEntries(Object.entries(serverFields).filter(([, value]) => value !== undefined)),
+      });
       persistedSheet = sanitizeSheet(persistedSheet);
       cheatSheetRef.current = persistedSheet;
       session.update((current) => ({ ...persistedSheet, history: current.history, historyIndex: current.historyIndex }));
@@ -567,7 +635,7 @@ function App() {
     setIsSaving(false);
     const mappedSheet = fromServerDocument(sheet);
     const selectedFormulas = stripTransientPdfBlobs(mappedSheet.selectedFormulas || []);
-    const editSheet = sanitizeSheet({
+    let editSheet = sanitizeSheet({
       id: sheet.id,
       ...mappedSheet,
       title: mappedSheet.title,
@@ -585,6 +653,18 @@ function App() {
       compileHistory: getStoredCompileHistory(sheet.id),
       draftId: `sheet-${sheet.id}`,
     });
+    editSheet.syncedSignature = documentSignature(editSheet);
+    const current = cheatSheetRef.current;
+    const stored = readDraft(localStorage, `sheet-${sheet.id}`);
+    const recovery = current.id === sheet.id ? current
+      : (stored.ok && stored.draft ? recoverSplitStorage(stored.draft, editSheet) : null);
+    if (recovery?.recoveryIdentity !== undefined) editSheet.recoveryIdentity = recovery.recoveryIdentity;
+    if (recovery?.legacyRecovery || (recovery?.syncedSignature && documentSignature(recovery) !== recovery.syncedSignature)) {
+      editSheet = recovery;
+    } else if (recovery && !recovery.syncedSignature && documentSignature(recovery) !== editSheet.syncedSignature) {
+      // Pre-fix caches have no acknowledgement baseline: preserve, but do not call them dirty.
+      editSheet.legacyRecovery = recovery;
+    }
     setCheatSheet(editSheet);
     setEditorSessionKey((prev) => prev + 1);
     persistSheet(editSheet);
@@ -603,7 +683,7 @@ function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <EditorSessionContext.Provider value={session}>
+    <EditorSessionContext.Provider value={{ ...session, persistenceManaged: true }}>
     <div className="App">
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="app-header">
@@ -672,6 +752,12 @@ function App() {
         </div>
       </header>
       <main id="main-content" tabIndex={-1}>
+        {cheatSheet.legacyRecovery && <section role="alert" aria-label="Older-format recovery">
+          <p>An older-format recovery copy differs from this draft. Its age is unknown. Choose a copy before saving; neither stored copy has been replaced.</p>
+          <details><summary>Inspect recovery copy</summary><pre>{JSON.stringify({ title: cheatSheet.legacyRecovery.title, content: cheatSheet.legacyRecovery.content, selections: cheatSheet.legacyRecovery.selectedFormulas }, null, 2)}</pre></details>
+          <button onClick={() => { setCheatSheet(cheatSheet.legacyRecovery); setEditorSessionKey((key) => key + 1); }}>Restore older-format recovery</button>
+          <button onClick={() => session.update({ legacyRecovery: undefined })}>Keep canonical draft</button>
+        </section>}
         <Routes>
           <Route path="/" element={
             <CreateCheatSheet 
@@ -679,7 +765,7 @@ function App() {
               initialData={cheatSheet} 
               draftIdentity={cheatSheet.draftId ?? cheatSheet.id}
               onSave={handleSave} 
-              onReset={handleReset}
+              onReset={handleClear}
               onRestoreSnapshot={handleRestoreSnapshot}
               isSaving={isSaving}
               onCancel={() => {}} 
