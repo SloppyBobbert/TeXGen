@@ -95,7 +95,13 @@ const persistSheet = (sheet) => {
     }
     const existing = readDraft(localStorage, identity);
     if (!existing.ok) return existing;
-    const recovery = sanitizeSheet(JSON.parse(localStorage.getItem(getLegacyStorageKeys(identity).latex) || '{}'));
+    const legacyLatex = localStorage.getItem(getLegacyStorageKeys(identity).latex);
+    let recovery = {};
+    try {
+      recovery = sanitizeSheet(JSON.parse(legacyLatex || '{}'));
+    } catch {
+      // After a recovery choice, malformed legacy JSON must not block persistence.
+    }
     const written = writeDraft(localStorage, toDraftEnvelope(sanitized), {
       legacy: {
         formulas: sanitized.selectedFormulas,
@@ -133,14 +139,23 @@ const fromDraftEnvelope = (draft, fallback = {}) => sanitizeSheet({
   recoveryIdentity: draft.recovery_identity ?? draft.draft_identity,
 });
 
-const recoverSplitStorage = (draft, fallback) => {
+const recoverSplitStorage = (draft, fallback, requireChoice = false) => {
   const sheet = draft ? fromDraftEnvelope(draft, fallback) : fallback;
   if (draft?.session_snapshot) return sheet;
   // Old hooks and App wrote independently, without timestamps. Never guess freshness.
   try {
     const keys = getLegacyStorageKeys(draft?.draft_identity ?? getDraftIdentity(sheet));
-    const latex = JSON.parse(localStorage.getItem(keys.latex) || 'null');
-    const formulas = JSON.parse(localStorage.getItem(keys.formulas) || 'null');
+    const readLegacy = (key) => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || 'null');
+      } catch {
+        requireChoice = true;
+        return null;
+      }
+    };
+    const latex = readLegacy(keys.latex);
+    const formulas = readLegacy(keys.formulas);
+    const history = readLegacy(keys.history);
     const records = Array.isArray(formulas) ? formulas
       : (Array.isArray(formulas?.groupedFormulas) ? formulas.groupedFormulas.flatMap((group) => group.formulas ?? []) : null);
     const recovery = { ...sheet };
@@ -151,7 +166,8 @@ const recoverSplitStorage = (draft, fallback) => {
       recovery.selectedFormulas = records;
       recovery.formulaSelections = undefined;
     }
-    if (records?.some((record) => !(record?.formula_id ?? record?.id))
+    if (Array.isArray(history)) recovery.compileHistory = history;
+    if (requireChoice || records?.some((record) => !(record?.formula_id ?? record?.id))
       || documentSignature(recovery) !== documentSignature(sheet)) return { ...sheet, legacyRecovery: recovery };
     return { ...sheet, history: recovery.history, historyIndex: recovery.historyIndex };
   } catch (error) {
@@ -379,7 +395,7 @@ function App() {
         if (storedDraft?.ok && !storedDraft.draft) {
           const migrated = migrateLegacyDraft(localStorage, identity);
           if (migrated.ok && migrated.draft) return recoverSplitStorage(migrated.draft, sheet);
-          if (migrated.error?.code === 'unresolved_legacy_formula') return recoverSplitStorage(null, sheet);
+          if (migrated.recoverable || migrated.error?.recoverable) return recoverSplitStorage(null, sheet, true);
         }
         persistSheet(sheet);
         return sheet;
@@ -653,7 +669,8 @@ function App() {
       compileHistory: getStoredCompileHistory(sheet.id),
       draftId: `sheet-${sheet.id}`,
     });
-    editSheet.syncedSignature = documentSignature(editSheet);
+    const fetchedSignature = documentSignature(editSheet);
+    editSheet.syncedSignature = fetchedSignature;
     const current = cheatSheetRef.current;
     const stored = readDraft(localStorage, `sheet-${sheet.id}`);
     const recovery = current.id === sheet.id ? current
@@ -663,7 +680,11 @@ function App() {
       editSheet = recovery;
     } else if (recovery && !recovery.syncedSignature && documentSignature(recovery) !== editSheet.syncedSignature) {
       // Pre-fix caches have no acknowledgement baseline: preserve, but do not call them dirty.
-      editSheet.legacyRecovery = recovery;
+      editSheet.legacyRecovery = { ...recovery, syncedSignature: fetchedSignature };
+    }
+    if (editSheet.legacyRecovery && editSheet.legacyRecovery.syncedSignature == null) {
+      // Restore selects this nested copy, not the outer recovery envelope.
+      editSheet = { ...editSheet, legacyRecovery: { ...editSheet.legacyRecovery, syncedSignature: fetchedSignature } };
     }
     setCheatSheet(editSheet);
     setEditorSessionKey((prev) => prev + 1);

@@ -124,7 +124,7 @@ test('PDF scroll-to-top respects runtime reduced motion', async ({ page }) => {
   });
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1_000_000)}`;
   const username = `motion${suffix}`;
-  const password = `Motion-${suffix}-aA1!`;
+  const password = 'Quartz!River7-Cobalt';
   const registered = await page.request.post('/api/register/', { data: { username, password } });
   expect(registered.status()).toBe(201);
   await page.goto('/login');

@@ -1452,6 +1452,25 @@ class TestCompileEndpoint:
 
 @pytest.mark.django_db
 class TestRegisterEndpoint:
+    @pytest.mark.parametrize('prefix', ['Sections', 'BrowserGate', 'Motion'])
+    def test_browser_credentials_use_password_independent_of_username(self, api_client, prefix):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+
+        suffix = '1790215200123456789'
+        username = f'{prefix.lower()}{suffix}'
+        old_password = f'{prefix}-{suffix}-aA1!'
+        with pytest.raises(ValidationError) as error:
+            validate_password(old_password, User(username=username))
+        assert error.value.error_list[0].code == 'password_too_similar'
+        rejected = api_client.post('/api/register/', {'username': username, 'password': old_password}, format='json')
+        assert rejected.status_code == 400
+        assert 'too similar' in rejected.json()['password'][0]
+        password = 'Quartz!River7-Cobalt'
+        validate_password(password, User(username=username))
+        registered = api_client.post('/api/register/', {'username': username, 'password': password}, format='json')
+        assert registered.status_code == 201
+
     def test_register_success(self, api_client):
         resp = api_client.post(
             "/api/register/",
