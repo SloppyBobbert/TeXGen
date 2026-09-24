@@ -46,8 +46,11 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
   }, [hasAuth, session, apiRequest]);
 
   const handleEdit = (sheet) => {
-    onEditSheet(sheet);
-    navigate('/');
+    if (onEditSheet(sheet)?.ok) navigate('/');
+  };
+
+  const handleNew = () => {
+    if (onCreateNewSheet()?.ok) navigate('/');
   };
 
   const handleDelete = async (id) => {
@@ -117,12 +120,12 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
     <div className="dashboard-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2>My Cheat Sheets</h2>
-        <button className="btn primary" onClick={() => { onCreateNewSheet(); navigate('/'); }}>Create New Sheet</button>
+        <button className="btn primary" onClick={handleNew}>Create New Sheet</button>
       </div>
       {sheets.length === 0 ? (
         <div className="empty-state">
           <p>You haven't saved any cheat sheets yet.</p>
-          <button className="btn primary" onClick={() => { onCreateNewSheet(); navigate('/'); }}>Create Your First Sheet</button>
+          <button className="btn primary" onClick={handleNew}>Create Your First Sheet</button>
         </div>
       ) : (
         <div className="sheets-grid">

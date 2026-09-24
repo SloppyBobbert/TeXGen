@@ -97,6 +97,108 @@ describe('real App/editor recovery boundaries', () => {
     expect(screen.queryByRole('button', { name: 'Restore older-format recovery' })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ['Create New Sheet', true, 'Keep canonical draft'],
+    ['Create New Sheet', false, 'Restore older-format recovery'],
+    ['Create Your First Sheet', false, 'Keep canonical draft'],
+    ['Edit', true, 'Restore older-format recovery'],
+  ])('rejects pending no-envelope recovery replacement via %s (populated: %s)', async (action, populated, choice) => {
+    const identity = 'pending-local';
+    const current = { id: 42, draftId: identity, title: 'Current', content: 'CURRENT ONLY', contentSource: 'manual', selectedFormulas: [] };
+    const copies = {
+      currentCheatSheet: JSON.stringify(current),
+      [`cheatSheetLatex:${identity}`]: JSON.stringify({ content: 'SIDECAR ONLY', contentSource: 'manual' }),
+      [`cheatSheetData:${identity}`]: '{broken',
+      [`cheatSheetCompileHistory:${identity}`]: JSON.stringify([{ content: 'HISTORY ONLY' }]),
+      untitledSheetCounter: '7',
+    };
+    Object.entries(copies).forEach(([key, value]) => localStorage.setItem(key, value));
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => populated ? [{ id: 99, title: 'Different sheet', content: 'OTHER' }] : [] };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, '/dashboard');
+    const button = await screen.findByRole('button', { name: action });
+    const storedBefore = { ...localStorage };
+    fireEvent.click(button);
+    expect({ ...localStorage }).toEqual(storedBefore);
+    expect(screen.getByRole('heading', { name: 'My Cheat Sheets' })).toBeInTheDocument();
+    expect(screen.getByRole('alert', { name: 'Older-format recovery' })).toBeInTheDocument();
+    expect(window.alert).toHaveBeenCalledWith('Choose a recovery copy using Restore older-format recovery or Keep canonical draft before creating or opening another sheet.');
+    Object.entries(copies).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBeNull();
+    await home();
+    expect(editor()).toHaveValue('CURRENT ONLY');
+    view.unmount();
+    view = mount(true, '/dashboard');
+    await screen.findByRole('button', { name: action });
+    Object.entries(copies).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    fireEvent.click(screen.getByRole('button', { name: choice }));
+    const chosenSource = choice === 'Keep canonical draft' ? 'CURRENT ONLY' : 'SIDECAR ONLY';
+    const chosenDraft = localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`);
+    expect(JSON.parse(chosenDraft)).toMatchObject({ draft_identity: identity, source_latex: chosenSource });
+    fireEvent.click(screen.getByRole('button', { name: action === 'Edit' ? 'Create New Sheet' : action }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.queryByRole('heading', { name: 'My Cheat Sheets' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBe(chosenDraft);
+    const next = JSON.parse(localStorage.getItem('currentCheatSheet'));
+    expect(next).toMatchObject({ title: 'Untitled Sheet (8)', content: '' });
+    expect(next.draftId).not.toBe(identity);
+    expect(next.id).toBeUndefined();
+  });
+
+  it('allows same-sheet Edit to establish the pending no-envelope recovery baseline', async () => {
+    const identity = 'same-sheet-pending';
+    const current = JSON.stringify({ id: 42, draftId: identity, title: 'Current', content: 'CURRENT ONLY', contentSource: 'manual', selectedFormulas: [] });
+    const sidecar = JSON.stringify({ content: 'SIDECAR ONLY', contentSource: 'manual' });
+    localStorage.setItem('currentCheatSheet', current);
+    localStorage.setItem(`cheatSheetLatex:${identity}`, sidecar);
+    localStorage.setItem(`cheatSheetData:${identity}`, '{broken');
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [{ id: 42, title: 'Remote', source_mode: 'raw', source_latex: 'SERVER BASELINE', formula_selections: [] }] };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('CURRENT ONLY');
+    expect(localStorage.getItem('currentCheatSheet')).toBe(current);
+    expect(localStorage.getItem(`cheatSheetLatex:${identity}`)).toBe(sidecar);
+    expect(localStorage.getItem(`cheatSheetData:${identity}`)).toBe('{broken');
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBeNull();
+    expect(window.alert).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SIDECAR ONLY');
+    const restored = JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`));
+    expect(restored).toMatchObject({ draft_identity: identity, source_latex: 'SIDECAR ONLY' });
+    expect(JSON.parse(restored.synced_signature)).toMatchObject({ source_latex: 'SERVER BASELINE' });
+    view.unmount();
+    mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SIDECAR ONLY');
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 42, draftId: identity });
+  });
+
+  it('allows explicit destructive Clear while a no-envelope recovery choice is pending', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'pending-clear', content: 'DISCARD CURRENT', contentSource: 'manual' }));
+    localStorage.setItem('cheatSheetLatex:pending-clear', '{broken');
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.getByRole('alert', { name: 'Older-format recovery' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('cheatSheetLatex:pending-clear')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).content).toBe('');
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).draftId).not.toBe('pending-clear');
+  });
+
   it('upgrades pre-fix split storage without discarding newer sidecar edits', async () => {
     localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'upgrade', content: 'OLD SOURCE' }));
     writeDraft(localStorage, { schema_version: 1, draft_identity: 'upgrade', base_revision: null, title: 'Old title', source_mode: 'raw', source_latex: 'OLD SOURCE', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, history: [] });

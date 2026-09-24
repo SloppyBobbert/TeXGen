@@ -44,6 +44,11 @@ const normalizeCompileSnapshot = (snapshot) => ({
   formulaSelections: snapshotFormulaSelections(snapshot),
 });
 const storageFailure = (error) => ({ ok: false, error });
+const rejectPendingRecovery = () => {
+  const error = new Error('Choose a recovery copy using Restore older-format recovery or Keep canonical draft before creating or opening another sheet.');
+  alert(error.message);
+  return storageFailure(error);
+};
 const safeStorageRemove = (key) => {
   try {
     localStorage.removeItem(key);
@@ -462,7 +467,7 @@ function App() {
     setIsSaving(false);
   }, [authSession]);
 
-  const handleReset = () => {
+  const createNewSheet = () => {
     saveEpochRef.current += 1;
     saveControllerRef.current?.abort();
     pendingCreatePromiseRef.current = null;
@@ -471,6 +476,11 @@ function App() {
     setCheatSheet(nextSheet);
     setEditorSessionKey((prev) => prev + 1);
     return persistSheet(nextSheet);
+  };
+
+  const handleReset = () => {
+    if (cheatSheetRef.current.legacyRecovery) return rejectPendingRecovery();
+    return createNewSheet();
   };
 
   const handleClear = () => {
@@ -487,7 +497,7 @@ function App() {
         return;
       }
     }
-    if (!handleReset().ok) alert('Browser recovery was removed, but the new empty draft could not be saved in this browser.');
+    if (!createNewSheet().ok) alert('Browser recovery was removed, but the new empty draft could not be saved in this browser.');
   };
 
   const handleSave = async (data, showFeedback = true) => {
@@ -645,6 +655,7 @@ function App() {
   };
 
   const handleEditSheet = (sheet) => {
+    if (cheatSheetRef.current.legacyRecovery && cheatSheetRef.current.id !== sheet.id) return rejectPendingRecovery();
     saveEpochRef.current += 1;
     saveControllerRef.current?.abort();
     pendingCreatePromiseRef.current = null;
@@ -691,6 +702,7 @@ function App() {
     persistSheet(editSheet);
     safeStorageRemove('cheatSheetData');
     safeStorageRemove('cheatSheetLatex');
+    return { ok: true };
   };
 
   const handleRestoreSnapshot = (snapshot) => {
@@ -774,7 +786,7 @@ function App() {
       </header>
       <main id="main-content" tabIndex={-1}>
         {cheatSheet.legacyRecovery && <section role="alert" aria-label="Older-format recovery">
-          <p>An older-format recovery copy differs from this draft. Its age is unknown. Choose a copy before saving; neither stored copy has been replaced.</p>
+          <p>An older-format recovery copy differs from this draft. Its age is unknown. Choose a copy before saving, creating a new sheet, or opening another sheet; neither stored copy has been replaced.</p>
           <details><summary>Inspect recovery copy</summary><pre>{JSON.stringify({ title: cheatSheet.legacyRecovery.title, content: cheatSheet.legacyRecovery.content, selections: cheatSheet.legacyRecovery.selectedFormulas }, null, 2)}</pre></details>
           <button onClick={() => { setCheatSheet(cheatSheet.legacyRecovery); setEditorSessionKey((key) => key + 1); }}>Restore older-format recovery</button>
           <button onClick={() => session.update({ legacyRecovery: undefined })}>Keep canonical draft</button>
