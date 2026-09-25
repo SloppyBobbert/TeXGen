@@ -157,7 +157,9 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         setGuestRemaining(data.remaining);
         setCompileError(current => current === GUEST_ALLOWANCE_ERROR ? null : current);
       });
-    } catch (error) { setCompileError(error.message); }
+    } catch (error) {
+      setCompileError(current => current && current !== GUEST_ALLOWANCE_ERROR ? current : error.message);
+    }
   }, [apiRequest, authTokens]);
   const [lastCompileSnapshot, setLastCompileSnapshot] = useState(null);
   const [pendingRemoval, setPendingRemoval] = useState(null);

@@ -544,13 +544,17 @@ describe('useLatex hook', () => {
     if (compileFailure) {
       fetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: 'Invalid compile request' }) });
       await act(async () => { await result.current.handleCompileOnly(); });
+      fetch.mockResolvedValueOnce({ ok: false, status: 503 });
+      await act(async () => { await result.current.refreshGuestAllowance(); });
+      expect(result.current.compileError).toBe('Invalid compile request');
+      expect(result.current.guestRemaining).toBeNull();
     }
     fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ remaining: 0 }) });
     await act(async () => { await result.current.refreshGuestAllowance(); });
     expect(result.current.guestRemaining).toBe(0);
     expect(result.current.compileError).toBe(compileFailure ? 'Invalid compile request' : null);
     expect(fetch.mock.calls.map(([url, options]) => [url, options.method])).toEqual(
-      (compileFailure ? ['GET', 'POST', 'GET'] : ['GET', 'GET']).map(method => ['/api/compile/', method]),
+      (compileFailure ? ['GET', 'POST', 'GET', 'GET'] : ['GET', 'GET']).map(method => ['/api/compile/', method]),
     );
   });
 

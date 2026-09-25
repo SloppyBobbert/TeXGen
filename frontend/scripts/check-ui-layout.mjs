@@ -28,8 +28,12 @@ try {
   for (const width of [360, 390, 768, 1280, 1440]) {
     for (const theme of ['light', 'dark']) {
       const context = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: 'reduce' });
+      const pageErrors = [];
+      context.on('weberror', error => {
+        pageErrors.push(error.error());
+        console.error('Browser error:', error.error().message);
+      });
       const page = await context.newPage();
-      page.on('pageerror', error => console.error('Browser error:', error.message));
       page.on('dialog', async dialog => { console.error('Browser dialog:', dialog.message()); await dialog.accept(); });
       let remaining = 3;
       let compiles = 0;
@@ -149,7 +153,7 @@ try {
       await page.locator('#login-username').fill('ui-mock-only');
       await page.locator('#login-password').fill('not-a-real-password');
       await page.getByRole('button', { name: 'Log In', exact: true }).click();
-      await page.waitForURL(`${base}/`, { timeout: 10000 }).catch(async error => {
+      await page.waitForURL(new URL('/', base).href, { timeout: 10000 }).catch(async error => {
         await screenshot('login-failure');
         console.error(await page.locator('body').innerText());
         throw error;
@@ -173,8 +177,10 @@ try {
         await page.locator('.react-pdf__Page canvas').waitFor();
       }
       const fullHistory = await checkHistory(7, 'full-history-7', 'Signed-in snapshot 1');
+      assert.equal(pageErrors.length, 0, `${width}/${theme}: browser exceptions`);
       results.push({ width, theme, states: 11, guestHistory, fullHistory, compiles: `${compiles} mocked; none on guest selection/layout/restore`, allowanceRecovery: '503 then one successful focus GET; stale error removed' });
       await context.close();
+      assert.equal(pageErrors.length, 0, `${width}/${theme}: late browser exceptions`);
     }
   }
   console.log(JSON.stringify({ passed: true, output, results }, null, 2));

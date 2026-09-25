@@ -51,6 +51,26 @@ Shared IP addresses share request throttles, not browser compilation balances. D
 
 If a session expires, sign in again or sign out to compile as a guest. Failed authenticated POST requests are not automatically replayed anonymously.
 
+## Permanent guest balance monitoring (operator setup required)
+
+Each new browser identity creates a permanent row, including accepted allowance GETs and invalid POSTs. Dropping cookies can therefore grow the table indefinitely; request throttles do not bound total storage. Keep identity creation on GET: a valid signed cookie with a missing row must still fail closed with 503. Do not delete balances, reset credits, or include this table in throttle cleanup to control growth.
+
+From the configured backend environment, collect a read-only snapshot:
+
+```sh
+python manage.py guest_balance_metrics
+# {"collected_at": "...+00:00", "row_count": 123, "table_bytes": 49152}
+```
+
+`row_count` is an exact count. PostgreSQL `table_bytes` uses `pg_total_relation_size` (table, indexes, and TOAST); other databases report `null`, not zero. Database errors exit unsuccessfully without a snapshot. Count and size are separate reads, so concurrent requests can change the table between them. Counting scans the table: run this off the request path and tune collection frequency as it grows.
+
+No schedule or alerts are installed by this change. The operator must:
+
+1. Configure an hourly scheduled job in the backend environment. Capture stdout to a temporary file; append it to a retained JSONL metrics log only if the command exits zero. Send nonzero exits or a missing snapshot for two collection intervals to the on-call channel. Do not turn failures into zero values.
+2. Compare each snapshot with the preceding snapshot from the same database: `row_delta = current.row_count - previous.row_count`, and `rows_per_hour = row_delta / elapsed_hours` from `collected_at`. Also track `table_bytes` and its delta. A first snapshot establishes a baseline; it cannot establish growth.
+3. Configure alert thresholds for absolute bytes, rows per hour, and projected storage exhaustion using the database's disk budget and observed baseline. For example, alert when guest storage exceeds its allocated budget or sustained growth would exhaust that budget within seven days. A negative row delta is unexpected: investigate deletion, database replacement, or a wrong collection target. Physical bytes need not increase with every inserted row.
+4. On an alert, investigate identity issuance volume and request throttling, then increase capacity or plan a separately reviewed retention/identity design. Never automatically delete rows or reset allowances. Periodically verify the scheduler, snapshot comparisons, and alert delivery with an operator-owned test.
+
 ## Quota admission and socket acceptance
 
 Authenticated accepted-compile quotas require PostgreSQL in production. SQLite is development-only: its `select_for_update()` is a no-op, so it does not provide the row locking required for concurrent fixed-window admission. SQLite tests do not prove production concurrency correctness.
