@@ -484,50 +484,166 @@ describe('useLatex hook', () => {
     expect(result.current.isCompiling).toBe(false);
   });
 
-  test('requires sign-in without fetching when compiling signed out', async () => {
+  test('compiles submitted guest content without authorization or a saved ID', async () => {
     const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
 
     await act(async () => { await result.current.handleCompileOnly(); });
 
-    expect(global.fetch).not.toHaveBeenCalled();
-    expect(result.current.authenticationRequired).toBe(true);
-    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = global.fetch.mock.calls[0];
+    expect(url).toBe('/api/compile/');
+    expect(options.headers).not.toHaveProperty('Authorization');
+    expect(JSON.parse(options.body)).toMatchObject({ content: 'source', source_mode: 'raw' });
+    expect(JSON.parse(options.body)).not.toHaveProperty('cheat_sheet_id');
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.authenticationRequired).toBe(false);
+    expect(result.current.compileError).toBeNull();
     expect(result.current.isCompiling).toBe(false);
   });
 
-  test('requires sign-in without fetching when downloading a PDF signed out', async () => {
-    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+  test('downloads the current guest PDF without another request or debit', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'source', title: 'Guest' }), { wrapper: signedOutWrapper });
+    global.fetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
+    const click = vi.spyOn(window.HTMLAnchorElement.prototype, 'click').mockImplementation(function () {
+      expect(this.download).toBe('Guest.pdf');
+      expect(this.href).toBe('blob:test-url');
+    });
 
+    await act(async () => { await result.current.handleCompileOnly(); });
+    global.fetch.mockClear();
     await act(async () => { await result.current.handleDownloadPDF(); });
 
     expect(global.fetch).not.toHaveBeenCalled();
-    expect(result.current.authenticationRequired).toBe(true);
-    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(click).toHaveBeenCalledOnce();
+    expect(result.current.authenticationRequired).toBe(false);
+    expect(result.current.compileError).toBeNull();
     expect(result.current.isLoading).toBe(false);
+    click.mockRestore();
   });
 
-  test('treats a compile 401 as sign-in required without compiler diagnostics', async () => {
+  test.each(['source', 'layout'])('requires explicit recompile for a stale %s before guest download', async (change) => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+    fetch.mockResolvedValueOnce({ ok: true, headers: new globalThis.Headers({ 'X-Guest-Compiles-Remaining': '2' }), blob: async () => new Blob(['pdf']) });
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.guestRemaining).toBe(2);
+    fetch.mockClear();
+    if (change === 'source') act(() => result.current.handleContentChange('changed'));
+    else act(() => result.current.setColumns(2));
+    await act(async () => { await result.current.handleDownloadPDF(); });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.compileError).toMatch(/Compile the current source and layout/);
+  });
+
+  test.each([false, true])('recovers a transient allowance GET without clearing unrelated compile errors (compile failure: %s)', async (compileFailure) => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+    fetch.mockResolvedValueOnce({ ok: false, status: 503 });
+    await act(async () => { await result.current.refreshGuestAllowance(); });
+    expect(result.current.guestRemaining).toBeNull();
+    expect(result.current.compileError).toBe('Guest allowance unavailable. Try again.');
+    if (compileFailure) {
+      fetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: 'Invalid compile request' }) });
+      await act(async () => { await result.current.handleCompileOnly(); });
+    }
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ remaining: 0 }) });
+    await act(async () => { await result.current.refreshGuestAllowance(); });
+    expect(result.current.guestRemaining).toBe(0);
+    expect(result.current.compileError).toBe(compileFailure ? 'Invalid compile request' : null);
+    expect(fetch.mock.calls.map(([url, options]) => [url, options.method])).toEqual(
+      (compileFailure ? ['GET', 'POST', 'GET'] : ['GET', 'GET']).map(method => ['/api/compile/', method]),
+    );
+  });
+
+  test('never auto-compiles guest layout changes and restores server balance without a POST', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'restored source' }), { wrapper: signedOutWrapper });
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ remaining: 1 }) });
+    await act(async () => { await result.current.refreshGuestAllowance(); });
+    expect(result.current.guestRemaining).toBe(1);
+    expect(fetch).toHaveBeenCalledWith('/api/compile/', expect.objectContaining({ method: 'GET' }));
+    fetch.mockClear();
+    vi.useFakeTimers();
+    act(() => result.current.setColumns(2));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test('deduplicates simultaneous guest clicks and reports zero without calling it an expired session', async () => {
+    const pending = deferred();
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+    fetch.mockReturnValueOnce(pending.promise);
+    let first;
+    act(() => { first = result.current.handleCompileOnly(); result.current.handleCompileOnly(); });
+    await waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    await act(async () => {
+      pending.resolve({ ok: false, status: 403, json: async () => ({ reason: 'guest_login_required' }) });
+      await first;
+    });
+    expect(result.current.guestRemaining).toBe(0);
+    expect(result.current.authenticationRequired).toBe(false);
+    expect(result.current.compileError).toMatch(/three guest compilations are used/);
+    fetch.mockResolvedValueOnce({ ok: false, status: 403, json: async () => ({ detail: 'Forbidden' }) });
+    await act(async () => { await result.current.handleCompileOnly(); });
+    expect(result.current.compileError).toBe('Forbidden');
+  });
+
+  test('reports an expired session on compile 401 without replay or compiler diagnostics', async () => {
     const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper });
     global.fetch.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'compiler diagnostic' });
 
     await act(async () => { await result.current.handleCompileOnly(); });
 
     expect(result.current.authenticationRequired).toBe(true);
-    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(result.current.compileError).toBe('Your session has expired. Sign in again or sign out to compile as a guest.');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  test('generates source while signed out without starting compilation', async () => {
+  test('generates and compiles source while signed out', async () => {
     const { result } = renderHook(() => useLatex(), { wrapper: signedOutWrapper });
-    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'generated source' }) });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'generated source' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
 
     await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'first' }]); });
 
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(global.fetch).toHaveBeenCalledWith('/api/generate-sheet/', expect.anything());
     expect(result.current.content).toBe('generated source');
     expect(result.current.contentSource).toBe('generated');
-    expect(result.current.authenticationRequired).toBe(true);
-    expect(result.current.compileError).toBe('Sign in to compile or download PDFs.');
+    expect(result.current.pdfBlob).toBe('blob:test-url');
+    expect(result.current.authenticationRequired).toBe(false);
+    expect(result.current.compileError).toBeNull();
+  });
+
+  test.each([[400, 'Invalid compile request'], [429, 'Request was throttled.'], [503, 'Request limiting is temporarily unavailable.']])('shows guest compile failure %s without a login gate', async (status, error) => {
+    const { result } = renderHook(() => useLatex({ content: 'source' }), { wrapper: signedOutWrapper });
+    global.fetch.mockResolvedValueOnce({ ok: false, status, json: async () => status === 400 ? ({ error }) : ({ detail: error }) });
+    await act(async () => { await result.current.handlePreview(); });
+    expect(result.current.compileError).toBe(error);
+    expect(result.current.authenticationRequired).toBe(false);
+    expect(result.current.pdfBlob).toBeNull();
+    expect(result.current.isCompiling).toBe(false);
+  });
+
+  test('keeps guest source intact when history storage fails before generation can compile', async () => {
+    const { result } = renderHook(() => useLatex({ content: 'original' }), { wrapper: signedOutWrapper });
+    vi.spyOn(mockLocalStorage, 'setItem').mockImplementation(() => { throw new Error('storage full'); });
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'replacement' }) });
+    await act(async () => { await result.current.handleGenerateSheet([{ formula_id: 'first' }]); });
+    expect(result.current.content).toBe('original');
+    expect(result.current.sectionMessage).toMatch(/Recovery could not be saved/);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(result.current.authenticationRequired).toBe(false);
+  });
+
+  test.each(['handlePreview', 'handleDownloadTex'])('normalizes guest generated source for %s after layout changes', async (action) => {
+    const { result } = renderHook(() => useLatex({ content: 'generated', contentSource: 'generated' }), { wrapper: signedOutWrapper });
+    vi.spyOn(window.HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    global.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ tex_code: 'normalized' }) })
+      .mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['pdf']) });
+    act(() => result.current.setColumns(2));
+    await act(async () => { await result.current[action](); });
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toMatchObject({ normalize_only: true, columns: 2 });
+    expect(global.fetch).toHaveBeenCalledTimes(action === 'handleDownloadTex' ? 1 : 2);
+    expect(result.current.authenticationRequired).toBe(false);
   });
 
   test('sends canonical formula IDs under formula_selections only in selected order when generating', async () => {
@@ -631,14 +747,11 @@ describe('useLatex hook', () => {
     expect(result.current.isGenerating).toBe(false);
   });
 
-  test('reports a failed PDF download and clears loading state', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+  test('requires explicit compilation before downloading without a current PDF', async () => {
     const { result } = renderHook(() => useLatex({ content: 'manual source' }), { wrapper });
-    fetch.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'Compile failed' });
     await act(async () => { await result.current.handleDownloadPDF(); });
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(fetch).toHaveBeenCalledWith('/api/compile/', expect.objectContaining({ method: 'POST' }));
-    expect(alert).toHaveBeenCalledWith('Failed to generate PDF. Check console for details.');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(result.current.compileError).toBe('Compile the current source and layout before downloading.');
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(result.current.isLoading).toBe(false);
   });

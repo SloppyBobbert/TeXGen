@@ -55,12 +55,12 @@ def admitted():
 
 
 @pytest.mark.django_db
-def test_anonymous_request_stops_before_quota_and_compiler():
+def test_guest_invalid_source_stops_before_quota_and_compiler():
     compiler = Mock()
     with patch("api.views.admit_compile") as quota, patch("api.views.get_compiler_service", return_value=compiler):
-        response = APIClient().post("/api/compile/", {"content": "x"}, format="json")
+        response = APIClient().post("/api/compile/", {"content": 2}, format="json")
 
-    assert response.status_code == 401
+    assert response.status_code == 400
     quota.assert_not_called()
     compiler.prepare.assert_not_called()
 

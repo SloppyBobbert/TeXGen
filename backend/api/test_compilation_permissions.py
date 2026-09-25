@@ -22,12 +22,12 @@ def authenticated_client(db):
 @pytest.mark.parametrize(
     "payload",
     [
-        {"content": "raw content"},
+        {"cheat_sheet_id": 1},
         {"cheat_sheet_id": "not-an-id"},
-        {"content": "raw content", "normalize_only": True},
+        {"cheat_sheet_id": 1, "content": "raw content", "normalize_only": True},
     ],
 )
-def test_unauthenticated_compilation_stops_before_downstream_work(payload):
+def test_guest_saved_id_stops_before_downstream_work(payload):
     client = APIClient()
 
     with (
@@ -109,6 +109,6 @@ def test_authenticated_raw_content_reaches_compilation_branch(authenticated_clie
     execute.assert_called_once_with()
 
 
-def test_compile_uses_only_the_authenticated_user_throttle():
+def test_compile_keeps_shared_and_user_or_ip_throttles():
     cache.clear()
     assert compile_latex.cls.throttle_classes == [CompileUserThrottle]

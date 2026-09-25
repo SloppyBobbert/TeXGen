@@ -4,7 +4,6 @@ on:
   push:
     branches: ["main", "tests"]
   pull_request:
-    branches: ["main", "tests"]
 
 permissions:
   contents: read
@@ -76,7 +75,7 @@ jobs:
         env:
           DATABASE_URL: postgres://user:password@localhost:5432/backend_db
           TEXGEN_REQUIRE_POSTGRES_CONCURRENCY: "1"
-        run: pytest --no-cov -v tests/test_compile_quota_postgres.py tests/test_request_throttle_postgres.py
+        run: pytest --no-cov -v tests/test_compile_quota_postgres.py tests/test_request_throttle_postgres.py api/test_guest_balance.py::test_postgresql_atomic_reservations_never_exceed_three
 
   frontend:
     runs-on: ubuntu-latest

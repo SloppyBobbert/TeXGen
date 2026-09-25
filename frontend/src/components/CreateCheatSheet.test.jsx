@@ -213,12 +213,12 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByTestId('mock-document')).toBeInTheDocument();
   });
 
-  it('shows one sign-in notice and retains the prior PDF when compilation requires authentication', () => {
+  it('shows one session-expiry notice and retains the prior PDF after compile rejects stale credentials', () => {
     useLatex.mockReturnValue({
       ...mockUseLatex,
       pdfBlob: new Blob(['pdf'], { type: 'application/pdf' }),
       authenticationRequired: true,
-      compileError: 'Sign in to compile or download PDFs.',
+      compileError: 'Your session has expired. Sign in again or sign out to compile as a guest.',
     });
 
     render(
@@ -227,9 +227,9 @@ describe('CreateCheatSheet Component', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Sign in to compile or download PDFs.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Your session has expired. Sign in again or sign out to compile as a guest.');
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
-    expect(screen.getAllByText('Sign in to compile or download PDFs.')).toHaveLength(1);
+    expect(screen.getAllByText('Your session has expired. Sign in again or sign out to compile as a guest.')).toHaveLength(1);
     expect(screen.getByTestId('mock-document')).toBeInTheDocument();
   });
 
