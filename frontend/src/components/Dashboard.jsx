@@ -118,7 +118,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
 
   return (
     <div className="dashboard-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="dashboard-heading">
         <h2>My Cheat Sheets</h2>
         <button className="btn primary" onClick={handleNew}>Create New Sheet</button>
       </div>

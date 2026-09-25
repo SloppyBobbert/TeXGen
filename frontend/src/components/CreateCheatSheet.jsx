@@ -33,7 +33,7 @@ const MIN_CENTER_WIDTH = 360;
 const MIN_PREVIEW_WIDTH = 260;
 const DEFAULT_PDF_ZOOM = 0.85;
 const MIN_SPLIT_CENTER_WIDTH = LATEX_PANEL_MIN_WIDTH + RESIZER_WIDTH + MIN_PREVIEW_WIDTH;
-const AUTHENTICATION_REQUIRED_MESSAGE = 'Sign in to compile or download PDFs.';
+const AUTHENTICATION_REQUIRED_MESSAGE = 'Your session has expired. Sign in again or sign out to compile as a guest.';
 
 function loadPanelLayout() {
   try {
@@ -1205,10 +1205,14 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     orientation,
     setOrientation,
     pdfBlob,
+    isCurrentPDF,
     isGenerating,
     isCompiling,
     compileError: rawCompileError,
     authenticationRequired,
+    guestRemaining,
+    isGuest,
+    refreshGuestAllowance,
     lastCompileSnapshot,
     goBack,
     goForward,
@@ -1255,12 +1259,19 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
   const snapshots = useMemo(() => [...(initialData?.compileHistory || [])].reverse(), [initialData?.compileHistory]);
 
   useEffect(() => {
-    if (!shouldRestorePreviewRef.current || hasRestoredPreviewRef.current) return;
+    if (!isGuest) return;
+    refreshGuestAllowance();
+    window.addEventListener('focus', refreshGuestAllowance);
+    return () => window.removeEventListener('focus', refreshGuestAllowance);
+  }, [isGuest, refreshGuestAllowance]);
+
+  useEffect(() => {
+    if (isGuest || !shouldRestorePreviewRef.current || hasRestoredPreviewRef.current) return;
     if (!isFormulaSelectionInitialized || !content?.trim()) return;
 
     hasRestoredPreviewRef.current = true;
     handlePreview(content);
-  }, [content, handlePreview, isFormulaSelectionInitialized]);
+  }, [isGuest, content, handlePreview, isFormulaSelectionInitialized]);
   const selectedClassNames = useMemo(
     () => classesData.filter((cls) => selectedClasses[cls.name]).map((cls) => cls.name),
     [classesData, selectedClasses],
@@ -1759,7 +1770,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               {contentSource === 'generated' && <button type="button" onClick={useRawSource} className="btn history-btn">Use raw source</button>}
               {sectionMessage && <p role="status">{sectionMessage}</p>}
               {(generatedSections || contentSource === 'manual') && <p className="subtle-copy">Regenerate to apply layout options to this source.</p>}
-              {pdfBlob && lastCompileSnapshot && lastCompileSnapshot.content !== content && !compileError && <p role="status">The PDF shows the previous source. Compile to update it.</p>}
+              {pdfBlob && !isCurrentPDF && !compileError && <p role="status">The PDF shows the previous source or layout. Compile to update it.</p>}
 
               <div className="button-row">
                 <button
@@ -1849,6 +1860,20 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               </div>
 
               <div className="workspace-topbar-group workspace-topbar-group-end">
+                {isGuest && (
+                  <div className="guest-allowance">
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                      aria-label={guestRemaining == null ? 'Checking guest compilation allowance' : `${guestRemaining} of 3 guest compilations remaining`}
+                      title={guestRemaining == null ? 'Checking guest compilation allowance' : `${guestRemaining} of 3 guest compilations remaining`}
+                    >
+                      {guestRemaining == null ? '…/3' : `${guestRemaining}/3`}
+                    </span>
+                    <Link to="/login" aria-label={guestRemaining === 0 ? 'Sign in to compile more PDFs' : 'Sign in'}>Sign in</Link>
+                  </div>
+                )}
                 <span className="save-status">
                   {getSaveStatusText()}
                 </span>
@@ -1889,7 +1914,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               />
             )}
 
-             {authenticationRequired && (
+              {authenticationRequired && (
                <div className="compile-error-box authentication-notice" role="alert">
                  {AUTHENTICATION_REQUIRED_MESSAGE} <Link to="/login">Sign in</Link>
                </div>

@@ -342,6 +342,7 @@
 }
 
 body {
+  margin: 0;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg);
   color: var(--text);
@@ -355,7 +356,7 @@ body {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: var(--space-md) 0;
+  padding: var(--space-md) 0.5rem;
 }
 
 /* ==========================================================================
@@ -1741,11 +1742,22 @@ label {
 THREE COLUMN LAYOUT 
 =====================================*/
 
+.App:has(.app-shell) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.App:has(.app-shell) > main {
+  flex: 1;
+  min-height: 0;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   background: var(--bg);
 }
@@ -1998,6 +2010,7 @@ THREE COLUMN LAYOUT
 
 .left-panel-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0.85rem;
 }
@@ -2012,6 +2025,7 @@ THREE COLUMN LAYOUT
 }
 
 .left-panel-footer {
+  flex-shrink: 0;
   padding: 0.85rem;
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--panel-bg) 92%, var(--bg) 8%);
@@ -2418,6 +2432,8 @@ pdf main focus - center panel
 }
 
 .pdf-placeholder {
+  padding: 1rem;
+  text-align: center;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -2501,11 +2517,54 @@ center panel - latex drawer
   justify-content: flex-end;
 }
 
-@media (max-width: 1120px) {
-  .workspace-topbar-group-end {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
+.save-status:empty {
+  display: none;
+}
+
+.guest-allowance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.guest-allowance a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.5rem;
+  color: var(--text);
+  text-underline-offset: 3px;
+}
+
+.guest-allowance a:hover {
+  color: var(--primary);
+}
+
+.auth-card {
+  max-width: 400px;
+  margin: clamp(1rem, 5vw, 4rem) auto;
+  padding: clamp(1.25rem, 5vw, 2.5rem);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+@media (pointer: coarse), (max-width: 860px) {
+  .app-header-link,
+  .app-theme-select,
+  .workspace-topbar button,
+  .guest-allowance a,
+  .left-panel button,
+  .left-panel .btn,
+  .left-panel select,
+  .auth-card button,
+  .pdf-zoom-btn {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
@@ -2889,6 +2948,7 @@ video modal
 }
 
 .snapshot-tray {
+  flex: none;
   margin: 0.65rem 0.75rem 0;
   padding: 0.85rem;
   border: 1px solid var(--border);
@@ -2908,6 +2968,9 @@ video modal
 }
 
 .snapshot-list {
+  max-height: 160px;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   display: grid;
   gap: 0.55rem;
   margin-top: 0.8rem;
@@ -2986,25 +3049,58 @@ three - column responsive
   }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 860px) {
   .app-header-inner {
-    grid-template-columns: 1fr;
-    justify-items: center;
+    grid-template-columns: 1fr auto;
   }
 
-  .app-header-nav,
-  .app-header-actions,
   .app-header-brand {
-    width: 100%;
-    justify-content: center;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-content: flex-start;
+  }
+
+  .app-header-nav {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .app-header-link {
+    padding-inline: 0.5rem;
+  }
+
+  .app-header-inner:has(.app-header-logout) .app-header-nav,
+  .app-header-inner:has(.app-header-logout) .app-header-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .app-theme-control {
+    gap: 0.25rem;
+  }
+
+  .app-theme-select {
+    min-width: 8rem;
+    padding-left: 0.5rem;
   }
 }
 
 @media (max-width: 860px) {
+  .App:has(.app-shell) {
+    height: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
   .app-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr auto;
-    overflow-y: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    overflow: visible;
   }
 
   .panel-resizer,
@@ -3024,7 +3120,8 @@ three - column responsive
   .right-panel {
     border: none;
     border-bottom: 1px solid var(--border);
-    max-height: 280px;
+    max-height: none;
+    overflow: visible;
   }
 
   .workspace-topbar,
@@ -3038,8 +3135,19 @@ three - column responsive
     padding-right: 0.55rem;
   }
 
+  .left-panel-scroll,
+  .right-panel-scroll {
+    flex: none;
+    overflow: visible;
+  }
+
   .center-panel {
-    min-height: 60vh;
+    min-width: 0;
+  }
+
+  .pdf-container {
+    flex: none;
+    height: max(600px, 80dvh);
   }
 
   .pdf-container > *{
@@ -3283,20 +3391,6 @@ three - column responsive
 
 /* mobile responsiveness improvement */
 @media (max-width: 768px) {
-  .app-body {
-    grid-template-columns: 1fr !important;
-    grid-template-rows: auto;
-    overflow-y: auto;
-  }
-  .left-panel, 
-  .right-panel {
-    max-height: 300px;
-    border: none;
-    border-bottom: 1px solid var(--border);
-  }
-  .center-panel {
-    min-height: 60vh;
-  }
   .pdf-container {
     padding: var(--space-sm);
   }
@@ -3541,12 +3635,6 @@ select:focus:not(:focus-visible) {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
    }
-}
-
-.layout-control + .layout-control {
-  padding-top: 0.5rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border-subtle);
 }
 
 /* select all / deselect all buttons */

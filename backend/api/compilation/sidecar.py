@@ -74,13 +74,13 @@ class SidecarCompilerClient:
             connection.settimeout(request.limits.timeout_seconds + _RESPONSE_GRACE_SECONDS)
             response_id, response, pdf = receive_message(connection)
         except socket.timeout as error:
-            raise CompilerTimeout("compiler sidecar response timed out") from error
+            raise CompilerTimeout("compiler sidecar response timed out", outcome_unknown=True) from error
         except ProtocolError as error:
-            raise CompilerUnavailable("invalid compiler sidecar response") from error
+            raise CompilerUnavailable("invalid compiler sidecar response", outcome_unknown=True) from error
         except OSError as error:
-            raise CompilerUnavailable("compiler sidecar is unavailable") from error
+            raise CompilerUnavailable("compiler sidecar is unavailable", outcome_unknown=True) from error
         if response_id != request_id:
-            raise CompilerUnavailable("mismatched compiler sidecar response")
+            raise CompilerUnavailable("mismatched compiler sidecar response", outcome_unknown=True)
         if "failure" in response:
             failure = _FAILURES.get(response["failure"], CompilerInternalError)
             raise failure(response["diagnostics"])
