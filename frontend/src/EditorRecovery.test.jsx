@@ -356,7 +356,7 @@ describe('real App/editor recovery boundaries', () => {
     }
   });
 
-  it.each(['sheet-42', 'original-local'].flatMap((identity) => [null, 'existing acknowledgement'].map((baseline) => [identity, baseline])))('retains nested pre-fix sidecar recovery after Dashboard and reload: %s (%s)', async (identity, baseline) => {
+  it.each(['sheet-42', 'original-local'].flatMap((identity) => [null, 'existing acknowledgement'].flatMap((baseline) => ['Restore older-format recovery', 'Keep canonical draft'].map((choice) => [identity, baseline, choice]))))('retains pending pre-fix recovery after Dashboard and reload: %s (%s), %s', async (identity, baseline, choice) => {
     const layout = { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' };
     localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 42, draftId: identity }));
     writeDraft(localStorage, { schema_version: 1, draft_identity: identity, recovery_identity: 'original-recovery', base_revision: 3, title: 'Old', source_mode: 'raw', source_latex: 'OLD', formula_selections: [], layout, history: [], synced_signature: baseline });
@@ -375,20 +375,22 @@ describe('real App/editor recovery boundaries', () => {
     expect(editor()).toHaveValue('OLD');
     expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBe(originalEnvelope);
     expect(localStorage.getItem(`cheatSheetLatex:${identity}`)).toBe(sidecar);
-    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    fireEvent.click(screen.getByRole('button', { name: choice }));
+    const chosenSource = choice === 'Keep canonical draft' ? 'OLD' : 'UNSYNCED SIDECAR';
+    const chosenTitle = choice === 'Keep canonical draft' ? 'Old' : 'Sidecar title';
     await screen.findByLabelText('UNIT CIRCLE');
-    expect(editor()).toHaveValue('UNSYNCED SIDECAR');
+    expect(editor()).toHaveValue(chosenSource);
     for (const reload of [false, false, true, false, true]) {
       if (reload) { view.unmount(); view = mount(true, '/dashboard'); }
       else fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
       await screen.findByLabelText('UNIT CIRCLE');
-      expect(editor()).toHaveValue('UNSYNCED SIDECAR');
+      expect(editor()).toHaveValue(chosenSource);
       expect(screen.queryByRole('button', { name: 'Restore older-format recovery' })).not.toBeInTheDocument();
       expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 42, draftId: identity, recoveryIdentity: 'original-recovery', revision: 3 });
       for (const alias of new Set([identity, 'sheet-42'])) {
         const draft = JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${alias}`));
-        expect(draft).toMatchObject({ draft_identity: alias, recovery_identity: 'original-recovery', base_revision: 3, source_latex: 'UNSYNCED SIDECAR', title: 'Sidecar title' });
+        expect(draft).toMatchObject({ draft_identity: alias, recovery_identity: 'original-recovery', base_revision: 3, source_latex: chosenSource, title: chosenTitle });
         if (baseline) expect(draft.synced_signature).toBe(baseline);
         else expect(JSON.parse(draft.synced_signature)).toMatchObject({ source_latex: 'SERVER', title: 'Remote', layout });
       }
@@ -579,6 +581,55 @@ describe('real App/editor recovery boundaries', () => {
     expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
   });
 
+  it.each(['Create New Sheet', 'Create Your First Sheet'].flatMap((entry) => ['canonical', 'current alias'].map((failureAt) => [entry, failureAt])))('rejects %s without losing the live draft or active save when %s persistence fails', async (entry, failureAt) => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'new-failure', title: 'Keep title', content: 'SUBMITTED', contentSource: 'manual', compileHistory: [{ content: 'SNAPSHOT' }] }));
+    localStorage.setItem('untitledSheetCounter', '7');
+    let resolveSave;
+    let signal;
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/' && options.method === 'POST') {
+        signal = options.signal;
+        return new Promise((resolve) => { resolveSave = () => {
+          const saved = { ...JSON.parse(options.body), id: 81, revision: 1 };
+          resolve({ ok: true, json: async () => saved, clone: () => ({ json: async () => saved }) });
+        }; });
+      }
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [] };
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    mount(true);
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await waitFor(() => expect(resolveSave).toBeTypeOf('function'));
+    const setItem = window.Storage.prototype.setItem;
+    const failure = vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key === (failureAt === 'current alias' ? 'currentCheatSheet' : '') || (failureAt === 'canonical' && key.startsWith('cheatSheetDraft:'))) throw new Error('Storage full');
+      return setItem.call(this, key, value);
+    });
+    fireEvent.change(editor(), { target: { value: 'MEMORY ONLY' } });
+    fireEvent.click(selection());
+    const aliases = Object.fromEntries(Object.keys(localStorage).filter((key) => key.includes('new-failure') || key === 'currentCheatSheet').map((key) => [key, localStorage.getItem(key)]));
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: entry }));
+    expect(screen.getByRole('heading', { name: 'My Cheat Sheets' })).toBeInTheDocument();
+    expect(signal.aborted).toBe(false);
+    expect(localStorage.getItem('untitledSheetCounter')).toBe('7');
+    Object.entries(aliases).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    await home();
+    expect(editor()).toHaveValue('MEMORY ONLY');
+    expect(selection()).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Snapshots (1)' })).toBeInTheDocument();
+    failure.mockRestore();
+    resolveSave();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 81, revision: 1, draftId: 'new-failure', content: 'MEMORY ONLY' }));
+    expect(editor()).toHaveValue('MEMORY ONLY');
+    expect(selection()).toBeChecked();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).compileHistory).toEqual([{ content: 'SNAPSHOT' }]);
+    expect(localStorage.getItem('untitledSheetCounter')).toBe('7');
+  });
+
   it('reports failure to persist the empty draft after Clear without restoring discarded content', async () => {
     localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'clear-write-failure', content: 'discard me', contentSource: 'manual' }));
     const view = mount();
@@ -590,6 +641,8 @@ describe('real App/editor recovery boundaries', () => {
     expect(localStorage.getItem('cheatSheetDraft:v1:string:clear-write-failure')).toBeNull();
     await screen.findByLabelText('UNIT CIRCLE');
     expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Snapshots' })).toBeDisabled();
     failure.mockRestore();
     view.unmount();
     mount();
