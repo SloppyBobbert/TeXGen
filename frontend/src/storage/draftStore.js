@@ -280,6 +280,7 @@ export function migrateLegacyDraft(storage, identity, { resolveFormulaId } = {})
       ? matchingCurrentSheet.base_revision : null,
     source_mode: sourceMode(legacySource, sourceLatex),
     source_latex: sourceLatex,
+    generated_sections: latex.generatedSections ?? matchingCurrentSheet?.generatedSections ?? null,
     formula_selections: selections,
     layout: migrateLegacyLayout(latexResult.value, matchingCurrentSheet),
     title: typeof latex.title === 'string' ? latex.title : (typeof matchingCurrentSheet?.title === 'string' ? matchingCurrentSheet.title : ''),

@@ -115,7 +115,8 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   const authSession = authSessionVersion ?? authTokens?.access ?? null;
   const apiRequest = useApiRequest();
   const session = useEditorSession(initialData ?? {});
-  const { update } = session;
+  const { update, persistenceManaged } = session;
+  const { legacyRecovery } = session.document;
   const { title = '', content = '', generatedSections = null, contentSource = getInitialContentSource(initialData),
     columns = DEFAULT_LAYOUT.columns, fontSize = DEFAULT_LAYOUT.fontSize, spacing = DEFAULT_LAYOUT.spacing,
     margins = DEFAULT_LAYOUT.margins, orientation = DEFAULT_LAYOUT.orientation, history = [], historyIndex = -1 } = session.document;
@@ -252,6 +253,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   }, [title, columns, fontSize, spacing, margins, orientation]);
 
   const persistHistory = useCallback((snapshot, entries, index) => {
+    if (legacyRecovery) {
+      setSectionMessage('Choose which recovery draft to keep before changing document history.');
+      return false;
+    }
     const saved = saveLatexStorage(storageKey, {
       title, columns, fontSize, spacing, margins, orientation,
       ...snapshot, history: entries, historyIndex: index,
@@ -265,7 +270,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     update({ ...snapshot, history: entries, historyIndex: index });
     generatedSectionsRef.current = snapshot.generatedSections ?? null;
     return true;
-  }, [storageKey, title, columns, fontSize, spacing, margins, orientation, update]);
+  }, [storageKey, title, columns, fontSize, spacing, margins, orientation, update, legacyRecovery]);
 
   const restoreHistory = useCallback((index) => {
     const snapshot = history[index];
@@ -310,6 +315,10 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
 
   useEffect(() => {
     if (initialLoaded.current) return;
+    if (persistenceManaged) {
+      initialLoaded.current = true;
+      return;
+    }
 
     const saved = storageKey !== STORAGE_KEY || initialData === undefined ? loadLatexStorage(storageKey) : null;
     if (saved) {
@@ -355,7 +364,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
         orientation: initialData.orientation ?? DEFAULT_LAYOUT.orientation,
       };
     }
-  }, [initialData, storageKey, updateGeneratedSections, setTitle, setContent, setContentSource, setHistory, setHistoryIndex, setColumns, setFontSize, setSpacing, setMargins, setOrientation]);
+  }, [initialData, storageKey, persistenceManaged, updateGeneratedSections, setTitle, setContent, setContentSource, setHistory, setHistoryIndex, setColumns, setFontSize, setSpacing, setMargins, setOrientation]);
 
   const handleContentChange = useCallback((newContent) => {
     clearAutoCompileTimer();
@@ -423,6 +432,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   const saveTimerRef = useRef(null);
 
   useEffect(() => {
+    if (persistenceManaged) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       saveLatexStorage(storageKey, { title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation });
@@ -430,7 +440,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation, storageKey]);
+  }, [title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation, storageKey, persistenceManaged]);
 
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}, epoch) => {
     if (!authTokens?.access) throw new Error(AUTHENTICATION_ERROR);
@@ -890,7 +900,14 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     setLastCompileSnapshot(null);
     setCompileError(null);
     clearAuthenticationRequired();
-    localStorage.removeItem(storageKey);
+    if (!persistenceManaged) {
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (error) {
+        setSectionMessage('Cleared in memory, but browser storage could not be cleared. Save before leaving.');
+        console.error('Failed to clear source storage', error);
+      }
+    }
   };
 
   return {

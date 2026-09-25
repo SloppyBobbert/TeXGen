@@ -1,0 +1,669 @@
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import App from './App';
+import AuthContext from './context/AuthContext';
+import { writeDraft } from './storage/draftStore';
+
+vi.mock('react-pdf', () => ({
+  Document: ({ children }) => <div>{children}</div>,
+  Page: () => <div />,
+  pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
+}));
+const classes = [{ name: 'UNIT CIRCLE', categories: [{ name: 'UNIT CIRCLE', formulas: [{ id: 'trig.unit-circle', name: 'Unit circle' }] }] }];
+const mount = (authenticated = false, route = '/') => render(
+  <MemoryRouter initialEntries={[route]}>
+    <AuthContext.Provider value={{ user: authenticated ? { username: 'tester' } : null, authTokens: authenticated ? { access: 'test-token' } : null }}>
+      <App />
+    </AuthContext.Provider>
+  </MemoryRouter>,
+);
+const selection = () => screen.getByLabelText('UNIT CIRCLE');
+const editor = () => {
+  const toggle = screen.queryByRole('button', { name: /Show LaTeX editor/i });
+  if (toggle) fireEvent.click(toggle);
+  return screen.getByLabelText(/Generated LaTeX Code:/i);
+};
+const home = async () => {
+  fireEvent.click(screen.getByRole('link', { name: 'Home' }));
+  await screen.findByLabelText('UNIT CIRCLE');
+};
+
+describe('real App/editor recovery boundaries', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
+
+  it.each([{ selectedFormulas: [] }, { selectedFormulas: [{ class: 'UNIT CIRCLE', category: 'UNIT CIRCLE', name: 'Unit circle' }] }])('preserves no-envelope name-only recovery until an explicit choice (%j)', async ({ selectedFormulas }) => {
+    const records = [{ class: 'UNIT CIRCLE', category: 'UNIT CIRCLE', name: 'Unit circle' }];
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'legacy-only', title: 'Older', content: 'OLDER CURRENT', contentSource: 'manual', selectedFormulas }));
+    const source = JSON.stringify({ content: 'NEW UNSAVED SIDECAR', contentSource: 'manual' });
+    const formulas = JSON.stringify({ groupedFormulas: [{ class: 'UNIT CIRCLE', formulas: records }] });
+    localStorage.setItem('cheatSheetLatex:legacy-only', source);
+    localStorage.setItem('cheatSheetData:legacy-only', formulas);
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(localStorage.getItem('cheatSheetLatex:legacy-only')).toBe(source);
+    expect(localStorage.getItem('cheatSheetData:legacy-only')).toBe(formulas);
+    expect(localStorage.getItem('cheatSheetDraft:v1:string:legacy-only')).toBeNull();
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    await waitFor(() => expect(selection()).toBeChecked());
+    expect(editor()).toHaveValue('NEW UNSAVED SIDECAR');
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:legacy-only')).formula_selections).toEqual([{ formula_id: 'trig.unit-circle' }]));
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).toBeChecked();
+    expect(editor()).toHaveValue('NEW UNSAVED SIDECAR');
+  });
+
+  it.each(['history', 'formulas', 'latex'])('preserves valid sibling recovery when legacy %s JSON is malformed', async (broken) => {
+    const identity = 'malformed-upgrade';
+    const current = { draftId: identity, title: 'Older', content: 'CURRENT SOURCE', contentSource: 'manual', selectedFormulas: [], compileHistory: [] };
+    localStorage.setItem('currentCheatSheet', JSON.stringify(current));
+    const keys = { latex: `cheatSheetLatex:${identity}`, formulas: `cheatSheetData:${identity}`, history: `cheatSheetCompileHistory:${identity}` };
+    const values = { latex: JSON.stringify({ content: 'SIDECAR SOURCE', contentSource: 'manual' }), formulas: JSON.stringify([{ formula_id: 'trig.unit-circle' }]), history: JSON.stringify([{ content: 'HISTORY SOURCE' }]) };
+    values[broken] = '{broken';
+    Object.entries(keys).forEach(([name, key]) => localStorage.setItem(key, values[name]));
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    Object.entries(keys).forEach(([name, key]) => expect(localStorage.getItem(key)).toBe(values[name]));
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBeNull();
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue(broken === 'latex' ? 'CURRENT SOURCE' : 'SIDECAR SOURCE');
+    expect(selection().checked).toBe(broken !== 'formulas');
+    if (broken !== 'history') expect(JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).history).toEqual([{ content: 'HISTORY SOURCE' }]);
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue(broken === 'latex' ? 'CURRENT SOURCE' : 'SIDECAR SOURCE');
+    expect(selection().checked).toBe(broken !== 'formulas');
+    expect(screen.queryByRole('button', { name: 'Restore older-format recovery' })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['Create New Sheet', true, 'Keep canonical draft'],
+    ['Create New Sheet', false, 'Restore older-format recovery'],
+    ['Create Your First Sheet', false, 'Keep canonical draft'],
+    ['Edit', true, 'Restore older-format recovery'],
+  ])('rejects pending no-envelope recovery replacement via %s (populated: %s)', async (action, populated, choice) => {
+    const identity = 'pending-local';
+    const current = { id: 42, draftId: identity, title: 'Current', content: 'CURRENT ONLY', contentSource: 'manual', selectedFormulas: [] };
+    const copies = {
+      currentCheatSheet: JSON.stringify(current),
+      [`cheatSheetLatex:${identity}`]: JSON.stringify({ content: 'SIDECAR ONLY', contentSource: 'manual' }),
+      [`cheatSheetData:${identity}`]: '{broken',
+      [`cheatSheetCompileHistory:${identity}`]: JSON.stringify([{ content: 'HISTORY ONLY' }]),
+      untitledSheetCounter: '7',
+    };
+    Object.entries(copies).forEach(([key, value]) => localStorage.setItem(key, value));
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => populated ? [{ id: 99, title: 'Different sheet', content: 'OTHER' }] : [] };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, '/dashboard');
+    const button = await screen.findByRole('button', { name: action });
+    const storedBefore = { ...localStorage };
+    fireEvent.click(button);
+    expect({ ...localStorage }).toEqual(storedBefore);
+    expect(screen.getByRole('heading', { name: 'My Cheat Sheets' })).toBeInTheDocument();
+    expect(screen.getByRole('alert', { name: 'Older-format recovery' })).toBeInTheDocument();
+    expect(window.alert).toHaveBeenCalledWith('Choose a recovery copy using Restore older-format recovery or Keep canonical draft before creating or opening another sheet.');
+    Object.entries(copies).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBeNull();
+    await home();
+    expect(editor()).toHaveValue('CURRENT ONLY');
+    view.unmount();
+    view = mount(true, '/dashboard');
+    await screen.findByRole('button', { name: action });
+    Object.entries(copies).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    fireEvent.click(screen.getByRole('button', { name: choice }));
+    const chosenSource = choice === 'Keep canonical draft' ? 'CURRENT ONLY' : 'SIDECAR ONLY';
+    const chosenDraft = localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`);
+    expect(JSON.parse(chosenDraft)).toMatchObject({ draft_identity: identity, source_latex: chosenSource });
+    fireEvent.click(screen.getByRole('button', { name: action === 'Edit' ? 'Create New Sheet' : action }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.queryByRole('heading', { name: 'My Cheat Sheets' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBe(chosenDraft);
+    const next = JSON.parse(localStorage.getItem('currentCheatSheet'));
+    expect(next).toMatchObject({ title: 'Untitled Sheet (8)', content: '' });
+    expect(next.draftId).not.toBe(identity);
+    expect(next.id).toBeUndefined();
+  });
+
+  it('allows same-sheet Edit to establish the pending no-envelope recovery baseline', async () => {
+    const identity = 'same-sheet-pending';
+    const current = JSON.stringify({ id: 42, draftId: identity, title: 'Current', content: 'CURRENT ONLY', contentSource: 'manual', selectedFormulas: [] });
+    const sidecar = JSON.stringify({ content: 'SIDECAR ONLY', contentSource: 'manual' });
+    localStorage.setItem('currentCheatSheet', current);
+    localStorage.setItem(`cheatSheetLatex:${identity}`, sidecar);
+    localStorage.setItem(`cheatSheetData:${identity}`, '{broken');
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [{ id: 42, title: 'Remote', source_mode: 'raw', source_latex: 'SERVER BASELINE', formula_selections: [] }] };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('CURRENT ONLY');
+    expect(localStorage.getItem('currentCheatSheet')).toBe(current);
+    expect(localStorage.getItem(`cheatSheetLatex:${identity}`)).toBe(sidecar);
+    expect(localStorage.getItem(`cheatSheetData:${identity}`)).toBe('{broken');
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBeNull();
+    expect(window.alert).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SIDECAR ONLY');
+    const restored = JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`));
+    expect(restored).toMatchObject({ draft_identity: identity, source_latex: 'SIDECAR ONLY' });
+    expect(JSON.parse(restored.synced_signature)).toMatchObject({ source_latex: 'SERVER BASELINE' });
+    view.unmount();
+    mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SIDECAR ONLY');
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 42, draftId: identity });
+  });
+
+  it('allows explicit destructive Clear while a no-envelope recovery choice is pending', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'pending-clear', content: 'DISCARD CURRENT', contentSource: 'manual' }));
+    localStorage.setItem('cheatSheetLatex:pending-clear', '{broken');
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.getByRole('alert', { name: 'Older-format recovery' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.queryByRole('alert', { name: 'Older-format recovery' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('cheatSheetLatex:pending-clear')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).content).toBe('');
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).draftId).not.toBe('pending-clear');
+  });
+
+  it('upgrades pre-fix split storage without discarding newer sidecar edits', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'upgrade', content: 'OLD SOURCE' }));
+    writeDraft(localStorage, { schema_version: 1, draft_identity: 'upgrade', base_revision: null, title: 'Old title', source_mode: 'raw', source_latex: 'OLD SOURCE', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, history: [] });
+    localStorage.setItem('cheatSheetLatex:upgrade', JSON.stringify({ title: 'New title', content: 'NEW SIDECAR SOURCE', contentSource: 'manual' }));
+    localStorage.setItem('cheatSheetData:upgrade', JSON.stringify({ groupedFormulas: [{ class: 'UNIT CIRCLE', formulas: [{ formula_id: 'trig.unit-circle', class: 'UNIT CIRCLE', category: 'UNIT CIRCLE', name: 'Unit circle' }] }] }));
+    const view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('OLD SOURCE');
+    fireEvent.click(selection());
+    fireEvent.click(selection());
+    expect(JSON.parse(localStorage.getItem('cheatSheetLatex:upgrade')).content).toBe('NEW SIDECAR SOURCE');
+    fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+    await waitFor(() => expect(selection()).toBeChecked());
+    expect(editor()).toHaveValue('NEW SIDECAR SOURCE');
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).toBeChecked();
+    expect(editor()).toHaveValue('NEW SIDECAR SOURCE');
+  });
+
+  it('does not resurrect stale sidecars over an explicit canonical clear and remembers the choice', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'cleared-upgrade' }));
+    writeDraft(localStorage, { schema_version: 1, draft_identity: 'cleared-upgrade', base_revision: 2, title: 'Cleared', source_mode: 'empty', source_latex: '', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, history: [] });
+    localStorage.setItem('cheatSheetLatex:cleared-upgrade', JSON.stringify({ content: 'STALE SOURCE', contentSource: 'manual' }));
+    localStorage.setItem('cheatSheetData:cleared-upgrade', JSON.stringify([{ formula_id: 'trig.unit-circle' }]));
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('cheatSheetLatex:cleared-upgrade')).content).toBe('STALE SOURCE');
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByRole('button', { name: 'Keep canonical draft' }));
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Keep canonical draft' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('cheatSheetLatex:cleared-upgrade')).content).toBe('');
+  });
+
+  it.each([false, true])('hydrates a clean canonical copy idempotently (single-owner marker: %s)', async (marked) => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'clean-upgrade' }));
+    writeDraft(localStorage, { schema_version: 1, draft_identity: 'clean-upgrade', session_snapshot: marked, base_revision: 2, title: 'Clean', source_mode: 'raw', source_latex: 'CANONICAL SOURCE', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' }, history: [] });
+    localStorage.setItem('cheatSheetLatex:clean-upgrade', JSON.stringify({ content: marked ? 'STALE SIDECAR' : 'CANONICAL SOURCE', contentSource: 'manual' }));
+    const view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('CANONICAL SOURCE');
+    expect(screen.queryByRole('button', { name: 'Keep canonical draft' })).not.toBeInTheDocument();
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('CANONICAL SOURCE');
+    expect(screen.queryByRole('button', { name: 'Keep canonical draft' })).not.toBeInTheDocument();
+  });
+
+  it('retains selections and explicit empty selections across routes and reload', async () => {
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(selection());
+    fireEvent.click(screen.getByRole('link', { name: 'Login' }));
+    await home();
+    expect(selection()).toBeChecked();
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).toBeChecked();
+    fireEvent.click(selection());
+    fireEvent.click(screen.getByRole('link', { name: 'Login' }));
+    await home();
+    expect(selection()).not.toBeChecked();
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+  });
+
+  it('keeps unsynced Dashboard recovery across reload but refreshes a clean remote copy', async () => {
+    let remote = { id: 42, schema_version: 1, revision: 1, title: 'Remote sheet', source_latex: 'SERVER COPY', source_mode: 'raw', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' } };
+    let offline = true;
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [remote] };
+      if (url === '/api/cheatsheets/42/' && options.method === 'PATCH') {
+        if (offline) throw new Error('Offline');
+        remote = { ...remote, ...JSON.parse(options.body), revision: remote.revision + 1 };
+        return { ok: true, json: async () => remote };
+      }
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SERVER COPY');
+    fireEvent.change(editor(), { target: { value: 'UNSYNCED EDIT' } });
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await screen.findByText('Failed to save. Please try again.');
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create New Sheet' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('UNSYNCED EDIT');
+    view.unmount();
+    view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('UNSYNCED EDIT');
+    offline = false;
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await screen.findByText('Cheat sheet saved successfully!');
+    remote = { ...remote, revision: remote.revision + 1, source_latex: 'NEW SERVER COPY' };
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('NEW SERVER COPY');
+  });
+
+  it.each(['SERVER COPY', 'UNSYNCED COPY'].flatMap((source) => ['sheet-42', 'original-local'].map((identity) => [source, identity])))('handles pre-fix remote recovery without guessing its sync state: %s (%s)', async (source, identity) => {
+    const layout = { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' };
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 42, draftId: identity }));
+    writeDraft(localStorage, { schema_version: 1, draft_identity: identity, base_revision: 1, title: 'Remote', source_mode: 'raw', source_latex: source, formula_selections: [], layout, history: [] });
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [{ id: 42, schema_version: 1, revision: 1, title: 'Remote', source_mode: 'raw', source_latex: 'SERVER COPY', formula_selections: [], layout }] };
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SERVER COPY');
+    if (source === 'UNSYNCED COPY') {
+      expect(JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).source_latex).toBe(source);
+      fireEvent.click(screen.getByRole('button', { name: 'Restore older-format recovery' }));
+      await screen.findByLabelText('UNIT CIRCLE');
+      expect(editor()).toHaveValue(source);
+    } else expect(screen.queryByRole('button', { name: 'Keep canonical draft' })).not.toBeInTheDocument();
+    for (const reload of [false, true]) {
+      if (reload) { view.unmount(); view = mount(true, '/dashboard'); }
+      else fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      await screen.findByLabelText('UNIT CIRCLE');
+      expect(editor()).toHaveValue(source);
+      expect(screen.queryByRole('button', { name: 'Restore older-format recovery' })).not.toBeInTheDocument();
+      expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 42, draftId: source === 'UNSYNCED COPY' ? identity : 'sheet-42', recoveryIdentity: identity });
+      expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-42')).source_latex).toBe(source);
+      if (source === 'UNSYNCED COPY') expect(JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).source_latex).toBe(source);
+    }
+  });
+
+  it.each(['sheet-42', 'original-local'].flatMap((identity) => [null, 'existing acknowledgement'].flatMap((baseline) => ['Restore older-format recovery', 'Keep canonical draft'].map((choice) => [identity, baseline, choice]))))('retains pending pre-fix recovery after Dashboard and reload: %s (%s), %s', async (identity, baseline, choice) => {
+    const layout = { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' };
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 42, draftId: identity }));
+    writeDraft(localStorage, { schema_version: 1, draft_identity: identity, recovery_identity: 'original-recovery', base_revision: 3, title: 'Old', source_mode: 'raw', source_latex: 'OLD', formula_selections: [], layout, history: [], synced_signature: baseline });
+    const sidecar = JSON.stringify({ title: 'Sidecar title', content: 'UNSYNCED SIDECAR', contentSource: 'manual' });
+    localStorage.setItem(`cheatSheetLatex:${identity}`, sidecar);
+    const originalEnvelope = localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`);
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [{ id: 42, schema_version: 1, revision: 9, title: 'Remote', source_mode: 'raw', source_latex: 'SERVER', formula_selections: [], layout }] };
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('OLD');
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBe(originalEnvelope);
+    expect(localStorage.getItem(`cheatSheetLatex:${identity}`)).toBe(sidecar);
+    fireEvent.click(screen.getByRole('button', { name: choice }));
+    const chosenSource = choice === 'Keep canonical draft' ? 'OLD' : 'UNSYNCED SIDECAR';
+    const chosenTitle = choice === 'Keep canonical draft' ? 'Old' : 'Sidecar title';
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue(chosenSource);
+    for (const reload of [false, false, true, false, true]) {
+      if (reload) { view.unmount(); view = mount(true, '/dashboard'); }
+      else fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      await screen.findByLabelText('UNIT CIRCLE');
+      expect(editor()).toHaveValue(chosenSource);
+      expect(screen.queryByRole('button', { name: 'Restore older-format recovery' })).not.toBeInTheDocument();
+      expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 42, draftId: identity, recoveryIdentity: 'original-recovery', revision: 3 });
+      for (const alias of new Set([identity, 'sheet-42'])) {
+        const draft = JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:string:${alias}`));
+        expect(draft).toMatchObject({ draft_identity: alias, recovery_identity: 'original-recovery', base_revision: 3, source_latex: chosenSource, title: chosenTitle });
+        if (baseline) expect(draft.synced_signature).toBe(baseline);
+        else expect(JSON.parse(draft.synced_signature)).toMatchObject({ source_latex: 'SERVER', title: 'Remote', layout });
+      }
+    }
+  });
+
+  it('recovers a newly created sheet by server identity after switching to another draft', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'new-local', content: 'CREATE SOURCE', contentSource: 'manual' }));
+    let remote;
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/' && options.method === 'POST') {
+        remote = { ...JSON.parse(options.body), id: 81, revision: 1 };
+        return { ok: true, json: async () => remote, clone: () => ({ json: async () => remote }) };
+      }
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [remote] };
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const view = mount(true);
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await screen.findByText('Cheat sheet saved successfully!');
+    fireEvent.change(editor(), { target: { value: 'UNSYNCED NEW SHEET' } });
+    fireEvent.click(selection());
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create New Sheet' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    view.unmount();
+    mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('UNSYNCED NEW SHEET');
+    expect(selection()).toBeChecked();
+  });
+
+  it.each([false, true, 'reopened'])('discards only confirmed Clear recovery across Dashboard/reload (first create: %s)', async (firstCreate) => {
+    let remote = { id: 42, schema_version: 1, revision: 1, title: 'Remote', source_mode: 'raw', source_latex: 'SERVER COPY', formula_selections: [], layout: { columns: 4, font_size: '9pt', spacing: 'small', margins: '0.15in', orientation: 'portrait' } };
+    let compileSucceeds = false;
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const unrelatedKeys = ['cheatSheetDraft:v1:string:other', 'cheatSheetLatex:other', 'cheatSheetData:other', 'cheatSheetCompileHistory:other', 'cheatSheetContentSource:other', 'cheatSheetCompileHistory:99', 'cheatSheetContentSource:99'];
+    unrelatedKeys.forEach((key) => localStorage.setItem(key, 'keep'));
+    if (firstCreate) localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'first-local', content: 'SERVER COPY', contentSource: 'manual' }));
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/' && options.method === 'POST') {
+        remote = { ...remote, ...JSON.parse(options.body) };
+        return { ok: true, json: async () => remote, clone: () => ({ json: async () => remote }) };
+      }
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [remote] };
+      if (url === '/api/compile/') return compileSucceeds
+        ? { ok: true, blob: async () => new Blob(['pdf']) }
+        : { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    let view = mount(true, firstCreate ? '/' : '/dashboard');
+    if (!firstCreate) fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    if (firstCreate) {
+      fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+      await screen.findByText('Cheat sheet saved successfully!');
+    }
+    fireEvent.change(editor(), { target: { value: 'DISCARD UNSYNCED' } });
+    fireEvent.click(selection());
+    const identity = firstCreate ? 'first-local' : 'sheet-42';
+    compileSucceeds = true;
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('cheatSheetCompileHistory:42'))).toEqual([
+      expect.objectContaining({ content: 'DISCARD UNSYNCED', formulaSelections: [{ formula_id: 'trig.unit-circle' }] }),
+    ]));
+    compileSucceeds = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Snapshots (1)' }));
+    expect(screen.getByRole('region', { name: 'Compile snapshots' })).toBeInTheDocument();
+    const numericHistory = localStorage.getItem('cheatSheetCompileHistory:42');
+    const numericSource = localStorage.getItem('cheatSheetContentSource:42');
+    if (firstCreate === 'reopened') {
+      fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Create New Sheet' }));
+      expect(localStorage.getItem('cheatSheetCompileHistory:42')).toBe(numericHistory);
+      expect(localStorage.getItem('cheatSheetContentSource:42')).toBe(numericSource);
+      view.unmount();
+      view = mount(true, '/dashboard');
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      await screen.findByLabelText('UNIT CIRCLE');
+      expect(editor()).toHaveValue('DISCARD UNSYNCED');
+    }
+    const before = localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`);
+    window.confirm.mockReturnValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    expect(editor()).toHaveValue('DISCARD UNSYNCED');
+    expect(localStorage.getItem(`cheatSheetDraft:v1:string:${identity}`)).toBe(before);
+    expect(localStorage.getItem('cheatSheetCompileHistory:42')).toBe(numericHistory);
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    expect(localStorage.getItem('cheatSheetCompileHistory:42')).toBeNull();
+    expect(localStorage.getItem('cheatSheetContentSource:42')).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SERVER COPY');
+    expect(selection()).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Snapshots' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument();
+    if (firstCreate) {
+      for (const prefix of ['cheatSheetDraft:v1:string:', 'cheatSheetLatex:', 'cheatSheetData:', 'cheatSheetCompileHistory:', 'cheatSheetContentSource:']) expect(localStorage.getItem(`${prefix}first-local`)).toBeNull();
+    }
+    unrelatedKeys.forEach((key) => expect(localStorage.getItem(key)).toBe('keep'));
+    expect(fetch.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false);
+    view.unmount();
+    view = mount(true, '/dashboard');
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('SERVER COPY');
+    expect(selection()).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Snapshots' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Restore' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('cheatSheetCompileHistory:42')).toBeNull();
+  });
+
+  it.each(['manual', 'compile'])('does not report saved after %s persistence fails', async (mode) => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'failure-test', content: 'source to keep', contentSource: 'manual' }));
+    fetch.mockImplementation(async (url) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/compile/') return { ok: true, blob: async () => new Blob(['pdf']) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    mount(mode === 'compile');
+    await screen.findByLabelText('UNIT CIRCLE');
+    const setItem = window.Storage.prototype.setItem;
+    vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key.startsWith('cheatSheetDraft:')) throw new window.DOMException('Full', 'QuotaExceededError');
+      return setItem.call(this, key, value);
+    });
+    if (mode === 'manual') fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+    else fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    await screen.findByText('Offline changes pending');
+    expect(screen.queryByText('Cheat sheet saved successfully!')).not.toBeInTheDocument();
+    expect(screen.queryByText('Saved just now')).not.toBeInTheDocument();
+    expect(editor()).toHaveValue('source to keep');
+  });
+
+  it('keeps the first Generate usable when all writes fail, then allows saving again', async () => {
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(selection());
+    const failure = vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage full'); });
+    fireEvent.click(screen.getByRole('button', { name: /Generate \/ Regenerate/i }));
+    expect(screen.getByRole('heading', { name: 'Cheat Sheet Generator' })).toBeInTheDocument();
+    failure.mockRestore();
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await screen.findByText('Cheat sheet saved successfully!');
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).formulaSelections).toEqual([{ formula_id: 'trig.unit-circle' }]);
+  });
+
+  it.each(['all', 'alias', 'cheatSheetCompileHistory:42', 'cheatSheetContentSource:42'])('reports incomplete Clear and keeps edits usable when removal fails: %s', async (failureAt) => {
+    const compileHistory = [{ content: 'BROWSER ONLY', contentSource: 'manual', formulaSelections: [{ formula_id: 'trig.unit-circle' }] }];
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ id: 42, draftId: 'clear-test', content: 'old source', compileHistory }));
+    localStorage.setItem('cheatSheetCompileHistory:42', JSON.stringify(compileHistory));
+    localStorage.setItem('cheatSheetContentSource:42', 'manual');
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(selection());
+    const removeItem = window.Storage.prototype.removeItem;
+    const failure = vi.spyOn(window.Storage.prototype, 'removeItem').mockImplementation(function (key) {
+      if (failureAt === 'all' || key === (failureAt === 'alias' ? 'cheatSheetDraft:v1:string:sheet-42' : failureAt)) throw new Error('Removal blocked');
+      return removeItem.call(this, key);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Unable to discard all browser recovery data'));
+    expect(selection()).toBeChecked();
+    expect(editor()).toHaveValue('old source');
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).draftId).toBe('clear-test');
+    if (failureAt === 'alias') expect(localStorage.getItem('cheatSheetDraft:v1:string:clear-test')).toBeNull();
+    fireEvent.change(editor(), { target: { value: 'still editable' } });
+    expect(editor()).toHaveValue('still editable');
+    failure.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    await waitFor(() => expect(selection()).not.toBeChecked());
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).content).toBe('');
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).draftId).not.toBe('clear-test');
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+  });
+
+  it.each(['Create New Sheet', 'Create Your First Sheet'].flatMap((entry) => ['canonical', 'current alias'].map((failureAt) => [entry, failureAt])))('rejects %s without losing the live draft or active save when %s persistence fails', async (entry, failureAt) => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'new-failure', title: 'Keep title', content: 'SUBMITTED', contentSource: 'manual', compileHistory: [{ content: 'SNAPSHOT' }] }));
+    localStorage.setItem('untitledSheetCounter', '7');
+    let resolveSave;
+    let signal;
+    fetch.mockImplementation(async (url, options = {}) => {
+      if (url === '/api/classes/') return { ok: true, json: async () => ({ classes }) };
+      if (url === '/api/cheatsheets/' && options.method === 'POST') {
+        signal = options.signal;
+        return new Promise((resolve) => { resolveSave = () => {
+          const saved = { ...JSON.parse(options.body), id: 81, revision: 1 };
+          resolve({ ok: true, json: async () => saved, clone: () => ({ json: async () => saved }) });
+        }; });
+      }
+      if (url === '/api/cheatsheets/') return { ok: true, json: async () => [] };
+      if (url === '/api/compile/') return { ok: false, json: async () => ({ error: 'Preview unavailable' }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    mount(true);
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await waitFor(() => expect(resolveSave).toBeTypeOf('function'));
+    const setItem = window.Storage.prototype.setItem;
+    const failure = vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (key === (failureAt === 'current alias' ? 'currentCheatSheet' : '') || (failureAt === 'canonical' && key.startsWith('cheatSheetDraft:'))) throw new Error('Storage full');
+      return setItem.call(this, key, value);
+    });
+    fireEvent.change(editor(), { target: { value: 'MEMORY ONLY' } });
+    fireEvent.click(selection());
+    const aliases = Object.fromEntries(Object.keys(localStorage).filter((key) => key.includes('new-failure') || key === 'currentCheatSheet').map((key) => [key, localStorage.getItem(key)]));
+    fireEvent.click(screen.getByRole('link', { name: 'Dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: entry }));
+    expect(screen.getByRole('heading', { name: 'My Cheat Sheets' })).toBeInTheDocument();
+    expect(signal.aborted).toBe(false);
+    expect(localStorage.getItem('untitledSheetCounter')).toBe('7');
+    Object.entries(aliases).forEach(([key, value]) => expect(localStorage.getItem(key)).toBe(value));
+    await home();
+    expect(editor()).toHaveValue('MEMORY ONLY');
+    expect(selection()).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Snapshots (1)' })).toBeInTheDocument();
+    failure.mockRestore();
+    resolveSave();
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('currentCheatSheet'))).toMatchObject({ id: 81, revision: 1, draftId: 'new-failure', content: 'MEMORY ONLY' }));
+    expect(editor()).toHaveValue('MEMORY ONLY');
+    expect(selection()).toBeChecked();
+    expect(JSON.parse(localStorage.getItem('currentCheatSheet')).compileHistory).toEqual([{ content: 'SNAPSHOT' }]);
+    expect(localStorage.getItem('untitledSheetCounter')).toBe('7');
+  });
+
+  it('reports failure to persist the empty draft after Clear without restoring discarded content', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'clear-write-failure', content: 'discard me', contentSource: 'manual' }));
+    const view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    const failure = vi.spyOn(window.Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage full'); });
+    fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
+    expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('new empty draft could not be saved'));
+    expect(localStorage.getItem('currentCheatSheet')).toBeNull();
+    expect(localStorage.getItem('cheatSheetDraft:v1:string:clear-write-failure')).toBeNull();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(selection()).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Snapshots' })).toBeDisabled();
+    failure.mockRestore();
+    view.unmount();
+    mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(screen.queryByRole('button', { name: /Show LaTeX editor/i })).not.toBeInTheDocument();
+  });
+
+  it('retains source when navigating immediately after input, then reloading', async () => {
+    localStorage.setItem('currentCheatSheet', JSON.stringify({ draftId: 'source-test', content: 'seed source' }));
+    let view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    fireEvent.change(editor(), { target: { value: 'EARLIER SOURCE' } });
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    await screen.findByText('Cheat sheet saved successfully!');
+    fireEvent.change(editor(), { target: { value: 'LATEST SOURCE' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Login' }));
+    await home();
+    expect(editor()).toHaveValue('LATEST SOURCE');
+    view.unmount();
+    view = mount();
+    await screen.findByLabelText('UNIT CIRCLE');
+    expect(editor()).toHaveValue('LATEST SOURCE');
+  });
+});

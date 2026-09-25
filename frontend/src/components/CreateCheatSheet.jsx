@@ -51,6 +51,14 @@ function loadPanelLayout() {
   }
 }
 
+function savePanelLayout(layout) {
+  try {
+    localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+  } catch (error) {
+    console.error('Failed to save panel layout', error);
+  }
+}
+
 const clampPanelWidth = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function constrainPanelLayout(layout, { bodyWidth, leftPanelVisible, rightPanelVisible, showLatex }) {
@@ -1430,7 +1438,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
         }
 
         pendingPanelLayoutRef.current = nextLayout;
-        localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout));
+        savePanelLayout(nextLayout);
         return nextLayout;
       });
     };
@@ -1525,7 +1533,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       document.body.classList.remove('is-resizing-panels');
-      localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(pendingPanelLayoutRef.current));
+      savePanelLayout(pendingPanelLayoutRef.current);
     };
 
     document.body.classList.add('is-resizing-panels');
@@ -1566,7 +1574,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
         };
 
         pendingPanelLayoutRef.current = nextLayout;
-        localStorage.setItem(PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout));
+        savePanelLayout(nextLayout);
         return nextLayout;
       });
     }
@@ -1641,9 +1649,11 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear everything? This cannot be undone.')) {
-      clearLatex();
-      clearSelections();
-      onReset?.();
+      if (onReset) onReset();
+      else {
+        clearLatex();
+        clearSelections();
+      }
     }
   };
 

@@ -6,7 +6,7 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
     await page.setViewportSize(viewport);
     const suffix = `${Date.now()}${Math.floor(Math.random() * 1_000_000)}`;
     const username = `sections${suffix}`;
-    const password = `Sections-${suffix}-aA1!`;
+    const password = 'Quartz!River7-Cobalt';
     const title = `Section journey ${suffix}`;
     const registered = await page.request.post('/api/register/', { data: { username, password } });
     expect(registered.status()).toBe(201);
@@ -115,7 +115,7 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
 test('registered user can compile, save, reload, and delete a cheat sheet', async ({ page }) => {
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1_000_000)}`;
   const username = `browsergate${suffix}`;
-  const password = `BrowserGate-${suffix}-aA1!`;
+  const password = 'Quartz!River7-Cobalt';
   const title = `Browser journey ${suffix}`;
 
   await page.goto('/signup');

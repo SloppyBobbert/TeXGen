@@ -42,9 +42,9 @@ def validate_layout(layout):
         value = layout[key]
         if not isinstance(value, str) or not value or (value not in allowed and not _custom_pt(value, minimum, maximum)):
             raise serializers.ValidationError({key: "Unsupported layout value."})
-    if layout["margins"] not in VALID_MARGINS:
+    if not isinstance(layout["margins"], str) or layout["margins"] not in VALID_MARGINS:
         raise serializers.ValidationError({"margins": "Unsupported layout value."})
-    if layout["orientation"] not in VALID_ORIENTATION:
+    if not isinstance(layout["orientation"], str) or layout["orientation"] not in VALID_ORIENTATION:
         raise serializers.ValidationError({"orientation": "Unsupported layout value."})
     return layout
 
@@ -136,6 +136,8 @@ class DocumentContractSerializer(serializers.ModelSerializer):
         return data
 
     def to_internal_value(self, data):
+        if not isinstance(data, dict):
+            return super().to_internal_value(data)
         data = data.copy()
         errors = {}
         canonical_source = data.pop("source_latex", serializers.empty)
@@ -147,9 +149,9 @@ class DocumentContractSerializer(serializers.ModelSerializer):
 
         canonical_mode = data.get("source_mode", serializers.empty)
         legacy_mode = data.pop("content_source", serializers.empty)
-        if canonical_mode is not serializers.empty and canonical_mode not in {"empty", "generated", "raw"}:
+        if canonical_mode is not serializers.empty and (not isinstance(canonical_mode, str) or canonical_mode not in {"empty", "generated", "raw"}):
             errors["source_mode"] = "Must be empty, generated, or raw."
-        mapped_legacy_mode = {"manual": "raw", "empty": "empty", "generated": "generated"}.get(legacy_mode)
+        mapped_legacy_mode = {"manual": "raw", "empty": "empty", "generated": "generated"}.get(legacy_mode) if isinstance(legacy_mode, str) else None
         if legacy_mode is not serializers.empty and mapped_legacy_mode is None:
             errors["content_source"] = "Must be empty, generated, or manual."
         if canonical_mode is not serializers.empty and mapped_legacy_mode and canonical_mode != mapped_legacy_mode:
@@ -174,8 +176,16 @@ class DocumentContractSerializer(serializers.ModelSerializer):
 
         layout = data.pop("layout", serializers.empty)
         prefix = "default_" if self.Meta.model.__name__ == "Template" else ""
+        if prefix:
+            for key in ("columns", "font_size", "spacing", "margins", "orientation"):
+                if key in data:
+                    value = data.pop(key)
+                    if f"{prefix}{key}" in data and data[f"{prefix}{key}"] != value:
+                        errors["layout"] = f"Conflicts with {key}."
+                    else:
+                        data[f"{prefix}{key}"] = value
         legacy_layout = {
-            key: data.get(f"{prefix}{key}", data.get(key, serializers.empty))
+            key: data.get(f"{prefix}{key}", serializers.empty)
             for key in ("columns", "font_size", "spacing", "margins", "orientation")
         }
         if layout is not serializers.empty:
@@ -196,10 +206,6 @@ class DocumentContractSerializer(serializers.ModelSerializer):
                     validate_layout({**current, **supplied})
                 except serializers.ValidationError as exc:
                     errors["layout"] = exc.detail
-        if prefix:
-            for key in ("columns", "font_size", "spacing", "margins", "orientation"):
-                if key in data:
-                    data[f"default_{key}"] = data.pop(key)
         if errors:
             raise serializers.ValidationError(errors)
         return super().to_internal_value(data)

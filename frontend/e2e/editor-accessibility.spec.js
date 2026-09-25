@@ -124,7 +124,7 @@ test('PDF scroll-to-top respects runtime reduced motion', async ({ page }) => {
   });
   const suffix = `${Date.now()}${Math.floor(Math.random() * 1_000_000)}`;
   const username = `motion${suffix}`;
-  const password = `Motion-${suffix}-aA1!`;
+  const password = 'Quartz!River7-Cobalt';
   const registered = await page.request.post('/api/register/', { data: { username, password } });
   expect(registered.status()).toBe(201);
   await page.goto('/login');
@@ -221,12 +221,18 @@ test('keyboard class and formula moves support cancellation, focus, and durable 
   await expect(formulaHandle).toBeFocused();
   for (const subject of subjects) await expect(page.getByRole('button', { name: `Hide formulas in ${subject.name}`, exact: true })).toHaveAttribute('aria-expanded', 'true');
 
-  await expect.poll(() => page.evaluate(() => Object.keys(localStorage)
-    .filter((key) => key.startsWith('cheatSheetData'))
-    .map((key) => JSON.parse(localStorage.getItem(key)).groupedFormulas?.map((group) => ({
-      class: group.class,
-      formulas: group.formulas.map((formula) => `Move formula ${formula.name} in ${group.class}`),
-    }))))).toContainEqual(expected);
+  const expectedSelections = expected.flatMap((group) => group.formulas.map((label) => {
+    const subject = subjects.find((entry) => entry.name === group.class);
+    const formula = subject.categories.flatMap((category) => category.formulas)
+      .find((entry) => `Move formula ${entry.name} in ${group.class}` === label);
+    expect(formula?.id).toBeTruthy();
+    return { formula_id: formula.id };
+  }));
+  await expect.poll(() => page.evaluate(() => {
+    const sheet = JSON.parse(localStorage.getItem('currentCheatSheet'));
+    const identity = sheet.draftId ?? sheet.id;
+    return JSON.parse(localStorage.getItem(`cheatSheetDraft:v1:${typeof identity}:${identity}`))?.formula_selections;
+  })).toEqual(expectedSelections);
   await page.keyboard.press('Control+s');
   await expect(page.getByRole('alert')).toContainText('Cheat sheet saved successfully!');
   await page.reload();

@@ -22,8 +22,10 @@ vi.mock('lucide-react', () => ({
 }));
 
 vi.mock('./components/CreateCheatSheet', () => ({
-  default: function MockCreateCheatSheet({ initialData, isSaving, onReset, onRestoreSnapshot, onSave }) {
+  default: function MockCreateCheatSheet({ initialData, isSaving, onReset, onRestoreSnapshot, onSave: saveDocument }) {
     const [localEdit, setLocalEdit] = useState('');
+    const [saveError, setSaveError] = useState('');
+    const onSave = (...args) => saveDocument(...args).catch((error) => setSaveError(error.message));
     useEffect(() => {
       mocks.childMount();
     }, []);
@@ -41,6 +43,7 @@ vi.mock('./components/CreateCheatSheet', () => ({
         <input aria-label="child local edit" value={localEdit} onChange={(event) => setLocalEdit(event.target.value)} />
         <output data-testid="sheet-state">{JSON.stringify(initialData)}</output>
         <output data-testid="saving-state">{String(isSaving)}</output>
+        <output data-testid="save-error">{saveError}</output>
         <button onClick={() => save('first')}>Save first</button>
         <button onClick={() => save('second')}>Save second</button>
         <button onClick={() => onSave({
@@ -304,12 +307,15 @@ describe('App save lifecycle regressions', () => {
     vi.stubGlobal('fetch', vi.fn());
 
     renderApp();
+    const hydratedSheet = storedSheet();
+    const hydratedDraft = JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-7'));
     failStorageWrite((key) => key.startsWith('cheatSheetDraft:v1:'));
     fireEvent.click(screen.getByRole('button', { name: 'Save formula A' }));
 
     await waitFor(() => expect(alert).toHaveBeenCalledWith('Failed to save progress: Unable to save this browser draft.'));
-    expect(storedSheet()).toEqual(olderCurrentSheet);
-    expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-7'))).toEqual(olderCanonicalDraft);
+    expect(screen.getByTestId('save-error')).toHaveTextContent('Unable to save this browser draft.');
+    expect(storedSheet()).toEqual(hydratedSheet);
+    expect(JSON.parse(localStorage.getItem('cheatSheetDraft:v1:string:sheet-7'))).toEqual(hydratedDraft);
     expect(fetch).not.toHaveBeenCalled();
   });
 

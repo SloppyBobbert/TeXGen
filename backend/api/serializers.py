@@ -1,4 +1,6 @@
 # DRF serializers for the backend API will be added here.
+from collections.abc import Mapping
+
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -24,12 +26,13 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('id', 'username', 'password')
         extra_kwargs = {'password': {'write_only': True}}
 
-    def validate_password(self, value):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
         try:
-            validate_password(value)
+            validate_password(attrs['password'], User(username=attrs['username']))
         except DjangoValidationError as e:
-            raise serializers.ValidationError(list(e.messages)) from e
-        return value
+            raise serializers.ValidationError({'password': list(e.messages)}) from e
+        return attrs
 
     def create(self, validated_data):
         user = User.objects.create_user(
@@ -128,7 +131,8 @@ class CheatSheetSerializer(DocumentContractSerializer):
     )
 
     def to_internal_value(self, data):
-        data = data.copy()
+        if not isinstance(data, Mapping):
+            return super().to_internal_value(data)
         if "template_id" in data and "template" in data and data["template_id"] != data["template"]:
             raise serializers.ValidationError({"template_id": "Conflicts with template."})
         return super().to_internal_value(data)
