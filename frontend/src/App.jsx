@@ -181,7 +181,7 @@ const recoverSplitStorage = (draft, fallback, requireChoice = false) => {
   }
 };
 
-const getNextUntitledTitle = () => {
+const getNextUntitledTitle = (persist = true) => {
   let currentValue = 0;
   try {
     currentValue = Number(localStorage.getItem(UNTITLED_COUNTER_STORAGE_KEY) || '0');
@@ -190,15 +190,15 @@ const getNextUntitledTitle = () => {
   }
   const nextValue = Number.isFinite(currentValue) ? currentValue + 1 : 1;
   try {
-    localStorage.setItem(UNTITLED_COUNTER_STORAGE_KEY, String(nextValue));
+    if (persist) localStorage.setItem(UNTITLED_COUNTER_STORAGE_KEY, String(nextValue));
   } catch (error) {
     console.error('Failed to save untitled sheet counter', error);
   }
   return `Untitled Sheet (${nextValue})`;
 };
 
-const createDefaultSheet = () => ({
-  title: getNextUntitledTitle(),
+const createDefaultSheet = (persistTitle = true) => ({
+  title: getNextUntitledTitle(persistTitle),
   content: '',
   contentSource: 'empty',
   columns: 4,
@@ -467,15 +467,19 @@ function App() {
     setIsSaving(false);
   }, [authSession]);
 
-  const createNewSheet = () => {
+  const createNewSheet = (recoveryDiscarded = false) => {
+    const nextSheet = withDraftIdentity(createDefaultSheet(false));
+    const result = persistSheet(nextSheet);
+    // Clear already discarded recovery; a failed replacement must not revive it.
+    if (!result.ok && !recoveryDiscarded) return result;
+    if (result.ok) getNextUntitledTitle();
     saveEpochRef.current += 1;
     saveControllerRef.current?.abort();
     pendingCreatePromiseRef.current = null;
     setIsSaving(false);
-    const nextSheet = withDraftIdentity(createDefaultSheet());
     setCheatSheet(nextSheet);
     setEditorSessionKey((prev) => prev + 1);
-    return persistSheet(nextSheet);
+    return result;
   };
 
   const handleReset = () => {
@@ -497,7 +501,7 @@ function App() {
         return;
       }
     }
-    if (!createNewSheet().ok) alert('Browser recovery was removed, but the new empty draft could not be saved in this browser.');
+    if (!createNewSheet(true).ok) alert('Browser recovery was removed, but the new empty draft could not be saved in this browser.');
   };
 
   const handleSave = async (data, showFeedback = true) => {
@@ -693,9 +697,13 @@ function App() {
       // Pre-fix caches have no acknowledgement baseline: preserve, but do not call them dirty.
       editSheet.legacyRecovery = { ...recovery, syncedSignature: fetchedSignature };
     }
-    if (editSheet.legacyRecovery && editSheet.legacyRecovery.syncedSignature == null) {
-      // Restore selects this nested copy, not the outer recovery envelope.
-      editSheet = { ...editSheet, legacyRecovery: { ...editSheet.legacyRecovery, syncedSignature: fetchedSignature } };
+    if (editSheet.legacyRecovery) {
+      // Both recovery choices need a baseline without replacing prior acknowledgements.
+      editSheet = {
+        ...editSheet,
+        syncedSignature: editSheet.syncedSignature ?? fetchedSignature,
+        legacyRecovery: { ...editSheet.legacyRecovery, syncedSignature: editSheet.legacyRecovery.syncedSignature ?? fetchedSignature },
+      };
     }
     setCheatSheet(editSheet);
     setEditorSessionKey((prev) => prev + 1);
