@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.throttling import UserRateThrottle
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import NotAuthenticated, ValidationError
 from django.shortcuts import get_object_or_404
 from django.http import Http404, HttpResponse
 from django.db import transaction
@@ -33,6 +33,7 @@ from .compiler import validate_cheat_sheet_id, validate_source_text
 from .compilation.service import CompilerService, SettingsCompilerSelector, compile_limits_from_settings
 from .compilation.types import (
     CompileRequest,
+    CompilationFailure,
     CompilerBusy,
     CompilerInternalError,
     CompilerOutputError,
@@ -43,6 +44,7 @@ from .compilation.types import (
     InvalidCompileRequest,
 )
 from .compile_quota import CompileQuotaUnavailableError, admit_compile
+from .guest_quota import guest_identity, reserve, release
 
 YOUTUBE_MAX_TOPICS = 6
 YOUTUBE_SEARCH_RESULT_LIMIT = 5
@@ -399,13 +401,16 @@ def generate_sheet(request):
     return Response({"tex_code": tex_code, "generated_sections": {"version": 1, "baseline": tex_code} if selected_formulas else None})
 
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@api_view(["GET", "POST"])
+@permission_classes([AllowAny])
 @throttle_classes([CompileUserThrottle])
+@guest_identity
 def compile_latex(request):
     """
     POST /api/compile/
     """
+    if request.method == "GET":
+        return Response({"remaining": None if request.user.is_authenticated else 3 - request.guest_balance.used})
     validate_object_body(request.data)
     content = request.data.get("content", "")
     cheat_sheet_id = request.data.get("cheat_sheet_id")
@@ -422,6 +427,8 @@ def compile_latex(request):
     columns, font_size, margins, spacing, orientation = validate_layout_params(columns, font_size, margins, spacing, orientation)
     
     if cheat_sheet_id is not None:
+        if not request.user.is_authenticated:
+            raise NotAuthenticated("Sign in to compile a saved sheet by ID.")
         cheat_sheet_id = validate_cheat_sheet_id(cheat_sheet_id)
         if cheat_sheet_id is None:
             return Response({"error": "cheat_sheet_id must be a positive integer"}, status=400)
@@ -476,6 +483,8 @@ def compile_latex(request):
             {"error": source_error},
             status=413 if source_error == "LaTeX content exceeds the maximum allowed size" else 400,
         )
+    if not request.user.is_authenticated and request.guest_balance.used >= 3:
+        return Response({"error": "Sign in to compile more PDFs.", "reason": "guest_login_required", "remaining": 0}, status=403)
     request_to_compile = CompileRequest(
         job_id=uuid.uuid4().hex,
         source=content,
@@ -483,16 +492,28 @@ def compile_latex(request):
     )
     try:
         with get_compiler_service().prepare(request_to_compile) as execute:
-            admission = admit_compile(
-                request.user,
-                limit=settings.COMPILER_USER_QUOTA,
-                window_seconds=settings.COMPILER_QUOTA_WINDOW_SECONDS,
-            )
-            if not admission.allowed:
-                response = Response({"error": "Compilation quota exceeded"}, status=429)
-                response["Retry-After"] = str(admission.retry_after)
-                return response
-            result = execute()
+            # Signed-in accepted-compile quotas retain their existing semantics.
+            if request.user.is_authenticated:
+                admission = admit_compile(
+                    request.user,
+                    limit=settings.COMPILER_USER_QUOTA,
+                    window_seconds=settings.COMPILER_QUOTA_WINDOW_SECONDS,
+                )
+                if not admission.allowed:
+                    response = Response({"error": "Compilation quota exceeded"}, status=429)
+                    response["Retry-After"] = str(admission.retry_after)
+                    return response
+            else:
+                if not reserve(request.guest_balance):
+                    return Response({"error": "Sign in to compile more PDFs.", "reason": "guest_login_required", "remaining": 0}, status=403)
+            try:
+                result = execute()
+            except CompilationFailure as error:
+                # Unknown post-START outcomes may already have produced a PDF.
+                if (not request.user.is_authenticated and not error.outcome_unknown
+                        and not isinstance(error, CompilerInternalError)):
+                    release(request.guest_balance)
+                raise
     except CompileQuotaUnavailableError:
         return Response({"error": "Compilation service is unavailable"}, status=503)
     except (InvalidCompileRequest, CompilerOutputError):

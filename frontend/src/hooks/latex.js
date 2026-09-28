@@ -8,7 +8,18 @@ const STORAGE_KEY = 'cheatSheetLatex';
 const SAVE_DEBOUNCE_MS = 500;
 const AUTO_COMPILE_DEBOUNCE_MS = 450;
 const MAX_HISTORY_ENTRIES = 7;
-const AUTHENTICATION_ERROR = 'Sign in to compile or download PDFs.';
+const AUTHENTICATION_ERROR = 'Your session has expired. Sign in again or sign out to compile as a guest.';
+const GUEST_ALLOWANCE_ERROR = 'Guest allowance unavailable. Try again.';
+const GUEST_LIMIT_ERROR = 'Your three guest compilations are used. Sign in to compile more PDFs.';
+let guestQueue = Promise.resolve();
+function guestRequest(task) {
+  const run = () => globalThis.navigator?.locks
+    ? globalThis.navigator.locks.request('texgen-guest-compile', task) : task();
+  const next = guestQueue.then(run, run);
+  guestQueue = next.catch(() => {});
+  return next;
+}
+
 const SELECTION_RESOLUTION_ERROR = 'Unable to resolve selected formulas for generation.';
 const DEFAULT_LAYOUT = {
   columns: 4,
@@ -57,7 +68,7 @@ function saveLatexStorage(storageKey, data) {
 function formatCompileError(errorData = {}) {
   const rawMessage = typeof errorData === 'string'
     ? errorData
-    : (errorData.details || errorData.error || 'Failed to compile LaTeX');
+    : (errorData.details || errorData.error || errorData.detail || 'Failed to compile LaTeX');
 
   return rawMessage
     .replace(/See the LaTeX manual or LaTeX Companion for explanation\.?/ig, '')
@@ -135,6 +146,21 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   const [isGenerating, setIsGenerating] = useState(false);
   const [compileError, setCompileError] = useState(null);
   const [authenticationRequired, setAuthenticationRequired] = useState(false);
+  const [guestRemaining, setGuestRemaining] = useState(null);
+  const refreshGuestAllowance = useCallback(async () => {
+    if (authTokens) return;
+    try {
+      await guestRequest(async () => {
+        const response = await apiRequest('/api/compile/', { method: 'GET' });
+        if (!response.ok) throw new Error(GUEST_ALLOWANCE_ERROR);
+        const data = await response.json();
+        setGuestRemaining(data.remaining);
+        setCompileError(current => current === GUEST_ALLOWANCE_ERROR ? null : current);
+      });
+    } catch (error) {
+      setCompileError(current => current && current !== GUEST_ALLOWANCE_ERROR ? current : error.message);
+    }
+  }, [apiRequest, authTokens]);
   const [lastCompileSnapshot, setLastCompileSnapshot] = useState(null);
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [sectionMessage, setSectionMessage] = useState('');
@@ -233,11 +259,21 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     const controller = new globalThis.AbortController();
     controllersRef.current.add(controller);
     try {
-      const response = await apiRequest(url, { ...options, signal: controller.signal });
+      const send = async () => {
+        const response = await apiRequest(url, { ...options, signal: controller.signal });
+        const remaining = response.headers?.get('X-Guest-Compiles-Remaining');
+        if (remaining != null) setGuestRemaining(Number(remaining));
+        return response;
+      };
+      const response = !authTokens && url === '/api/compile/' ? await guestRequest(send) : await send();
       if (epoch !== operationEpochRef.current) return null;
       if (!response.ok) {
         const errorData = await readErrorResponse(response);
         if (url === '/api/compile/' && response.status === 401) throw new Error(AUTHENTICATION_ERROR);
+        if (errorData.reason === 'guest_login_required') {
+          setGuestRemaining(0);
+          throw new Error(GUEST_LIMIT_ERROR);
+        }
         throw new Error(formatCompileError(errorData));
       }
       const body = await response[bodyType]();
@@ -245,7 +281,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     } finally {
       controllersRef.current.delete(controller);
     }
-  }, [apiRequest]);
+  }, [apiRequest, authTokens]);
 
   const notifyDocumentChange = useCallback((snapshot) => {
     Promise.resolve(selectionOptionsRef.current.onDocumentChange?.({ title, columns, fontSize, spacing, margins, orientation, ...snapshot }))
@@ -443,7 +479,6 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   }, [title, content, contentSource, generatedSections, history, historyIndex, columns, fontSize, spacing, margins, orientation, storageKey, persistenceManaged]);
 
   const compileLatexContent = useCallback(async (latexContent, layoutOptions = {}, epoch) => {
-    if (!authTokens?.access) throw new Error(AUTHENTICATION_ERROR);
     const blob = await request('/api/compile/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -456,7 +491,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     pdfBlobUrlRef.current = URL.createObjectURL(blob);
     setPdfBlob(pdfBlobUrlRef.current);
     return { pdfBlob: pdfBlobUrlRef.current };
-  }, [authTokens, contentSource, request]);
+  }, [contentSource, request]);
 
   const publishCompileSnapshot = useCallback((compiled, snapshot) => {
     if (!compiled) return;
@@ -504,7 +539,6 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
 
   const normalizeLatexContent = useCallback(async (latexContent, epoch) => {
     if (contentSource === 'manual' || generatedSectionsRef.current) return latexContent;
-    if (!authTokens?.access) throw new Error(AUTHENTICATION_ERROR);
     const data = await request('/api/compile/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -520,7 +554,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     }, epoch, 'json');
     if (!data || epoch !== operationEpochRef.current) return null;
     return data.tex_code || latexContent;
-  }, [authTokens, columns, fontSize, margins, spacing, orientation, request, contentSource]);
+  }, [columns, fontSize, margins, spacing, orientation, request, contentSource]);
 
   const hasLayoutChanges =
     lastCompiledLayoutRef.current.columns !== columns ||
@@ -532,6 +566,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   const canRegenerateFromSelections = !content.trim() || contentSource === 'generated';
 
   const handleCompileOnly = useCallback(async (selectedList) => {
+    if (!authTokens && (isCompilingRef.current || isGeneratingRef.current)) return;
     clearAutoCompileTimer();
     const epoch = beginOperation();
     const revision = contentRevisionRef.current;
@@ -548,14 +583,11 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       orientation,
       selectedFormulas: operationSelectedFormulas,
       contentSource: hasContent ? contentSource : 'generated',
+      sourceContent: hasContent ? content : undefined,
     };
 
     if (!hasContent && operationSelectedFormulas.length === 0) {
       alert('Select formulas first or generate a sheet before compiling.');
-      return;
-    }
-    if (!authTokens?.access) {
-      requireAuthentication();
       return;
     }
     
@@ -604,7 +636,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   }, [authTokens, beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, columns, compileLatexContent, content, contentSource, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, publishCompileSnapshot, requireAuthentication, saveToHistory, spacing, orientation, title]);
 
   useEffect(() => {
-    if (!initialLoaded.current) return;
+    if (!authTokens || !initialLoaded.current) return;
     if (!content?.trim()) return;
     if (!hasLayoutChanges) return;
     if (isCompilingRef.current || isGeneratingRef.current) return;
@@ -618,15 +650,12 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     return () => {
       clearAutoCompileTimer();
     };
-  }, [clearAutoCompileTimer, content, hasLayoutChanges, handleCompileOnly]);
+  }, [authTokens, clearAutoCompileTimer, content, hasLayoutChanges, handleCompileOnly]);
 
   const handlePreview = useCallback(async (latexContent = null, regenerateOptions = null) => {
+    if (!authTokens && (isCompilingRef.current || isGeneratingRef.current)) return;
     clearAutoCompileTimer();
     const epoch = beginOperation();
-    if (!authTokens?.access) {
-      requireAuthentication();
-      return;
-    }
     const revision = contentRevisionRef.current;
     const operationSnapshot = {
       title,
@@ -637,6 +666,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       orientation,
       selectedFormulas: regenerateOptions?.formulas || currentSelectedFormulasRef.current,
       contentSource: regenerateOptions ? 'generated' : contentSource,
+      sourceContent: regenerateOptions ? undefined : (latexContent || content),
     };
     
     let contentToCompile = latexContent || content;
@@ -690,6 +720,7 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   }, [authTokens, beginOperation, clearAuthenticationRequired, clearAutoCompileTimer, columns, compileLatexContent, content, contentSource, fontSize, generateLatexContent, hasLayoutChanges, margins, normalizeLatexContent, publishCompileSnapshot, requireAuthentication, saveToHistory, spacing, orientation, title]);
 
   const handleGenerateSheet = async (selectedList) => {
+    if (!authTokens && (isCompilingRef.current || isGeneratingRef.current)) return;
     clearAutoCompileTimer();
     if (selectedList.length === 0) {
       alert('Please select at least one category first.');
@@ -722,10 +753,6 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
       isCompilingRef.current = true;
       setIsCompiling(true);
       setCompileError(null);
-      if (!authTokens?.access) {
-        requireAuthentication();
-        return;
-      }
       const compiled = await compileLatexContent(generatedContent, {
         columns, font_size: fontSize, spacing, margins, orientation,
       }, epoch);
@@ -753,54 +780,22 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     }
   };
 
+  const isCurrentPDF = Boolean(pdfBlob && lastCompileSnapshot
+    && (lastCompileSnapshot.sourceContent ?? lastCompileSnapshot.content) === content
+    && lastCompileSnapshot.contentSource === contentSource
+    && !hasLayoutChanges);
+
   const handleDownloadPDF = async () => {
-    clearAutoCompileTimer();
-    const epoch = beginOperation();
-    if (!authTokens?.access) {
-      requireAuthentication();
+    if (!isCurrentPDF) {
+      setCompileError('Compile the current source and layout before downloading.');
       return;
     }
-    setIsLoading(true);
-    try {
-      const normalizedContent = hasLayoutChanges
-        ? await normalizeLatexContent(content, epoch)
-        : content;
-      if (!normalizedContent || epoch !== operationEpochRef.current) return;
-
-      const blob = await request('/api/compile/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: normalizedContent,
-          ...(generatedSectionsRef.current || contentSource === 'manual' ? { source_mode: 'raw' } : {}),
-          columns,
-          font_size: fontSize,
-          spacing,
-          margins,
-          orientation,
-        }),
-      }, epoch, 'blob');
-      if (!blob || epoch !== operationEpochRef.current) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title || 'cheat-sheet'}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      clearAuthenticationRequired();
-    } catch (error) {
-      if (epoch === operationEpochRef.current && error.name !== 'AbortError') {
-        if (error.message === AUTHENTICATION_ERROR) requireAuthentication();
-        else {
-          console.error('Error generating PDF:', error);
-          alert('Failed to generate PDF. Check console for details.');
-        }
-      }
-    } finally {
-      if (epoch === operationEpochRef.current) setIsLoading(false);
-    }
+    const a = document.createElement('a');
+    a.href = pdfBlob;
+    a.download = `${title || 'cheat-sheet'}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   const handleDownloadTex = async () => {
@@ -811,10 +806,6 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
 
     const epoch = beginOperation();
     try {
-      if (hasLayoutChanges && !generatedSectionsRef.current && contentSource !== 'manual' && !authTokens?.access) {
-        requireAuthentication();
-        return;
-      }
       const normalizedContent = hasLayoutChanges
         ? await normalizeLatexContent(content, epoch)
         : content;
@@ -842,8 +833,8 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
   };
 
   const handlePrintPDF = () => {
-    if (!pdfBlob) {
-      alert('Compile the PDF before printing.');
+    if (!isCurrentPDF) {
+      alert('Compile the current source and layout before printing.');
       return;
     }
 
@@ -938,11 +929,15 @@ export function useLatex(initialData, draftIdentity, currentSelectedFormulas = [
     orientation,
     setOrientation: handleSetOrientation,
     pdfBlob,
+    isCurrentPDF,
     isGenerating,
     isCompiling,
     isLoading,
     compileError,
     authenticationRequired,
+    guestRemaining,
+    isGuest: !authTokens,
+    refreshGuestAllowance,
     clearAuthenticationRequired,
     lastCompileSnapshot,
     canGoBack,

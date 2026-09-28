@@ -1345,9 +1345,10 @@ class TestCompileEndpoint:
         resp = auth_client.post("/api/compile/", {}, format="json")
         assert resp.status_code == 400
 
-    def test_compile_requires_content_or_id_for_anonymous_users(self, api_client):
+    def test_compile_requires_submitted_content_for_guests(self, api_client):
         resp = api_client.post("/api/compile/", {}, format="json")
-        assert resp.status_code == 401
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "No LaTeX content provided"}
 
     def test_compile_with_nonexistent_sheet(self, auth_client):
         resp = auth_client.post(
@@ -1692,9 +1693,9 @@ class TestPhaseOneTransfer:
             assert throttle.allow_request(authenticated, None)
             assert not throttle.allow_request(authenticated, None)
 
-    def test_compile_endpoint_rejects_anonymous_requests(self, api_client):
+    def test_compile_endpoint_normalizes_guest_submitted_content(self, api_client):
         cache.clear()
-        assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 401
+        assert api_client.post("/api/compile/", {"content": "x", "normalize_only": True}, format="json").status_code == 200
 
     def test_compile_endpoint_enforces_authenticated_throttle(self, auth_client):
         cache.clear()

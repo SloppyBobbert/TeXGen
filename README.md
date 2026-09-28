@@ -40,7 +40,7 @@ Cheat Sheet Generator is a study-sheet editor for math-heavy classes. Users can 
 The app is split into:
 
 - a **React + Vite frontend** for the editor, dashboard, auth screens, preview controls, and resource rail
-- a **Django REST API** for rendering, persistence, JWT auth, and authenticated compile requests
+- a **Django REST API** for rendering, persistence, JWT auth, and guest or signed-in compile requests
 - a **dedicated compiler container** for offline PDF compilation through a Unix socket
 - a **Docker Compose setup** for local full-stack development with PostgreSQL
 
@@ -178,7 +178,7 @@ Backend (Django + DRF)
   ├─ JWT auth + registration
   ├─ Formula/class metadata
   ├─ LaTeX generation endpoint
-  ├─ Authenticated compile + normalize endpoint
+  ├─ Guest compile + normalize endpoint (saved IDs require ownership)
   ├─ YouTube resource proxy endpoint
   └─ Template / cheat sheet / problem CRUD
          │ Unix socket (compile requests only)
@@ -305,14 +305,16 @@ Services:
 - db: internal PostgreSQL service used by Django
 - compiler: internal Unix-socket service; no network endpoint
 
-Sign in before you compile a PDF. Compilation supports the documented curated corpus, not arbitrary LaTeX. See [Compiler support](docs/COMPILER_SUPPORT.md) for package limits and failure recovery.
+Compile up to three PDFs successfully per browser identity without signing in; then sign in to continue. A crash or unknown compiler result can consume a credit without returning a PDF. There is no periodic reset. Clearing browser identity (or browser cookie expiry) resets the anonymous allowance. Downloading the current PDF uses no additional credit; changed source/layout requires explicit recompilation. Sign in for account storage and sync. Compilation supports the documented curated corpus, not arbitrary LaTeX.
+
+See [Compiler support](docs/COMPILER_SUPPORT.md) for guest request limits, account quotas, package limits, and failure recovery.
 
 ## Editor workflow
 
 1. Select one or more classes.
 2. Toggle the categories you want included.
 3. Reorder class groups or formulas if needed.
-4. Sign in, then generate/compile the sheet.
+4. Generate or compile the sheet. Guests have three successful compilations, with no periodic reset.
 5. Adjust columns, spacing, font size, or margins.
 6. Open the LaTeX editor only if you need to inspect or edit the generated source.
 7. Save locally or, if signed in, save to your account.
@@ -336,7 +338,8 @@ Sign in before you compile a PDF. Compilation supports the documented curated co
 | --- | --- | --- |
 | GET | `/api/classes/` | List classes, categories, and formulas |
 | POST | `/api/generate-sheet/` | Generate LaTeX from selected formulas |
-| POST | `/api/compile/` | Authenticated normalization or PDF compilation; compile quotas apply to PDF jobs |
+| GET | `/api/compile/` | Initialize/restore browser identity and remaining guest allowance; no compile debit |
+| POST | `/api/compile/` | Normalize source or compile a PDF (three successful guest compilations); saved IDs require sign-in and ownership |
 | POST | `/api/youtube-resources/` | Return top YouTube picks for selected sections |
 
 Compilation is disabled unless a compiler mode is configured. `normalize_only` does not invoke the compiler. Explicit null source selectors are invalid; omit them for legacy compatibility or supply a valid source mode.

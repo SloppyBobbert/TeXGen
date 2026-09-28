@@ -1,23 +1,32 @@
 .dashboard-container {
-  padding: 2rem;
+  padding: clamp(1rem, 3vw, 2rem);
   max-width: 1200px;
   margin: 0 auto;
 }
 
+.dashboard-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
 .dashboard-container h2 {
-  margin-bottom: 2rem;
-  color: var(--text-color);
+  color: var(--text);
 }
 
 .sheets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 1.5rem;
 }
 
 .sheet-card {
   background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
+  min-width: 0;
   border-radius: 8px;
   padding: 1.5rem;
   display: flex;
@@ -50,6 +59,7 @@
 .sheet-actions {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
@@ -57,6 +67,7 @@
   padding: 0.4rem 0.8rem;
   font-size: 0.875rem;
   flex: 1;
+  min-height: 44px;
 }
 
 .sheet-actions .btn.danger {
@@ -71,9 +82,9 @@
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
+  padding: clamp(2rem, 5vw, 4rem) 1rem;
   background-color: var(--card-bg);
-  border: 1px dashed var(--border-color);
+  border: 1px dashed var(--border);
   border-radius: 8px;
 }
 

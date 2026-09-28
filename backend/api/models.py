@@ -3,6 +3,14 @@ from django.db import models
 
 from .rendering import DocumentRenderRequest, LayoutSpec, PracticeProblemSpec, render_document
 
+class GuestCompileBalance(models.Model):
+    identity = models.UUIDField(primary_key=True, editable=False)
+    used = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=models.Q(used__lte=3), name="guest_compile_max_three")]
+
+
 class Template(models.Model):
     SOURCE_MODE_CHOICES = [
         ("empty", "Empty"),

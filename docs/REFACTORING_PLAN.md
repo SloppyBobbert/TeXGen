@@ -24,7 +24,7 @@ The authorized release-candidate work is complete. **No merge, auto-merge or pub
 
 ## Product decisions
 
-- Require sign-in for PDF compilation and downloads.
+- Updated September 24, 2026: allow guest compilation and PDF downloads for submitted content. Saved sheet IDs, account storage, and sync still require sign-in. See [Compiler support](COMPILER_SUPPORT.md) for limits.
 - Support structured editing and an advanced raw-LaTeX mode.
 - Preserve manual edits by default; replacing source requires explicit regeneration.
 - Treat templates as staff-curated and publicly readable.

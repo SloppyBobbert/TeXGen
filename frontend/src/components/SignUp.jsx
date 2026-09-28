@@ -13,13 +13,15 @@ const SignUp = () => {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '4rem auto', padding: '2.5rem', backgroundColor: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
+    <div className="auth-card">
       <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Create an Account</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div>
           <label htmlFor="signup-username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Username</label>
           <input
             id="signup-username"
+            name="username"
+            spellCheck={false}
             type="text"
             placeholder="Choose a username"
             value={username}
@@ -34,6 +36,7 @@ const SignUp = () => {
           <label htmlFor="signup-password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text)' }}>Password</label>
           <input
             id="signup-password"
+            name="password"
             type="password"
             placeholder="Choose a password"
             value={password}

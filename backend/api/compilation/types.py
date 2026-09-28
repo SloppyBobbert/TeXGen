@@ -7,6 +7,10 @@ from math import isfinite
 class CompilationFailure(Exception):
     """Base class for failures that are safe to expose to callers."""
 
+    def __init__(self, message="", *, outcome_unknown=False):
+        super().__init__(message)
+        self.outcome_unknown = outcome_unknown
+
 
 class InvalidCompileRequest(CompilationFailure):
     pass

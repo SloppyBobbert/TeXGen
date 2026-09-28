@@ -11,8 +11,15 @@ class DocumentPersistenceMigrationTests(TransactionTestCase):
     migrate_to = [("api", "0012_enforce_document_persistence")]
 
     def tearDown(self):
-        MigrationExecutor(connection).migrate(self.migrate_to)
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
         super().tearDown()
+
+    def test_cleanup_restores_latest_migrations(self):
+        MigrationExecutor(connection).migrate(self.migrate_to)
+        self.tearDown()
+        executor = MigrationExecutor(connection)
+        self.assertEqual(executor.migration_plan(executor.loader.graph.leaf_nodes()), [])
 
     def test_backfill_preserves_layout_and_converts_ordered_formula_selections(self):
         executor = MigrationExecutor(connection)
@@ -342,7 +349,7 @@ class DocumentPersistenceMigrationTests(TransactionTestCase):
         selections = [{"class": "ALGEBRA I", "category": "Linear Equations", "name": "Slope Formula"}]
         template = Template.objects.create(name="Template", subject="math", latex_content="template source", default_columns=3, default_margins="0.5in", selected_formulas=selections)
         sheet = CheatSheet.objects.create(title="Sheet", user_id=user.pk, latex_content="sheet source", content_source="manual", columns=2, margins="0.25in", font_size="10pt", spacing="tiny", orientation="landscape", selected_formulas=selections)
-        executor.migrate(self.migrate_to)
+        MigrationExecutor(connection).migrate(self.migrate_to)
         MigrationExecutor(connection).migrate(self.migrate_from)
         apps = MigrationExecutor(connection).loader.project_state(self.migrate_from).apps
         restored_template = apps.get_model("api", "Template").objects.get(pk=template.pk)

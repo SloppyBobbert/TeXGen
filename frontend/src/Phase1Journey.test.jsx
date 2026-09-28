@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateCheatSheet from './components/CreateCheatSheet';
 import AuthContext from './context/AuthContext';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('react-pdf', () => ({
   Document: ({ children, onLoadSuccess }) => {
@@ -57,11 +58,12 @@ describe('phase 1 component persistence journey with mocked save callback', () =
       }
 
       if (url === '/api/compile/') {
+        if (options.method === 'GET') return Promise.resolve({ ok: true, json: async () => ({ remaining: 3 }) });
         const body = JSON.parse(options.body);
         if (body.normalize_only) {
           return Promise.resolve({ ok: true, json: async () => ({ tex_code: `${body.content}\n% normalized` }) });
         }
-        return Promise.resolve({ ok: true, blob: async () => new Blob(['pdf'], { type: 'application/pdf' }) });
+        return Promise.resolve({ ok: true, headers: { get: () => '2' }, blob: async () => new Blob(['pdf'], { type: 'application/pdf' }) });
       }
 
       throw new Error(`Unexpected request: ${url}`);
@@ -79,6 +81,103 @@ describe('phase 1 component persistence journey with mocked save callback', () =
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     localStorage.clear();
+  });
+
+  it('lets a guest compile and download submitted source through the real editor and hook', async () => {
+    const click = vi.spyOn(window.HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ authTokens: null }}>
+          <CreateCheatSheet initialData={{ ...template, contentSource: 'manual', compileHistory: [{ content: template.content }] }} onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    await screen.findByLabelText('Physics 101');
+    const counter = await screen.findByRole('status', { name: '3 of 3 guest compilations remaining' });
+    expect(counter).toHaveTextContent('3/3');
+    expect(counter).toHaveAttribute('aria-live', 'polite');
+    expect(counter).toHaveAttribute('aria-atomic', 'true');
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    expect(screen.queryByText(/No periodic reset/)).not.toBeInTheDocument();
+    expect(global.fetch.mock.calls.filter(([url, options]) => url === '/api/compile/' && options.method === 'POST')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    await screen.findByTestId('pdf-document');
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/i }));
+    await waitFor(() => expect(click).toHaveBeenCalledOnce());
+    const requests = global.fetch.mock.calls.filter(([url, options]) => url === '/api/compile/' && options.method === 'POST');
+    expect(requests).toHaveLength(1);
+    expect(screen.getByRole('status', { name: '2 of 3 guest compilations remaining' })).toHaveTextContent('2/3');
+    for (const [, options] of requests) {
+      expect(options.headers).not.toHaveProperty('Authorization');
+      expect(JSON.parse(options.body)).toMatchObject({ content: template.content, source_mode: 'raw' });
+      expect(JSON.parse(options.body)).not.toHaveProperty('cheat_sheet_id');
+    }
+    expect(screen.queryByText(/Sign in to compile/i)).not.toBeInTheDocument();
+  });
+
+  it('marks a layout-only guest preview stale without spending and restores freshness only on explicit compile', async () => {
+    const click = vi.spyOn(window.HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const compilePosts = () => global.fetch.mock.calls.filter(([url, options]) =>
+      url === '/api/compile/' && options.method === 'POST' && !JSON.parse(options.body).normalize_only);
+    render(<MemoryRouter><AuthContext.Provider value={{ authTokens: null }}>
+      <CreateCheatSheet initialData={template} onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />
+    </AuthContext.Provider></MemoryRouter>);
+    await screen.findByRole('status', { name: '3 of 3 guest compilations remaining' });
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    await screen.findByTestId('pdf-document');
+    expect(compilePosts()).toHaveLength(1);
+    expect(screen.queryByText(/The PDF shows the previous source/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Orientation:/i), { target: { value: 'landscape' } });
+    expect(await screen.findByText(/The PDF shows the previous source or layout/)).toBeInTheDocument();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 600)); });
+    expect(compilePosts()).toHaveLength(1);
+    expect(screen.getByRole('status', { name: '2 of 3 guest compilations remaining' })).toHaveTextContent('2/3');
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/i }));
+    expect(click).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole('button', { name: /^Print$/i })[0]);
+    expect(alert).toHaveBeenCalledWith('Compile the current source and layout before printing.');
+    expect(document.querySelector('iframe')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Compile PDF/i }));
+    await screen.findByTestId('pdf-document');
+    await waitFor(() => expect(compilePosts()).toHaveLength(2));
+    expect(screen.queryByText(/The PDF shows the previous source/)).not.toBeInTheDocument();
+    // Normalization adds text to the compiled snapshot, not to the preserved editor source.
+    expect(global.fetch.mock.calls.some(([url, options]) => url === '/api/compile/'
+      && options.method === 'POST' && JSON.parse(options.body).normalize_only)).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /Download PDF/i }));
+    expect(click).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getAllByRole('button', { name: /^Print$/i })[0]);
+    expect(document.querySelector('iframe')).not.toBeNull();
+    document.querySelector('iframe').remove();
+    expect(compilePosts()).toHaveLength(2);
+  });
+
+  it('does not claim credits while the allowance is unknown', async () => {
+    const allowance = deferred();
+    const originalFetch = global.fetch.getMockImplementation();
+    global.fetch.mockImplementation((url, options) => url === '/api/compile/'
+      ? allowance.promise : originalFetch(url, options));
+    render(<MemoryRouter><AuthContext.Provider value={{ authTokens: null }}>
+      <CreateCheatSheet initialData={template} onReset={vi.fn()} />
+    </AuthContext.Provider></MemoryRouter>);
+    expect(screen.getByRole('status', { name: 'Checking guest compilation allowance' })).toHaveTextContent('…/3');
+    expect(screen.queryByText('3/3')).not.toBeInTheDocument();
+    await act(async () => allowance.resolve({ ok: true, json: async () => ({ remaining: 3 }) }));
+    expect(await screen.findByRole('status', { name: '3 of 3 guest compilations remaining' })).toHaveTextContent('3/3');
+  });
+
+  it('shows an exhausted guest allowance with a sign-in action and no hydration compile', async () => {
+    const originalFetch = global.fetch.getMockImplementation();
+    global.fetch.mockImplementation((url, options) => url === '/api/compile/'
+      ? Promise.resolve({ ok: true, json: async () => ({ remaining: 0 }) })
+      : originalFetch(url, options));
+    render(<MemoryRouter><AuthContext.Provider value={{ authTokens: null }}>
+      <CreateCheatSheet initialData={{ ...template, compileHistory: [{ content: template.content }] }} onReset={vi.fn()} />
+    </AuthContext.Provider></MemoryRouter>);
+    expect(await screen.findByRole('status', { name: '0 of 3 guest compilations remaining' })).toHaveTextContent('0/3');
+    expect(screen.getByRole('link', { name: 'Sign in to compile more PDFs' })).toHaveAttribute('href', '/login');
+    expect(global.fetch.mock.calls.filter(([url, options]) => url === '/api/compile/' && options.method === 'POST')).toHaveLength(0);
   });
 
   it('removes an untouched category, confirms edited removal, and restores both source and selections', async () => {
