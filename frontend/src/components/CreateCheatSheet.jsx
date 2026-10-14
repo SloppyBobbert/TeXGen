@@ -1794,11 +1794,13 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 </button>
               </div>
 
-              {pdfBlob && (
+              {(pdfBlob || content.trim()) && (
                 <div className="btn-download-row">
-                  <button type="button" onClick={handlePrintPDF} className="btn-dl">Print</button>
-                  <button type="button" onClick={handleDownloadPDF} className="btn-dl">Download PDF</button>
-                  <button type="button" onClick={handleDownloadTex} className="btn-dl">.tex</button>
+                  {pdfBlob && <>
+                    <button type="button" onClick={handlePrintPDF} className="btn-dl">Print</button>
+                    <button type="button" onClick={handleDownloadPDF} className="btn-dl">Download PDF</button>
+                  </>}
+                  {content.trim() && <button type="button" onClick={handleDownloadTex} className="btn-dl">.tex</button>}
                 </div>
               )}
 
