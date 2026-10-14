@@ -1214,6 +1214,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     isGuest,
     refreshGuestAllowance,
     lastCompileSnapshot,
+    canGoBack,
+    canGoForward,
     goBack,
     goForward,
     handleCompileOnly,
@@ -1781,6 +1783,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 <button
                   type="button"
                   onClick={goBack}
+                  disabled={!canGoBack}
                   className="btn history-btn"
                 >
                   Back
@@ -1788,6 +1791,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 <button
                   type="button"
                   onClick={goForward}
+                  disabled={!canGoForward}
                   className="btn history-btn"
                 >
                   Forward
