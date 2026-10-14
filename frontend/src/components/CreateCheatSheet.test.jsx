@@ -210,6 +210,15 @@ describe('CreateCheatSheet Component', () => {
     expect(screen.getByRole('button', { name: 'Print', exact: true })).toBeDisabled();
   });
 
+  it('does not claim to show a previous PDF when the first compile fails', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, content: 'source', compileError: 'Compile unavailable' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Compile failed. No PDF is available.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Compile unavailable');
+    expect(screen.queryByTestId('mock-document')).not.toBeInTheDocument();
+  });
+
   it('keeps a successful PDF visible alongside a compile error', () => {
     useLatex.mockReturnValue({
       ...mockUseLatex,
