@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { submitLogin } from './helpers/submit-login.js';
 
-for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mobile', { width: 390, height: 844 }]]) {
+for (const [size, viewport, thirdLoginFailure] of [
+  ['desktop', { width: 1440, height: 1000 }],
+  ['mobile', { width: 390, height: 844 }],
+  ['mobile; third sign-in HTTP 401', { width: 390, height: 844 }, 'rejected'],
+  ['mobile; third sign-in transport failure', { width: 390, height: 844 }, 'transport'],
+]) {
   test(`template removal preserves edits through confirmation, undo, compile, and reload (${size})`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize(viewport);
@@ -26,7 +32,7 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
     await page.goto('/login');
     await page.locator('#login-username').fill(username);
     await page.locator('#login-password').fill(password);
-    await page.getByRole('button', { name: 'Log In' }).click();
+    await submitLogin(page);
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('button', { name: /Show LaTeX editor/i }).click();
@@ -82,7 +88,7 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
     await expect(page).toHaveURL(/\/login$/);
     await page.locator('#login-username').fill(username);
     await page.locator('#login-password').fill(password);
-    await page.getByRole('button', { name: 'Log In' }).click();
+    await submitLogin(page);
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('button', { name: /Show LaTeX editor/i }).click();
@@ -101,7 +107,24 @@ for (const [size, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mo
     await page.goto('/dashboard');
     await page.locator('#login-username').fill(username);
     await page.locator('#login-password').fill(password);
-    await page.getByRole('button', { name: 'Log In' }).click();
+    if (thirdLoginFailure) {
+      let intercepted = 0;
+      await page.route('**/api/token/', async route => {
+        intercepted++;
+        expect(route.request().method()).toBe('POST');
+        if (thirdLoginFailure === 'transport') return route.abort('failed');
+        return route.fulfill({ status: 401, json: { detail: 'Injected sign-in rejection' } });
+      });
+      await expect(submitLogin(page)).rejects.toThrow(thirdLoginFailure === 'transport'
+        ? /Sign-in token request failed before a response/
+        : /Sign-in token response must be HTTP 200/);
+      expect(intercepted).toBe(1);
+      await expect(page).toHaveURL(/\/login$/);
+      await expect(page.getByRole('link', { name: 'Dashboard' })).toHaveCount(0);
+      expect((await page.request.delete(`/api/cheatsheets/${sheet.id}/`, { headers })).status()).toBe(204);
+      return;
+    }
+    await submitLogin(page);
     await page.getByRole('link', { name: 'Dashboard' }).click();
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await page.getByRole('button', { name: /Show LaTeX editor/i }).click();
@@ -151,7 +174,7 @@ test('registered user can compile, save, reload, and delete a cheat sheet', asyn
 
   await page.locator('#login-username').fill(username);
   await page.locator('#login-password').fill(password);
-  await page.getByRole('button', { name: 'Log In' }).click();
+  await submitLogin(page);
   await expect(page).toHaveURL(/\/$/);
   await page.getByRole('link', { name: 'Dashboard' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
