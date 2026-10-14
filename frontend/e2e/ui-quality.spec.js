@@ -84,6 +84,7 @@ test('keyboard and pointer resizing preserve layout across themes', async ({ pag
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('editorPanelLayout')).leftWidth)).toBe(300);
   await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('editorPanelLayout')).leftWidth)).toBe(280);
   const box = await subject.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();

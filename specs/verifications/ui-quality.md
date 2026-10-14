@@ -53,7 +53,11 @@ Independent review `d86c48724a57ee98a101f5f472a416655` approved with no blocking
 
 Owned-stack cleanup passed. An independent Docker label inventory found no containers, volumes, or networks for `texgen-ui-audit-337e999f3e`. Both inspection browser sessions were closed. Existing resources were left unchanged.
 
-Pending: PR publication and exact-head CI.
+PR #17 was published. CI run `38638990809` passed backend, frontend, and browser-e2e on `b15f37d9fb08149270a9af988811ac17e88494c2`.
+
+CodeRabbit completed its review and requested one intermediate resize assertion. The browser test now asserts 280 pixels after ArrowLeft, before checking that pointer drag restores 300 pixels. This prevents two failed actions from hiding each other. Production code is unchanged. A new exact-head CI run must verify this assertion. Copilot could not review because of its quota limit and is not counted.
+
+Two static analyzer warnings in the review context were checked: the test password belongs only to newly created disposable accounts; `nextLayout` contains the calculated changed width, not the unchanged state value. Neither needs a production change. CodeRabbit skipped fetching CI context, so CI results were checked directly through GitHub.
 
 ## Known follow-up
 
