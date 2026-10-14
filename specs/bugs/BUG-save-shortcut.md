@@ -29,4 +29,6 @@ Both regression cases failed on unchanged application code: two calls instead of
 
 The handler now checks the parent saving state and a synchronous ref. A `finally` block releases the ref after success or failure. Tests also cover button/shortcut overlap, parent saving state, and retry after failure. Browser cases cover desktop and mobile, a delayed real create response, later edits, subsequent save, and Dashboard reopen.
 
-Verification is in progress. No merge or deployment.
+Verification passed: 323 frontend tests, 681 PostgreSQL backend tests with 97.40% coverage and no skips, and 47 browser tests against rebuilt production images. Lint, build, audits, migration checks, and dependency checks passed. Independent source review found no blocking defect.
+
+The first browser run exposed an incorrect setup in the two new cases. Generating a sheet before opening the editor corrected the setup; no application, timeout, or retry change was needed. PR publication and exact-head CI remain pending. No merge or deployment.

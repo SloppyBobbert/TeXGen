@@ -16,6 +16,12 @@ for (const [size, viewport, shortcut] of [
     await submitLogin(page);
     await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
     await page.locator('#title').fill(`Save shortcut ${username}`);
+    await page.getByLabel('UNIT CIRCLE', { exact: true }).check();
+    const compiled = page.waitForResponse(response => response.url().endsWith('/api/compile/')
+      && response.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Generate / Regenerate' }).click();
+    expect((await compiled).ok()).toBeTruthy();
+    await page.getByRole('button', { name: 'Use raw source' }).click();
     await page.getByRole('button', { name: /Show LaTeX editor/i }).click();
     const editor = page.getByLabel('Generated LaTeX Code:');
     const original = '\\documentclass{article}\n\\begin{document}Before save\\end{document}';
