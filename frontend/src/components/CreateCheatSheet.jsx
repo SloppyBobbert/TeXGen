@@ -922,7 +922,7 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
         <div className="pdf-preview-scroll" ref={scrollRef} onScroll={handlePdfScroll}>
           {compileError && (
             <div className="compile-error-box" role="alert">
-              <strong>Latest compile failed. Showing the last successful PDF.</strong>
+              <strong>{pdfBlob ? 'Latest compile failed. Showing the last successful PDF.' : 'Compile failed. No PDF is available.'}</strong>
               <br />
               <br />
               {compileError}
