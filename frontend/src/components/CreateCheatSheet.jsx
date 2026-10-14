@@ -1243,6 +1243,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
   const [panelLayout, setPanelLayout] = useState(() => loadPanelLayout());
   const [videoSearchRequest, setVideoSearchRequest] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle');
+  const savePendingRef = useRef(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [toast, setToast] = useState(null);
   const [classesCollapseSignal, setClassesCollapseSignal] = useState(0);
@@ -1606,6 +1607,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
 
   const handleSave = useCallback(async (e) => {
     e?.preventDefault?.();
+    if (isSaving || savePendingRef.current) return;
+    savePendingRef.current = true;
     setSaveStatus('saving');
     try {
       await onSave({
@@ -1627,8 +1630,10 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     } catch {
       setSaveStatus('offline');
       showToast('Failed to save. Please try again.', 'error');
+    } finally {
+      savePendingRef.current = false;
     }
-  }, [columns, content, contentSource, generatedSections, fontSize, getFormulaSelectionsList, getSelectedFormulasList, margins, onSave, orientation, showToast, spacing, title]);
+  }, [columns, content, contentSource, generatedSections, fontSize, getFormulaSelectionsList, getSelectedFormulasList, isSaving, margins, onSave, orientation, showToast, spacing, title]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
