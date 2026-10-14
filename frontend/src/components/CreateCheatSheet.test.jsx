@@ -147,10 +147,10 @@ describe('CreateCheatSheet Component', () => {
   });
 
   it.each([
-    ['subject', 'leftWidth', 280, 300],
-    ['video', 'rightWidth', 300, 280],
-    ['LaTeX', 'latexWidth', 430, 450],
-  ])('resizes the %s panel with arrow keys and persists the result', (panel, field, initial, expected) => {
+    ['subject', 'leftWidth', 280, 300, 220, 420],
+    ['video', 'rightWidth', 300, 280, 240, 420],
+    ['LaTeX', 'latexWidth', 430, 450, 320, 570],
+  ])('resizes the %s panel with arrow keys and persists the result', (panel, field, initial, expected, minimum, maximum) => {
     localStorage.clear();
     const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () {
       return this.classList.contains('center-panel') ? 840 : 1440;
@@ -169,6 +169,12 @@ describe('CreateCheatSheet Component', () => {
       const saved = localStorage.getItem('editorPanelLayout');
       fireEvent.keyDown(resizer, { key: 'Tab' });
       expect(localStorage.getItem('editorPanelLayout')).toBe(saved);
+      const increase = panel === 'video' ? 'ArrowLeft' : 'ArrowRight';
+      const decrease = panel === 'video' ? 'ArrowRight' : 'ArrowLeft';
+      for (let i = 0; i < 30; i++) fireEvent.keyDown(resizer, { key: increase });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(maximum);
+      for (let i = 0; i < 30; i++) fireEvent.keyDown(resizer, { key: decrease });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(minimum);
     } finally {
       width.mockRestore();
       localStorage.clear();
