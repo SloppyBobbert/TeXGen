@@ -152,7 +152,7 @@ describe('CreateCheatSheet Component', () => {
     ['LaTeX', 'latexWidth', 430, 450, 320, 570],
   ])('resizes the %s panel with arrow keys and persists the result', (panel, field, initial, expected, minimum, maximum) => {
     localStorage.clear();
-    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () {
+    const width = vi.spyOn(globalThis.HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () {
       return this.classList.contains('center-panel') ? 840 : 1440;
     });
     try {
