@@ -491,6 +491,35 @@ describe('CreateCheatSheet Component', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
   });
 
+  it('does not start a shortcut save while the parent is saving', () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} isSaving />);
+    const shortcut = new window.KeyboardEvent('keydown', { key: 's', ctrlKey: true, cancelable: true });
+
+    fireEvent(window, shortcut);
+
+    expect(shortcut.defaultPrevented).toBe(true);
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByTitle('Save (Ctrl + S)')).toBeDisabled();
+  });
+
+  it('blocks a shortcut during a button save and allows retry after failure', async () => {
+    let failSave;
+    const pending = new Promise((_resolve, reject) => { failSave = reject; });
+    const onSave = vi.fn().mockReturnValueOnce(pending).mockResolvedValue(undefined);
+    render(<CreateCheatSheet onSave={onSave} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByTitle('Save (Ctrl + S)'));
+    fireEvent.keyDown(window, { key: 's', metaKey: true });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    await act(async () => failSave(new Error('Network unavailable')));
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to save. Please try again.');
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true });
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('alert')).toHaveTextContent('Cheat sheet saved successfully!');
+  });
+
   it('ignores repeated shortcut keydown events', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
 
