@@ -114,6 +114,20 @@ describe('CreateCheatSheet Component', () => {
       .toHaveAccessibleDescription('Generate replaces editor source. Compile keeps it.');
   });
 
+  it.each([[false, false], [true, false], [false, true], [true, true]])('enables only available history actions (back: %s, forward: %s)', (canGoBack, canGoForward) => {
+    useLatex.mockReturnValue({ ...mockUseLatex, canGoBack, canGoForward });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+    const back = screen.getByRole('button', { name: 'Back', exact: true });
+    const forward = screen.getByRole('button', { name: 'Forward', exact: true });
+
+    expect(back.disabled).toBe(!canGoBack);
+    expect(forward.disabled).toBe(!canGoForward);
+    fireEvent.click(back);
+    fireEvent.click(forward);
+    expect(mockUseLatex.goBack).toHaveBeenCalledTimes(canGoBack ? 1 : 0);
+    expect(mockUseLatex.goForward).toHaveBeenCalledTimes(canGoForward ? 1 : 0);
+  });
+
   it('generates selected formulas from the explicit generate action', () => {
     const handleGenerateSheetMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
