@@ -86,6 +86,23 @@ describe('Dashboard Component', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it('retries a failed sheet list without reloading the page', async () => {
+    let finishRetry;
+    fetch.mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockImplementationOnce(() => new Promise(resolve => { finishRetry = resolve; }));
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    await screen.findByText('Error: Failed to load cheat sheets');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry', exact: true }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading your sheets');
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    await act(async () => finishRetry({ ok: true, json: async () => mockSheets }));
+    expect(await screen.findByText('Math Formulas')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the sheet and reports a failed deletion', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
