@@ -146,6 +146,35 @@ describe('CreateCheatSheet Component', () => {
     expect(handleGenerateSheetMock).toHaveBeenCalledWith(selectedFormulas);
   });
 
+  it.each([
+    ['subject', 'leftWidth', 280, 300],
+    ['video', 'rightWidth', 300, 280],
+    ['LaTeX', 'latexWidth', 430, 450],
+  ])('resizes the %s panel with arrow keys and persists the result', (panel, field, initial, expected) => {
+    localStorage.clear();
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () {
+      return this.classList.contains('center-panel') ? 840 : 1440;
+    });
+    try {
+      useLatex.mockReturnValue({ ...mockUseLatex, content: 'source' });
+      render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+      if (panel === 'LaTeX') fireEvent.click(screen.getByRole('button', { name: 'Show LaTeX editor' }));
+      const resizer = screen.getByRole('button', { name: `Resize ${panel} panel` });
+      const event = new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+      fireEvent(resizer, event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(expected);
+      fireEvent.keyDown(resizer, { key: 'ArrowLeft' });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(initial);
+      const saved = localStorage.getItem('editorPanelLayout');
+      fireEvent.keyDown(resizer, { key: 'Tab' });
+      expect(localStorage.getItem('editorPanelLayout')).toBe(saved);
+    } finally {
+      width.mockRestore();
+      localStorage.clear();
+    }
+  });
+
   it('shrinks the subject panel on first compile without hiding the compile controls', () => {
     const handleCompileOnlyMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
