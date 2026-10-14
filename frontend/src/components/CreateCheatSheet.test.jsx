@@ -114,6 +114,20 @@ describe('CreateCheatSheet Component', () => {
       .toHaveAccessibleDescription('Generate replaces editor source. Compile keeps it.');
   });
 
+  it.each([[false, false], [true, false], [false, true], [true, true]])('enables only available history actions (back: %s, forward: %s)', (canGoBack, canGoForward) => {
+    useLatex.mockReturnValue({ ...mockUseLatex, canGoBack, canGoForward });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+    const back = screen.getByRole('button', { name: 'Back', exact: true });
+    const forward = screen.getByRole('button', { name: 'Forward', exact: true });
+
+    expect(back.disabled).toBe(!canGoBack);
+    expect(forward.disabled).toBe(!canGoForward);
+    fireEvent.click(back);
+    fireEvent.click(forward);
+    expect(mockUseLatex.goBack).toHaveBeenCalledTimes(canGoBack ? 1 : 0);
+    expect(mockUseLatex.goForward).toHaveBeenCalledTimes(canGoForward ? 1 : 0);
+  });
+
   it('generates selected formulas from the explicit generate action', () => {
     const handleGenerateSheetMock = vi.fn();
     const selectedFormulas = [{ name: 'test' }];
@@ -130,6 +144,41 @@ describe('CreateCheatSheet Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Generate \/ Regenerate/i }));
 
     expect(handleGenerateSheetMock).toHaveBeenCalledWith(selectedFormulas);
+  });
+
+  it.each([
+    ['subject', 'leftWidth', 280, 300, 220, 420],
+    ['video', 'rightWidth', 300, 280, 240, 420],
+    ['LaTeX', 'latexWidth', 430, 450, 320, 570],
+  ])('resizes the %s panel with arrow keys and persists the result', (panel, field, initial, expected, minimum, maximum) => {
+    localStorage.clear();
+    const width = vi.spyOn(globalThis.HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function () {
+      return this.classList.contains('center-panel') ? 840 : 1440;
+    });
+    try {
+      useLatex.mockReturnValue({ ...mockUseLatex, content: 'source' });
+      render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+      if (panel === 'LaTeX') fireEvent.click(screen.getByRole('button', { name: 'Show LaTeX editor' }));
+      const resizer = screen.getByRole('button', { name: `Resize ${panel} panel` });
+      const event = new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+      fireEvent(resizer, event);
+      expect(event.defaultPrevented).toBe(true);
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(expected);
+      fireEvent.keyDown(resizer, { key: 'ArrowLeft' });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(initial);
+      const saved = localStorage.getItem('editorPanelLayout');
+      fireEvent.keyDown(resizer, { key: 'Tab' });
+      expect(localStorage.getItem('editorPanelLayout')).toBe(saved);
+      const increase = panel === 'video' ? 'ArrowLeft' : 'ArrowRight';
+      const decrease = panel === 'video' ? 'ArrowRight' : 'ArrowLeft';
+      for (let i = 0; i < 30; i++) fireEvent.keyDown(resizer, { key: increase });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(maximum);
+      for (let i = 0; i < 30; i++) fireEvent.keyDown(resizer, { key: decrease });
+      expect(JSON.parse(localStorage.getItem('editorPanelLayout'))[field]).toBe(minimum);
+    } finally {
+      width.mockRestore();
+      localStorage.clear();
+    }
   });
 
   it('shrinks the subject panel on first compile without hiding the compile controls', () => {
@@ -197,6 +246,26 @@ describe('CreateCheatSheet Component', () => {
 
     expect(useLatex).toHaveBeenLastCalledWith(expect.objectContaining({ content: 'new server source', orientation: 'portrait' }), undefined, [], { restoreSelections: undefined, formulaSelections: [], knownIds: new Set(), onDocumentChange: expect.any(Function) });
     expect(handleContentChange).not.toHaveBeenCalled();
+  });
+
+  it('offers source download after a first compile failure without a PDF', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, content: 'recoverable source', compileError: 'Compile unavailable' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '.tex', exact: true }));
+
+    expect(mockUseLatex.handleDownloadTex).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print', exact: true })).toBeDisabled();
+  });
+
+  it('does not claim to show a previous PDF when the first compile fails', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, content: 'source', compileError: 'Compile unavailable' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Compile failed. No PDF is available.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Compile unavailable');
+    expect(screen.queryByTestId('mock-document')).not.toBeInTheDocument();
   });
 
   it('keeps a successful PDF visible alongside a compile error', () => {

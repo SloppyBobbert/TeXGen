@@ -922,7 +922,7 @@ const PdfPreview = ({ pdfBlob, compileError, isCompiling, layoutSignature }) => 
         <div className="pdf-preview-scroll" ref={scrollRef} onScroll={handlePdfScroll}>
           {compileError && (
             <div className="compile-error-box" role="alert">
-              <strong>Latest compile failed. Showing the last successful PDF.</strong>
+              <strong>{pdfBlob ? 'Latest compile failed. Showing the last successful PDF.' : 'Compile failed. No PDF is available.'}</strong>
               <br />
               <br />
               {compileError}
@@ -1214,6 +1214,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     isGuest,
     refreshGuestAllowance,
     lastCompileSnapshot,
+    canGoBack,
+    canGoForward,
     goBack,
     goForward,
     handleCompileOnly,
@@ -1483,12 +1485,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     });
   }, [compileError, formulaSelections, lastCompileSnapshot, onSave]);
 
-  const startResize = useCallback((panel) => (event) => {
-    event.preventDefault();
-
-    const startX = event.clientX;
-    const startLayout = panelLayout;
-    pendingPanelLayoutRef.current = startLayout;
+  const resizePanel = useCallback((panel, startLayout, deltaX) => {
     const bodyWidth = appBodyRef.current?.clientWidth || window.innerWidth;
     const centerWidth = centerPanelRef.current?.clientWidth || 0;
     const minimumCenterWidth = showLatex ? MIN_SPLIT_CENTER_WIDTH : MIN_CENTER_WIDTH;
@@ -1513,33 +1510,31 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
       Math.min(LATEX_PANEL_MAX_WIDTH, centerWidth - RESIZER_WIDTH - MIN_PREVIEW_WIDTH),
     );
 
-    const handlePointerMove = (moveEvent) => {
-      const deltaX = moveEvent.clientX - startX;
+    let nextLayout;
+    if (panel === 'left') {
+      nextLayout = { ...startLayout, leftWidth: clampPanelWidth(startLayout.leftWidth + deltaX, LEFT_PANEL_MIN_WIDTH, maxLeftWidth) };
+    } else if (panel === 'right') {
+      nextLayout = { ...startLayout, rightWidth: clampPanelWidth(startLayout.rightWidth - deltaX, RIGHT_PANEL_MIN_WIDTH, maxRightWidth) };
+    } else {
+      nextLayout = { ...startLayout, latexWidth: clampPanelWidth(startLayout.latexWidth + deltaX, LATEX_PANEL_MIN_WIDTH, maxLatexWidth) };
+    }
+    pendingPanelLayoutRef.current = nextLayout;
+    setPanelLayout(nextLayout);
+    return nextLayout;
+  }, [leftPanelVisible, rightPanelVisible, showLatex]);
 
-      setPanelLayout(() => {
-        let nextLayout;
+  const resizeWithKeyboard = (panel) => (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    savePanelLayout(resizePanel(panel, pendingPanelLayoutRef.current, event.key === 'ArrowRight' ? 20 : -20));
+  };
 
-        if (panel === 'left') {
-          nextLayout = {
-            ...startLayout,
-            leftWidth: clampPanelWidth(startLayout.leftWidth + deltaX, LEFT_PANEL_MIN_WIDTH, maxLeftWidth),
-          };
-        } else if (panel === 'right') {
-          nextLayout = {
-            ...startLayout,
-            rightWidth: clampPanelWidth(startLayout.rightWidth - deltaX, RIGHT_PANEL_MIN_WIDTH, maxRightWidth),
-          };
-        } else {
-          nextLayout = {
-            ...startLayout,
-            latexWidth: clampPanelWidth(startLayout.latexWidth + deltaX, LATEX_PANEL_MIN_WIDTH, maxLatexWidth),
-          };
-        }
-
-        pendingPanelLayoutRef.current = nextLayout;
-        return nextLayout;
-      });
-    };
+  const startResize = useCallback((panel) => (event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startLayout = panelLayout;
+    pendingPanelLayoutRef.current = startLayout;
+    const handlePointerMove = (moveEvent) => resizePanel(panel, startLayout, moveEvent.clientX - startX);
 
     const handlePointerUp = () => {
       window.removeEventListener('pointermove', handlePointerMove);
@@ -1551,7 +1546,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
     document.body.classList.add('is-resizing-panels');
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
-  }, [leftPanelVisible, panelLayout, rightPanelVisible, showLatex]);
+  }, [panelLayout, resizePanel]);
 
   const appBodyGridTemplate = [
     leftPanelVisible ? `${panelLayout.leftWidth}px` : '0px',
@@ -1781,6 +1776,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 <button
                   type="button"
                   onClick={goBack}
+                  disabled={!canGoBack}
                   className="btn history-btn"
                 >
                   Back
@@ -1788,17 +1784,20 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                 <button
                   type="button"
                   onClick={goForward}
+                  disabled={!canGoForward}
                   className="btn history-btn"
                 >
                   Forward
                 </button>
               </div>
 
-              {pdfBlob && (
+              {(pdfBlob || content.trim()) && (
                 <div className="btn-download-row">
-                  <button type="button" onClick={handlePrintPDF} className="btn-dl">Print</button>
-                  <button type="button" onClick={handleDownloadPDF} className="btn-dl">Download PDF</button>
-                  <button type="button" onClick={handleDownloadTex} className="btn-dl">.tex</button>
+                  {pdfBlob && <>
+                    <button type="button" onClick={handlePrintPDF} className="btn-dl">Print</button>
+                    <button type="button" onClick={handleDownloadPDF} className="btn-dl">Download PDF</button>
+                  </>}
+                  {content.trim() && <button type="button" onClick={handleDownloadTex} className="btn-dl">.tex</button>}
                 </div>
               )}
 
@@ -1828,6 +1827,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               type="button"
               className="panel-resizer panel-resizer-vertical panel-resizer-left"
               onPointerDown={startResize('left')}
+              onKeyDown={resizeWithKeyboard('left')}
+              title="Use Left and Right arrow keys to resize"
               aria-label="Resize subject panel"
             />
           ) : (
@@ -1939,6 +1940,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                      type="button"
                      className="panel-resizer panel-resizer-vertical panel-resizer-inner"
                      onPointerDown={startResize('latex')}
+                     onKeyDown={resizeWithKeyboard('latex')}
+                     title="Use Left and Right arrow keys to resize"
                      aria-label="Resize LaTeX panel"
                    />
                    <div className="workspace-split-pane workspace-split-pane-preview">
@@ -1986,6 +1989,8 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
               type="button"
               className="panel-resizer panel-resizer-vertical panel-resizer-right"
               onPointerDown={startResize('right')}
+              onKeyDown={resizeWithKeyboard('right')}
+              title="Use Left and Right arrow keys to resize"
               aria-label="Resize video panel"
             />
           ) : (

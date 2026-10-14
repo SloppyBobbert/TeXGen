@@ -86,6 +86,51 @@ describe('Dashboard Component', () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it('retries a failed sheet list without reloading the page', async () => {
+    let finishRetry;
+    fetch.mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockImplementationOnce(() => new Promise(resolve => { finishRetry = resolve; }));
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    await screen.findByText('Error: Failed to load cheat sheets');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry', exact: true }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Loading your sheets');
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    await act(async () => finishRetry({ ok: true, json: async () => mockSheets }));
+    expect(await screen.findByText('Math Formulas')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows another retry after the first retry fails', async () => {
+    fetch.mockRejectedValueOnce(new Error('Network unavailable'))
+      .mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] });
+    renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load cheat sheets');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText(/you haven't saved any cheat sheets yet/i)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('aborts a pending retry when the Dashboard unmounts', async () => {
+    let finishRetry;
+    fetch.mockResolvedValueOnce({ ok: false, status: 503 })
+      .mockImplementationOnce(() => new Promise(resolve => { finishRetry = resolve; }));
+    const rendered = renderWithContext(<Dashboard />, { authTokens: { access: 'token' } });
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    const signal = fetch.mock.calls[1][1].signal;
+    rendered.unmount();
+    expect(signal.aborted).toBe(true);
+    await act(async () => finishRetry({ ok: true, json: async () => mockSheets }));
+    expect(screen.queryByText('Math Formulas')).not.toBeInTheDocument();
+  });
+
   it('keeps the sheet and reports a failed deletion', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});

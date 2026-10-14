@@ -8,6 +8,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
   const [listing, setListing] = useState({ session: null, sheets: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const { authTokens, authSessionVersion } = useContext(AuthContext);
   const session = authSessionVersion ?? authTokens?.access ?? null;
   const hasAuth = Boolean(authTokens?.access);
@@ -43,7 +44,7 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
     };
     void fetchSheets();
     return cancel;
-  }, [hasAuth, session, apiRequest]);
+  }, [hasAuth, session, apiRequest, loadAttempt]);
 
   const handleEdit = (sheet) => {
     if (onEditSheet(sheet)?.ok) navigate('/');
@@ -113,8 +114,13 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
     }
   };
 
-  if (loading) return <div className="dashboard-loading">Loading your sheets...</div>;
-  if (error) return <div className="dashboard-error">Error: {error}</div>;
+  if (loading) return <div className="dashboard-loading" role="status">Loading your sheets...</div>;
+  if (error) return (
+    <div className="dashboard-error">
+      <p role="alert">Error: {error}</p>
+      <button type="button" className="btn primary" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</button>
+    </div>
+  );
 
   return (
     <div className="dashboard-container">
