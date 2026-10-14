@@ -199,6 +199,17 @@ describe('CreateCheatSheet Component', () => {
     expect(handleContentChange).not.toHaveBeenCalled();
   });
 
+  it('offers source download after a first compile failure without a PDF', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, content: 'recoverable source', compileError: 'Compile unavailable' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '.tex', exact: true }));
+
+    expect(mockUseLatex.handleDownloadTex).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print', exact: true })).toBeDisabled();
+  });
+
   it('keeps a successful PDF visible alongside a compile error', () => {
     useLatex.mockReturnValue({
       ...mockUseLatex,
