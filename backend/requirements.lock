@@ -1,4 +1,4 @@
-# Exact tested container versions; only pip changes in the approved update.
+# Exact tested dependency versions, including security updates.
 # Source image: sha256:91a85424a473e2f98a8b030133848f685dee3263fe81ce8b0ce9712c453ff449
 # This is a version constraint set, not an artifact-hash lock.
 asgiref==3.12.1
@@ -33,7 +33,7 @@ pluggy==1.6.0
 psycopg2-binary==2.9.13
 py-serializable==2.1.0
 pygments==2.21.0
-pyjwt==2.14.0
+pyjwt==2.15.0
 pyparsing==3.3.3
 pytest==9.1.1
 pytest-cov==7.1.0
