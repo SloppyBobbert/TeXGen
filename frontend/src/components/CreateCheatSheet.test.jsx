@@ -98,6 +98,26 @@ describe('CreateCheatSheet Component', () => {
     useYouTubeResources.mockReturnValue({ resources: [], isLoading: false, error: '', topicLimit: 6 });
   });
 
+  it('names both custom layout inputs', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, fontSize: '10.5pt', spacing: '0.8pt' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} />);
+    expect(screen.getByRole('textbox', { name: 'Custom text size' })).toHaveValue('10.5pt');
+    expect(screen.getByRole('textbox', { name: 'Custom spacing' })).toHaveValue('0.8pt');
+  });
+
+  it('reports panel and snapshot disclosure states', () => {
+    useLatex.mockReturnValue({ ...mockUseLatex, content: 'source' });
+    render(<CreateCheatSheet onSave={vi.fn()} onReset={vi.fn()} initialData={{ compileHistory: [{ title: 'Saved draft' }] }} />);
+    for (const [name, open] of [[/^(Hide|Show) subjects$/, true], [/^(Hide|Show) videos$/, true], [/^(Hide|Show) LaTeX editor$/, false], [/^Snapshots/, false]]) {
+      const button = screen.getByRole('button', { name });
+      expect(button).toHaveAttribute('aria-expanded', String(open));
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-expanded', String(!open));
+      fireEvent.click(button);
+      expect(button).toHaveAttribute('aria-expanded', String(open));
+    }
+  });
+
   it('renders correctly with default state', () => {
     render(<CreateCheatSheet onSave={vi.fn().mockResolvedValue(undefined)} onReset={vi.fn()} />);
 

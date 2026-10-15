@@ -18,6 +18,7 @@
    DESIGN TOKENS
    ========================================================================== */
 :root {
+  color-scheme: dark;
   /* Colors - Dark theme */
   --bg: #121215;
   --text: #f4f4f5;
@@ -76,9 +77,10 @@
 }
 
 [data-theme="light"] {
+  color-scheme: light;
   --bg: #f8fafc;
   --text: #18181b;
-  --text-muted: #71717a;
+  --text-muted: #686871;
   --panel-bg: #ffffff;
   --border: #e4e4e7;
   --border-subtle: #f4f4f5;
@@ -153,7 +155,7 @@
 [data-theme="forest"] {
   --bg: #0d1f0d;
   --text: #d4e8d4;
-  --text-muted: #6a8f6a;
+  --text-muted: #7a9f7a;
   --panel-bg: #142414;
   --border: #2d4a2d;
   --border-subtle: #1a301a;
@@ -207,7 +209,7 @@
 [data-theme="coolGrey"] {
   --bg: #2e3440;
   --text: #eceff4;
-  --text-muted: #677691;
+  --text-muted: #a6b3c8;
   --panel-bg: #3b4252;
   --border: #4c566a;
   --border-subtle: #434c5e;
@@ -234,7 +236,7 @@
 [data-theme="neon"] {
   --bg: #050510;
   --text: #f0f0ff;
-  --text-muted: #7070aa;
+  --text-muted: #8585be;
   --panel-bg: #080820;
   --border: #1a1a4a;
   --border-subtle: #0f0f30;
@@ -307,9 +309,13 @@
 }
 
 [data-theme="blossom"] {
+  color-scheme: light;
+  --code-error: #b91c1c;
+  --code-error-bg: rgba(220, 38, 38, 0.1);
+  --code-error-gutter: rgba(220, 38, 38, 0.14);
   --bg: #fff7fb;
   --text: #4a2340;
-  --text-muted: #9a6f8d;
+  --text-muted: #825b77;
   --panel-bg: #fff0f7;
   --card-bg: #fff4fa;
   --box-bg: #ffe8f3;
@@ -448,7 +454,7 @@ label {
 }
 
 .pdf-state-error {
-  color: #fca5a5;
+  color: var(--code-error);
 }
 
 .compile-error-box strong,
@@ -462,8 +468,8 @@ label {
 
 .compile-error-box {
   padding: 1rem;
-  color: #fca5a5;
-  background: rgba(127, 29, 29, 0.22);
+  color: var(--code-error);
+  background: var(--code-error-bg);
   border: 1px solid rgba(248, 113, 113, 0.28);
   border-radius: 10px;
   white-space: pre-wrap;

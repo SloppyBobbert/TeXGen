@@ -137,15 +137,15 @@ const Dashboard = ({ onEditSheet, onCreateNewSheet }) => {
         <div className="sheets-grid">
           {sheets.map((sheet) => (
             <div key={sheet.id} className="sheet-card">
-              <h3>{sheet.title || 'Untitled Sheet'}</h3>
+              <h3 id={`sheet-${sheet.id}-title`}>{sheet.title || 'Untitled Sheet'}</h3>
               <p className="sheet-meta">
                 Created: {new Date(sheet.created_at).toLocaleDateString()}<br/>
                 Last modified: {new Date(sheet.updated_at).toLocaleDateString()}
               </p>
               <div className="sheet-actions">
-                <button className="btn small" onClick={() => handleEdit(sheet)}>Edit</button>
-                <button className="btn small primary" onClick={() => handleDownload(sheet)}>Download PDF</button>
-                <button className="btn small danger" onClick={() => handleDelete(sheet.id)}>Delete</button>
+                <button className="btn small" aria-describedby={`sheet-${sheet.id}-title`} onClick={() => handleEdit(sheet)}>Edit</button>
+                <button className="btn small primary" aria-describedby={`sheet-${sheet.id}-title`} onClick={() => handleDownload(sheet)}>Download PDF</button>
+                <button className="btn small danger" aria-describedby={`sheet-${sheet.id}-title`} onClick={() => handleDelete(sheet.id)}>Delete</button>
               </div>
             </div>
           ))}
