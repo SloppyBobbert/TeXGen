@@ -29,6 +29,15 @@ describe('Dashboard Component', () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(['Math Formulas', ''])('describes sheet actions with the title %j', async (title) => {
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => [{ ...mockSheets[0], title }] });
+    renderWithContext(<Dashboard />, { authTokens: { access: 'test-token' } });
+    await screen.findByRole('heading', { name: title || 'Untitled Sheet' });
+    for (const name of ['Edit', 'Download PDF', 'Delete']) {
+      expect(screen.getByRole('button', { name, exact: true })).toHaveAccessibleDescription(title || 'Untitled Sheet');
+    }
+  });
+
   it('ignores an old response body after switching accounts', async () => {
     let resolveOld;
     const oldBody = new Promise((resolve) => { resolveOld = resolve; });

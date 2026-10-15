@@ -1,6 +1,6 @@
 # Follow-up: compile-error text contrast
 
-Status: confirmed, deferred to the next approved cycle. This is a sixth finding; the current cycle is limited to five fixes.
+Status: fixed and locally verified in the UI polish batch. This was the sixth finding deferred from PR #17. See `specs/verifications/ui-polish.md` for current evidence; the measurements below record the original defect.
 
 ## Reproduction
 
@@ -18,8 +18,8 @@ Measured on the owned production test stack at a 390-pixel viewport. Browser-com
 
 Other themes measured at least 5.67:1 for this element. This is a targeted measurement, not a complete accessibility audit.
 
-## Proposed next fix
+## Applied fix
 
-Use theme-appropriate error text/background colors. Add a browser contrast assertion for all nine themes, then inspect screenshots. Keep the existing error detail and live alert. Do not change document data or compilation behavior.
+The UI polish batch uses theme-appropriate error text/background colors. Browser contrast assertions pass across all nine themes. The error detail, live alert, document data, and compilation behavior are unchanged. The full browser suite passed 62 tests; repeated contrast checks passed 12 tests.
 
 Before/after evidence remains in `.pi/compile-error-before.png` and `.pi/compile-error-after.png`. No CSS change was made in the current five-fix cycle.

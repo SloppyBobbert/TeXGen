@@ -1063,6 +1063,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <input
             type="text"
             value={fontSize}
+            aria-label="Custom text size"
             onChange={(e) => setFontSize(e.target.value)}
             className="layout-select"
             placeholder="e.g. 10.5pt"
@@ -1087,6 +1088,7 @@ const LayoutOptions = ({ columns, setColumns, fontSize, setFontSize, spacing, se
           <input
             type="text"
             value={spacing}
+            aria-label="Custom spacing"
             onChange={(e) => setSpacing(e.target.value)}
             className="layout-select"
             placeholder="e.g. 0.8pt"
@@ -1842,6 +1844,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                   type="button"
                   className="btn-toggle-panel"
                   onClick={() => setLeftPanelVisible(v => !v)}
+                  aria-expanded={leftPanelVisible}
                   title={leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
                 >
                   {leftPanelVisible ? 'Hide subjects' : 'Show subjects'}
@@ -1850,6 +1853,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                   type="button"
                   className="btn-toggle-panel"
                   onClick={() => setShowSnapshots((value) => !value)}
+                  aria-expanded={showSnapshots && snapshots.length > 0}
                   disabled={!snapshots.length}
                 >
                   Snapshots {snapshots.length ? `(${snapshots.length})` : ''}
@@ -1859,6 +1863,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                     type="button"
                     className="btn-toggle-latex btn-toggle-latex-prominent"
                     onClick={() => setShowLatex(v => !v)}
+                    aria-expanded={showLatex}
                   >
                     {showLatex ? 'Hide LaTeX editor' : 'Show LaTeX editor'}
                   </button>
@@ -1903,6 +1908,7 @@ const Editor = ({ onSave, onReset, onRestoreSnapshot, initialData, draftIdentity
                   type="button"
                   className="btn-toggle-panel btn-toggle-videos"
                   onClick={() => setRightPanelVisible((value) => !value)}
+                  aria-expanded={rightPanelVisible}
                   title={rightPanelVisible ? 'Hide videos' : 'Show videos'}
                 >
                   {rightPanelVisible ? 'Hide videos' : 'Show videos'}
