@@ -1,0 +1,9 @@
+{
+  "lsp": {
+    "disabledServers": ["rust"]
+  },
+  "autofix": {
+    "enabled": false
+  },
+  "ignore": ["**/*.rs"]
+}

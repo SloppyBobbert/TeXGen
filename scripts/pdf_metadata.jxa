@@ -1,0 +1,38 @@
+// Read trusted test-fixture PDFs with the installed macOS framework. No package install is needed.
+function dimensions(rectangle) {
+    var width = Number(rectangle.size.width);
+    var height = Number(rectangle.size.height);
+    if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error('The PDF page dimensions are invalid.');
+    }
+    return {widthPt: width, heightPt: height};
+}
+
+function run(args) {
+    if (args.length === 1 && args[0] === '--self-check') {
+        var box = dimensions({size: {width: 595, height: 842}});
+        if (box.widthPt !== 595 || box.heightPt !== 842) {
+            throw new Error('The page-dimension self-check failed.');
+        }
+        var rejected = false;
+        try { dimensions({size: {width: 0, height: 842}}); }
+        catch (error) { rejected = true; }
+        if (!rejected) { throw new Error('Invalid dimensions passed the self-check.'); }
+        return 'Page-dimension self-check passed. No PDF was opened.';
+    }
+    if (args.length !== 1) { throw new Error('Supply one trusted test-fixture PDF path.'); }
+    ObjC.import('PDFKit');
+    ObjC.import('Foundation');
+    var document = $.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(args[0]));
+    var count = Number(document.pageCount);
+    if (!isFinite(count) || count < 1 || count > 512 || Math.floor(count) !== count) {
+        throw new Error('The test PDF has no readable pages or exceeds the metadata test limit.');
+    }
+    var pages = [];
+    for (var index = 0; index < count; index++) {
+        // PDFDisplayBox.mediaBox is zero in the Objective-C API.
+        pages.push(dimensions(document.pageAtIndex(index).boundsForBox(0)));
+    }
+    var text = ObjC.unwrap(document.string) || '';
+    return JSON.stringify({pageCount: count, pages: pages, textCharacters: text.length, textSample: text.slice(0, 1024)});
+}

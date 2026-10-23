@@ -1,0 +1,16 @@
+\documentclass{article}
+\newread\boundarycheck
+\openin\boundarycheck="__HOST_PROJECT__/Cargo.toml"
+\ifeof\boundarycheck\else
+  \errmessage{Host project path was accessible}
+\fi
+\closein\boundarycheck
+\immediate\write18{touch /scratch/escape-marker}
+\openin\boundarycheck=/scratch/escape-marker
+\ifeof\boundarycheck\else
+  \errmessage{A shell command was executed}
+\fi
+\closein\boundarycheck
+\begin{document}
+Host project paths and shell commands were blocked.
+\end{document}
