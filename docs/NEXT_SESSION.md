@@ -9,7 +9,25 @@
 5. Read `docs/STAGE4_VERIFICATION.md` for the retained structured-editor checks.
 6. Inspect Git status with `GIT_OPTIONAL_LOCKS=0 git status --short`.
 
-## Current handoff — overrides all earlier notes
+## Current PR corrections — overrides all earlier notes
+
+- GitHub reports PR #19 as merged at `2026-10-23T05:22:41Z`. Its merge commit is `c63542cf03b0bf004ebaf833fa00c439a67a4867`.
+- The review used actual base `51716cd51837dfdcabda09479bd752c7297bf9aa` and head `ce4b6129d8de5ac5c4a2e512b3bafde0cb238c86`. Local HEAD remains `92fb47b00682f50d1e20d9dbd4549b9e163e579a` on `rewrite/rust-web`.
+- The user approved the review findings, continuous correction work, and a safe commit and push. Publish only the nine approved files on `fix/pr19-lifecycle-recovery`, based on GitHub main `c63542cf03b0bf004ebaf833fa00c439a67a4867`. That base has the verified rewrite tree. PR #19 is already merged, so the fixes need a follow-up PR.
+- Use the separate publication worktree at `target/pr19-fixes-publication`. Preserve the implementation worktree and its index. Do not push `rewrite/rust-web` or change existing protected refs. No force push, merge, deployment, or stored-artifact cleanup is approved.
+- PDF close now waits for document destruction before worker termination. A one-second fallback bounds a stalled teardown. Focused PDF and retained-preview tests passed: 16 tests.
+- Rust layout serialization now matches browser integer and negative-zero encoding. Both validators use a shared fixture at the compact JSON byte limit. Focused document tests passed: 7 Rust tests and 13 UI tests.
+- API body collection now has a five-second deadline. It retains the 1 MiB limit and security headers. The deadline does not interrupt compiler execution or cleanup. All 7 focused web tests passed.
+- A fake CLI reproduced delayed creation after cancellation and an empty container listing. The adapter now retains unresolved creation state until a successful reply contains a valid ID. Unresolved creation keeps private files and blocks admission, even after owned removal. All 13 CLI tests passed.
+- PDF teardown, document byte limits, the incomplete request body, and delayed fake creation each failed their regression checks before correction. Actual daemon timing remains unverified. No native compiler attempt ran.
+- The first complete gate passed all 101 UI tests, UI lint/types/formatting, and the UI build. It then failed a Rust formatting check. Log: `approved-command-1792784992184304000.log`. Preservation passed for 23 recorded files, the Git index, refs, and the active marker. The failed report remains at `target/pr-review-fix-verification.json`.
+- The Rust formatting correction passed its separate check in `approved-command-1792785170247745000.log`. The repeated complete gate passed in `approved-command-1792785188061910000.log`. It passed catalog integrity, all 101 UI tests, formatting, lint, types, the UI build, strict release Clippy, all offline Rust tests, and the release build. No ignored native fixture ran.
+- The complete gate ended at 485,277,696 allocated bytes, below the unchanged cap and reserve threshold. Hash checks preserved all 25 recorded files, including old UI assets, retained probe PDFs, and the exhausted attempt ledger. The Git index, refs, and active marker remained unchanged. Proof: `target/pr-review-fix-verification-1792785230343462000.json`.
+- A fresh independent read-only review found no actionable defects in the four corrections. Real-browser font cleanup and native Docker timing remain unverified.
+- Keep the 512 MiB cap and 32 MiB reserve. All 16 native attempts remain exhausted. Keep Rust LSP denial and automatic Rust scans disabled. Do not stop replacement analyzers or restart PID `74798`.
+- Reviewer records remain untracked under `.pi/`. Do not remove them without exact approval. No original browser profile, stored document, recovery copy, or in-memory PDF was opened or changed.
+
+## Previous handoff — historical evidence and limits
 
 - The user wants the local site working and visually improved, not clean-Mac/release work. Task 13 is deferred. Do not request another machine or resume release gates unless requested.
 - The user now authorizes the remaining checks, source staging/commits, normal pushes for the intended PR, and PR creation. Do not merge or deploy. No new compiler-image job, installation, package/browser/font download, or original-worktree cleanup is approved.

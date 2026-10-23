@@ -1,9 +1,11 @@
 use std::{
+    collections::HashSet,
     ffi::OsString,
     fs, io,
     os::unix::{fs::FileTypeExt, process::ExitStatusExt},
     path::{Path, PathBuf},
     process::{ExitStatus, Output},
+    sync::Mutex,
 };
 
 use serde_json::Value;
@@ -25,6 +27,7 @@ pub enum Failure {
     Metadata,
     Ownership,
     Controls,
+    CreationUncertain,
 }
 
 impl std::fmt::Display for Failure {
@@ -47,6 +50,7 @@ pub struct Client {
     program: PathBuf,
     host: String,
     assets: Assets,
+    pending_creates: Mutex<HashSet<String>>,
 }
 
 impl Client {
@@ -65,6 +69,7 @@ impl Client {
             program: "/usr/local/bin/docker".into(),
             host: format!("unix://{path}"),
             assets,
+            pending_creates: Mutex::default(),
         })
     }
 
@@ -372,8 +377,16 @@ impl Engine for Client {
         cancelled: watch::Receiver<bool>,
     ) -> Result<(), Failure> {
         let args = spec::create_arguments(space, &self.assets).map_err(Failure::Io)?;
+        self.pending_creates
+            .lock()
+            .map_err(|_| Failure::CreationUncertain)?
+            .insert(space.lease().id().to_owned());
         let output = checked(self.call(args, deadline, cancelled.clone()).await?)?;
         let id = identifier(&output.stdout)?;
+        self.pending_creates
+            .lock()
+            .map_err(|_| Failure::CreationUncertain)?
+            .remove(space.lease().id());
         let data = self.inspect(space, &id, deadline, cancelled).await?;
         verify_controls(space, &self.assets, &data)
     }
@@ -421,21 +434,29 @@ impl Engine for Client {
     async fn remove(&self, space: &Space, deadline: Instant) -> Result<(), Failure> {
         // Cleanup must finish even after the request owner has cancelled the job.
         let (_sender, cancelled) = watch::channel(false);
-        let Some(id) = self.find(space, deadline, cancelled.clone()).await? else {
-            return Ok(());
-        };
-        self.inspect(space, &id, deadline, cancelled.clone())
-            .await?;
-        checked(
-            self.call(
-                vec!["rm".into(), "--force".into(), id.into()],
-                deadline,
-                cancelled.clone(),
-            )
-            .await?,
-        )?;
-        if self.find(space, deadline, cancelled).await?.is_some() {
-            return Err(Failure::Metadata);
+        if let Some(id) = self.find(space, deadline, cancelled.clone()).await? {
+            self.inspect(space, &id, deadline, cancelled.clone())
+                .await?;
+            checked(
+                self.call(
+                    vec!["rm".into(), "--force".into(), id.into()],
+                    deadline,
+                    cancelled.clone(),
+                )
+                .await?,
+            )?;
+            if self.find(space, deadline, cancelled).await?.is_some() {
+                return Err(Failure::Metadata);
+            }
+        }
+        // An empty list does not settle a create request whose reply was lost.
+        if self
+            .pending_creates
+            .lock()
+            .map_err(|_| Failure::CreationUncertain)?
+            .contains(space.lease().id())
+        {
+            return Err(Failure::CreationUncertain);
         }
         Ok(())
     }
@@ -660,12 +681,20 @@ IFS= read -r mode < "$base/mode"
 id=1111111111111111111111111111111111111111111111111111111111111111
 case "$1" in
   create)
+    if [ "$mode" = create-delayed ]; then
+      : > "$base/create-submitted"
+      exec /bin/sleep 1
+    fi
     : > "$base/created"
     [ "$mode" != partial ] || exit 42
     printf '%s\n' "$id"
     ;;
   container)
     [ "$mode" != list-error ] || exit 42
+    if [ "$mode" = create-delayed ] && [ ! -f "$base/created" ]; then
+      : > "$base/created"
+      exit 0
+    fi
     if [ -f "$base/created" ] && [ ! -f "$base/deleted" ]; then printf '%s\n' "$id"; fi
     ;;
   inspect)
@@ -691,7 +720,47 @@ esac
             program,
             host: "unix:///texgen-fake.sock".to_owned(),
             assets: Assets::fixture(&root.0),
+            pending_creates: Mutex::default(),
         }
+    }
+
+    #[tokio::test]
+    async fn delayed_creation_after_cancel_and_an_empty_listing_keeps_files_and_blocks_admission() {
+        let root = Root::new();
+        let jobs = Jobs::default();
+        let mut space = Space::create(&root.0, jobs.begin().unwrap()).unwrap();
+        space.prepare("source").unwrap();
+        let input = space.input_path();
+        let owner = space.lease().cancel_on_drop();
+        let client = fake_client(&root, &space, "create-delayed");
+        let cancel = async {
+            tokio::time::timeout(tokio::time::Duration::from_secs(1), async {
+                while !root.0.join("create-submitted").exists() {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+                }
+            })
+            .await
+            .unwrap();
+            drop(owner);
+        };
+        let (outcome, ()) =
+            tokio::join!(crate::compiler::lifecycle::execute(&client, space), cancel);
+        assert!(matches!(
+            &outcome,
+            crate::compiler::lifecycle::Outcome::Blocked { .. }
+        ));
+        assert!(input.exists());
+        assert!(root.0.join("created").exists());
+        assert!(!root.0.join("deleted").exists());
+        assert_eq!(
+            fs::read_to_string(root.0.join("commands")).unwrap(),
+            "create\ncontainer\n"
+        );
+        drop(outcome);
+        assert!(matches!(
+            jobs.begin(),
+            Err(crate::compiler::jobs::Failure::Unavailable)
+        ));
     }
 
     #[tokio::test]
@@ -746,16 +815,37 @@ esac
             let jobs = Jobs::default();
             let mut space = Space::create(&root.0, jobs.begin().unwrap()).unwrap();
             space.prepare("source").unwrap();
+            let input = space.input_path();
             let client = fake_client(&root, &space, mode);
-            assert!(matches!(
-                crate::compiler::lifecycle::execute(&client, space).await,
-                crate::compiler::lifecycle::Outcome::Finished(Err(
-                    crate::compiler::lifecycle::Failure::Engine(_)
-                ))
-            ));
+            let outcome = crate::compiler::lifecycle::execute(&client, space).await;
             assert!(!root.0.join("started").exists());
             assert!(root.0.join("deleted").exists());
-            assert!(jobs.begin().is_ok());
+            if mode == "partial" {
+                assert!(matches!(
+                    &outcome,
+                    crate::compiler::lifecycle::Outcome::Blocked {
+                        failure: crate::compiler::lifecycle::Failure::Engine(
+                            Failure::CreationUncertain
+                        ),
+                        ..
+                    }
+                ));
+                assert!(input.exists());
+                drop(outcome);
+                assert!(matches!(
+                    jobs.begin(),
+                    Err(crate::compiler::jobs::Failure::Unavailable)
+                ));
+            } else {
+                assert!(matches!(
+                    outcome,
+                    crate::compiler::lifecycle::Outcome::Finished(Err(
+                        crate::compiler::lifecycle::Failure::Engine(_)
+                    ))
+                ));
+                assert!(!input.exists());
+                assert!(jobs.begin().is_ok());
+            }
         }
     }
 

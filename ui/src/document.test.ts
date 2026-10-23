@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import fixture from "../../tests/fixtures/document.json";
+import byteLimitFixture from "../../tests/fixtures/byte-limit-document.json";
 import catalog from "../../data/catalog.json";
 import {
   changeLayout,
@@ -35,6 +36,20 @@ test("JSON round trips preserve layout, page allowance, raw source, and mode rec
     raw.content,
   );
 });
+
+test.each([999_990, 1_000_000, 1_000_001])(
+  "browser and Rust share the compact JSON byte boundary: %i",
+  (bytes) => {
+    const input = structuredClone(byteLimitFixture);
+    const padding =
+      bytes - new TextEncoder().encode(JSON.stringify(input)).length;
+    input.content.source = "x".repeat(Math.floor(padding / 2));
+    input.modeRecovery.content.source = "x".repeat(Math.ceil(padding / 2));
+    expect(new TextEncoder().encode(JSON.stringify(input)).length).toBe(bytes);
+    if (bytes <= 1_000_000) expect(decodeDocument(input)).toEqual(input);
+    else expect(() => decodeDocument(input)).toThrow("1,000,000 JSON bytes");
+  },
+);
 
 test("new documents require an explicit positive page allowance", () => {
   expect(() => createDocument("new-document", 0, document().layout)).toThrow();

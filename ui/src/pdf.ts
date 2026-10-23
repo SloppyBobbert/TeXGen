@@ -45,12 +45,27 @@ export async function openPdf(
     closed = true;
     clearTimeout(timer);
     signal.removeEventListener("abort", abort);
-    try {
-      if (loading) void loading.destroy().catch(() => {});
-      worker?.destroy();
-    } finally {
-      port.terminate();
-    }
+    void (async () => {
+      let fallback: ReturnType<typeof setTimeout> | undefined;
+      try {
+        // PDF.js must receive its teardown reply before the port is terminated.
+        await Promise.race([
+          loading?.destroy(),
+          new Promise<void>((resolve) => {
+            fallback = setTimeout(resolve, 1_000);
+          }),
+        ]);
+      } catch {
+        /* A failed teardown must still terminate the owned worker. */
+      } finally {
+        clearTimeout(fallback);
+        try {
+          worker?.destroy();
+        } finally {
+          port.terminate();
+        }
+      }
+    })();
   }
   signal.addEventListener("abort", abort, { once: true });
   try {

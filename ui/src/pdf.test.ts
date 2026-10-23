@@ -24,7 +24,10 @@ beforeEach(() => {
   mocks.create.mockReturnValue({ destroy: mocks.destroyWorker });
   mocks.destroyLoading.mockResolvedValue(undefined);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 function candidate(pages = 2) {
   const operators = vi.fn().mockResolvedValue({});
@@ -61,7 +64,59 @@ test("PDF parsing uses a dedicated worker and checks every page without consumin
   expect(mocks.terminate).not.toHaveBeenCalled();
   result.close();
   result.close();
-  expect(mocks.terminate).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledTimes(1));
+});
+
+test("document destruction finishes before its worker is terminated", async () => {
+  candidate();
+  let finish!: () => void;
+  mocks.destroyLoading.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const result = await openPdf(
+    new Uint8Array([1]),
+    new AbortController().signal,
+  );
+  result.close();
+  result.close();
+  expect(mocks.destroyLoading).toHaveBeenCalledOnce();
+  expect(mocks.destroyWorker).not.toHaveBeenCalled();
+  expect(mocks.terminate).not.toHaveBeenCalled();
+  finish();
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledOnce());
+  expect(mocks.destroyWorker).toHaveBeenCalledOnce();
+});
+
+test("stalled document destruction has a bounded worker termination fallback", async () => {
+  vi.useFakeTimers();
+  candidate();
+  mocks.destroyLoading.mockReturnValueOnce(new Promise(() => {}));
+  const result = await openPdf(
+    new Uint8Array([1]),
+    new AbortController().signal,
+  );
+  result.close();
+  expect(mocks.terminate).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(mocks.destroyWorker).toHaveBeenCalledOnce();
+  expect(mocks.terminate).toHaveBeenCalledOnce();
+  result.close();
+  await vi.advanceTimersByTimeAsync(30_000);
+  expect(mocks.terminate).toHaveBeenCalledOnce();
+});
+
+test("failed document destruction still terminates its worker", async () => {
+  candidate();
+  mocks.destroyLoading.mockRejectedValueOnce(new Error("Worker failed"));
+  const result = await openPdf(
+    new Uint8Array([1]),
+    new AbortController().signal,
+  );
+  result.close();
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledOnce());
+  expect(mocks.destroyWorker).toHaveBeenCalledOnce();
 });
 
 test("empty or oversized candidates never create a parser", async () => {
@@ -87,7 +142,7 @@ test("cancellation rejects a suspended parser and terminates its worker", async 
   await vi.waitFor(() => expect(mocks.getDocument).toHaveBeenCalled());
   controller.abort();
   await check;
-  expect(mocks.terminate).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledTimes(1));
 });
 
 test("bad page metadata is rejected and its worker is cleaned", async () => {
@@ -96,7 +151,7 @@ test("bad page metadata is rejected and its worker is cleaned", async () => {
     openPdf(new Uint8Array([1]), new AbortController().signal),
   ).rejects.toThrow("page");
   expect(mocks.destroyLoading).toHaveBeenCalledTimes(1);
-  expect(mocks.terminate).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledTimes(1));
 });
 
 test("an error on a later page cannot publish a partially checked PDF", async () => {
@@ -107,5 +162,5 @@ test("an error on a later page cannot publish a partially checked PDF", async ()
   await expect(
     openPdf(new Uint8Array([1]), new AbortController().signal),
   ).rejects.toThrow("malformed");
-  expect(mocks.terminate).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(mocks.terminate).toHaveBeenCalledTimes(1));
 });
