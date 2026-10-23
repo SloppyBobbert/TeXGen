@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "id": "doc-fixture",
+  "title": "Calculus & algebra_100% #1 $ {x} ~ ^ \\",
+  "pageAllowance": 2,
+  "layout": {
+    "paper": "A4",
+    "columns": 2,
+    "marginsMm": 5,
+    "fontPt": 9,
+    "spacingPt": 1,
+    "columnGapMm": 3
+  },
+  "content": {
+    "mode": "structured",
+    "blocks": [
+      {
+        "kind": "formula",
+        "id": "first-formula",
+        "catalogId": "formula-algebra-i-01-001",
+        "topicId": "category-algebra-i-01",
+        "topicLabel": "ALGEBRA I: Linear Equations",
+        "label": "Repeated label",
+        "body": { "type": "math", "latex": "x=1\\\\\nx=2" }
+      },
+      {
+        "kind": "text",
+        "id": "manual-notes",
+        "text": "Keep my notes: 50% & $x$.\nLine two _ {braces} \\ ^ ~ #."
+      },
+      {
+        "kind": "formula",
+        "id": "second-formula",
+        "catalogId": "formula-algebra-i-01-002",
+        "topicId": "category-algebra-i-01",
+        "topicLabel": "ALGEBRA I: Linear Equations",
+        "label": "Repeated label",
+        "body": { "type": "math", "latex": "y-y_1=m(x-x_1)" }
+      },
+      {
+        "kind": "math",
+        "id": "manual-math",
+        "latex": "\\int_0^1 x^2\\,dx=\\frac{1}{3}"
+      }
+    ]
+  },
+  "modeRecovery": {
+    "layout": {
+      "paper": "A4",
+      "columns": 2,
+      "marginsMm": 5,
+      "fontPt": 9,
+      "spacingPt": 1,
+      "columnGapMm": 3
+    },
+    "content": {
+      "mode": "raw",
+      "source": "RECOVERY_ONLY_MARKER\\end{document}"
+    }
+  }
+}

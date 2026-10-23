@@ -1,0 +1,25 @@
+[package]
+name = "texgen"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+
+[dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio"] }
+getrandom = "=0.4.3"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.52.3", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+tower-http = { version = "=0.6.11", features = ["fs", "limit", "set-header"] }
+
+[dev-dependencies]
+http-body-util = "=0.1.3"
+tower = { version = "=0.5.3", features = ["util"] }
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false

@@ -1,0 +1,23 @@
+name: Verify the rewrite
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.15.0
+      # Rust 1.92.0 installer.
+      - uses: dtolnay/rust-toolchain@3da603d4464771f1a8c3dd4acb41f03bc8107551
+        with:
+          toolchain: 1.92.0
+          components: rustfmt, clippy
+      - name: Install locked UI dependencies without lifecycle scripts
+        run: npm --prefix ui ci --ignore-scripts --no-audit --no-fund
+      - name: Fetch the exact Rust lockfile for this CI machine
+        run: cargo fetch --locked --config net.offline=false
+      - name: Verify the application
+        run: ./scripts/verify.sh

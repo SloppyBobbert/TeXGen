@@ -1,0 +1,3625 @@
+{
+  "version": 1,
+  "subjects": [
+    {
+      "id": "subject-pre-algebra",
+      "label": "PRE-ALGEBRA",
+      "categories": [
+        {
+          "id": "category-pre-algebra-01",
+          "label": "Operations and Properties",
+          "formulas": [
+            {
+              "id": "formula-pre-algebra-01-001",
+              "label": "PEMDAS Definition",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Parentheses} \\to \\text{Exponents} \\to \\text{Multiply/Divide} \\to \\text{Add/Subtract}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-01-002",
+              "label": "Commutative",
+              "body": {
+                "type": "math",
+                "latex": "a+b=b+a"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-01-003",
+              "label": "Associative",
+              "body": {
+                "type": "math",
+                "latex": "(a+b)+c=a+(b+c)"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-01-004",
+              "label": "Distributive",
+              "body": {
+                "type": "math",
+                "latex": "a(b+c)=ab+ac"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-01-005",
+              "label": "Identity",
+              "body": {
+                "type": "math",
+                "latex": "a+0=a"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-01-006",
+              "label": "Inverse",
+              "body": {
+                "type": "math",
+                "latex": "a+(-a)=0"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-pre-algebra-02",
+          "label": "Fractions, Ratios, and Proportions",
+          "formulas": [
+            {
+              "id": "formula-pre-algebra-02-001",
+              "label": "Addition",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{b}+\\frac{c}{d}=\\frac{ad+bc}{bd}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-02-002",
+              "label": "Subtraction",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{b}-\\frac{c}{d}=\\frac{ad-bc}{bd}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-02-003",
+              "label": "Multiplication",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{b}\\cdot\\frac{c}{d}=\\frac{ac}{bd}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-02-004",
+              "label": "Division",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{b}\\div\\frac{c}{d}=\\frac{a}{b}\\cdot\\frac{d}{c}=\\frac{ad}{bc}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-02-005",
+              "label": "Proportion",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{b}=\\frac{c}{d}\\implies ad=bc"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-02-006",
+              "label": "Unit Rate",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Unit Rate}=\\frac{\\text{Total}}{\\text{Number of Units}}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-pre-algebra-03",
+          "label": "Area and Perimeter",
+          "formulas": [
+            {
+              "id": "formula-pre-algebra-03-001",
+              "label": "Rectangle Area/Perimeter",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{rect}}=lw \\quad\\quad P_{\\text{rect}}=2l+2w"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-03-002",
+              "label": "Triangle Area",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{tri}}=\\frac{1}{2}bh"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-03-003",
+              "label": "Circle Area/Circumference",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{circle}}=\\pi r^2 \\quad\\quad C=2\\pi r"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-03-004",
+              "label": "Rectangular Prism Volume",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{rect prism}}=lwh"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-pre-algebra-04",
+          "label": "Solving Equations",
+          "formulas": [
+            {
+              "id": "formula-pre-algebra-04-001",
+              "label": "Linear Solution",
+              "body": {
+                "type": "math",
+                "latex": "ax+b=c \\implies x=\\frac{c-b}{a}"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-04-002",
+              "label": "Absolute Value",
+              "body": {
+                "type": "math",
+                "latex": "|x|=a \\implies x=a \\text{ or } x=-a"
+              }
+            },
+            {
+              "id": "formula-pre-algebra-04-003",
+              "label": "Transitive Property",
+              "body": {
+                "type": "math",
+                "latex": "\\text{If } a=b \\text{ and } b=c, \\text{ then } a=c"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-algebra-i",
+      "label": "ALGEBRA I",
+      "categories": [
+        {
+          "id": "category-algebra-i-01",
+          "label": "Linear Equations",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-01-001",
+              "label": "Slope Formula",
+              "body": {
+                "type": "math",
+                "latex": "m=\\frac{y_2-y_1}{x_2-x_1}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-01-002",
+              "label": "Point-Slope Form",
+              "body": {
+                "type": "math",
+                "latex": "y-y_1=m(x-x_1)"
+              }
+            },
+            {
+              "id": "formula-algebra-i-01-003",
+              "label": "Slope-Intercept Form",
+              "body": {
+                "type": "math",
+                "latex": "y=mx+b"
+              }
+            },
+            {
+              "id": "formula-algebra-i-01-004",
+              "label": "Standard Form",
+              "body": {
+                "type": "math",
+                "latex": "Ax+By=C"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-02",
+          "label": "Inequalities",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-02-001",
+              "label": "Multiply by Positive",
+              "body": {
+                "type": "math",
+                "latex": "\\text{If } a>b \\text{ and } c>0, \\text{ then } ac>bc"
+              }
+            },
+            {
+              "id": "formula-algebra-i-02-002",
+              "label": "Multiply by Negative",
+              "body": {
+                "type": "math",
+                "latex": "\\text{If } a>b \\text{ and } c<0, \\text{ then } ac<bc"
+              }
+            },
+            {
+              "id": "formula-algebra-i-02-003",
+              "label": "Absolute Less Than",
+              "body": {
+                "type": "math",
+                "latex": "|x|<a \\implies -a<x<a"
+              }
+            },
+            {
+              "id": "formula-algebra-i-02-004",
+              "label": "Absolute Greater Than",
+              "body": {
+                "type": "math",
+                "latex": "|x|>a \\implies x>a \\text{ or } x<-a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-03",
+          "label": "Integer Rules",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-03-001",
+              "label": "Positive x Positive",
+              "body": {
+                "type": "math",
+                "latex": "(+)(+)=+"
+              }
+            },
+            {
+              "id": "formula-algebra-i-03-002",
+              "label": "Negative x Negative",
+              "body": {
+                "type": "math",
+                "latex": "(-)(-)=+"
+              }
+            },
+            {
+              "id": "formula-algebra-i-03-003",
+              "label": "Positive x Negative",
+              "body": {
+                "type": "math",
+                "latex": "(+)(-)=-"
+              }
+            },
+            {
+              "id": "formula-algebra-i-03-004",
+              "label": "Negative x Positive",
+              "body": {
+                "type": "math",
+                "latex": "(-)(+)=-"
+              }
+            },
+            {
+              "id": "formula-algebra-i-03-005",
+              "label": "Subtracting Negatives",
+              "body": {
+                "type": "math",
+                "latex": "a-(-b)=a+b"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-04",
+          "label": "Decimals and Percents",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-04-001",
+              "label": "Percent Formula",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Percent}=\\frac{\\text{Part}}{\\text{Whole}}\\times 100"
+              }
+            },
+            {
+              "id": "formula-algebra-i-04-002",
+              "label": "Part Formula",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Part}=\\text{Whole}\\times\\frac{\\text{Percent}}{100}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-04-003",
+              "label": "Decimal to Percent",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Decimal to Percent: move decimal 2 places right}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-04-004",
+              "label": "Percent to Decimal",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Percent to Decimal: move decimal 2 places left}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-05",
+          "label": "Mean, Median, Mode",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-05-001",
+              "label": "Mean",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Mean}=\\frac{\\text{Sum of values}}{\\text{Number of values}}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-05-002",
+              "label": "Median",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Median: middle value when sorted}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-05-003",
+              "label": "Mode",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Mode: most frequently occurring value}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-06",
+          "label": "Quadratic Equations",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-06-001",
+              "label": "Standard Form",
+              "body": {
+                "type": "math",
+                "latex": "ax^2+bx+c=0"
+              }
+            },
+            {
+              "id": "formula-algebra-i-06-002",
+              "label": "Quadratic Formula",
+              "body": {
+                "type": "math",
+                "latex": "x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-06-003",
+              "label": "Vertex Form",
+              "body": {
+                "type": "math",
+                "latex": "y=a(x-h)^2+k"
+              }
+            },
+            {
+              "id": "formula-algebra-i-06-004",
+              "label": "Axis of Symmetry",
+              "body": {
+                "type": "math",
+                "latex": "x=-\\frac{b}{2a}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-07",
+          "label": "Polynomials",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-07-001",
+              "label": "Perfect Square (Addition)",
+              "body": {
+                "type": "math",
+                "latex": "(a+b)^2=a^2+2ab+b^2"
+              }
+            },
+            {
+              "id": "formula-algebra-i-07-002",
+              "label": "Perfect Square (Subtraction)",
+              "body": {
+                "type": "math",
+                "latex": "(a-b)^2=a^2-2ab+b^2"
+              }
+            },
+            {
+              "id": "formula-algebra-i-07-003",
+              "label": "Difference of Squares",
+              "body": {
+                "type": "math",
+                "latex": "a^2-b^2=(a-b)(a+b)"
+              }
+            },
+            {
+              "id": "formula-algebra-i-07-004",
+              "label": "FOIL",
+              "body": {
+                "type": "math",
+                "latex": "(a+b)(c+d)=ac+ad+bc+bd"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-08",
+          "label": "Exponents",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-08-001",
+              "label": "Product Rule",
+              "body": {
+                "type": "math",
+                "latex": "a^m a^n = a^{m+n}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-08-002",
+              "label": "Quotient Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a^m}{a^n}=a^{m-n}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-08-003",
+              "label": "Power Rule",
+              "body": {
+                "type": "math",
+                "latex": "(a^m)^n=a^{mn}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-08-004",
+              "label": "Negative Exponent",
+              "body": {
+                "type": "math",
+                "latex": "a^{-n}=\\frac{1}{a^n}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-08-005",
+              "label": "Zero Exponent",
+              "body": {
+                "type": "math",
+                "latex": "a^0=1"
+              }
+            },
+            {
+              "id": "formula-algebra-i-08-006",
+              "label": "Radical to Exponent",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt[n]{a^m}=a^{m/n}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-09",
+          "label": "Radicals",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-09-001",
+              "label": "Product Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt{ab}=\\sqrt{a}\\cdot\\sqrt{b}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-09-002",
+              "label": "Quotient Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt{\\frac{a}{b}}=\\frac{\\sqrt{a}}{\\sqrt{b}}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-09-003",
+              "label": "Like Radicals",
+              "body": {
+                "type": "math",
+                "latex": "a\\sqrt{b}+c\\sqrt{b}=(a+c)\\sqrt{b}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-09-004",
+              "label": "Square of Square Root",
+              "body": {
+                "type": "math",
+                "latex": "(\\sqrt{a})^2=a"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-10",
+          "label": "Functions",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-10-001",
+              "label": "Function Notation",
+              "body": {
+                "type": "math",
+                "latex": "f(x)=y"
+              }
+            },
+            {
+              "id": "formula-algebra-i-10-002",
+              "label": "Domain",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Domain: all valid input } x \\text{ values}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-10-003",
+              "label": "Range",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Range: all output } y \\text{ values}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-10-004",
+              "label": "Vertical Line Test",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Vertical Line Test: each } x \\to \\text{one } y"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-11",
+          "label": "Absolute Value",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-11-001",
+              "label": "Definition",
+              "body": {
+                "type": "math",
+                "latex": "|a| =\\begin{cases} a & a \\ge 0 \\\\ -a & a < 0 \\end{cases}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-11-002",
+              "label": "Product",
+              "body": {
+                "type": "math",
+                "latex": "|a \\cdot b| = |a||b|"
+              }
+            },
+            {
+              "id": "formula-algebra-i-11-003",
+              "label": "Quotient",
+              "body": {
+                "type": "math",
+                "latex": "\\left|\\frac{a}{b}\\right| = \\frac{|a|}{|b|}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-11-004",
+              "label": "Triangle Inequality",
+              "body": {
+                "type": "math",
+                "latex": "|a+b| \\le |a| + |b|"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-i-12",
+          "label": "Rational Expressions",
+          "formulas": [
+            {
+              "id": "formula-algebra-i-12-001",
+              "label": "Multiplication",
+              "body": {
+                "type": "math",
+                "latex": "\\left(\\frac{a}{b}\\right)\\left(\\frac{c}{d}\\right)=\\frac{ac}{bd}"
+              }
+            },
+            {
+              "id": "formula-algebra-i-12-002",
+              "label": "Division",
+              "body": {
+                "type": "math",
+                "latex": "\\left(\\frac{a}{b}\\right)\\div\\left(\\frac{c}{d}\\right)=\\left(\\frac{a}{b}\\right)\\left(\\frac{d}{c}\\right)=\\frac{ad}{bc}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-algebra-ii",
+      "label": "ALGEBRA II",
+      "categories": [
+        {
+          "id": "category-algebra-ii-01",
+          "label": "Complex Numbers",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-01-001",
+              "label": "Imaginary Unit",
+              "body": {
+                "type": "math",
+                "latex": "i=\\sqrt{-1} \\quad\\quad i^2=-1"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-01-002",
+              "label": "Addition",
+              "body": {
+                "type": "math",
+                "latex": "(a+bi)+(c+di)=(a+c)+(b+d)i"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-01-003",
+              "label": "Multiplication",
+              "body": {
+                "type": "math",
+                "latex": "(a+bi)(c+di)=(ac-bd)+(ad+bc)i"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-01-004",
+              "label": "Magnitude",
+              "body": {
+                "type": "math",
+                "latex": "|a+bi|=\\sqrt{a^2+b^2}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-02",
+          "label": "Logarithms",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-02-001",
+              "label": "Definition",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b(a)=c \\iff b^c=a"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-02-002",
+              "label": "Product Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b(xy)=\\log_b(x)+\\log_b(y)"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-02-003",
+              "label": "Quotient Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b\\!\\left(\\frac{x}{y}\\right)=\\log_b(x)-\\log_b(y)"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-02-004",
+              "label": "Power Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b(x^n)=n\\log_b(x)"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-02-005",
+              "label": "Change of Base",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b(a)=\\frac{\\ln(a)}{\\ln(b)}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-02-006",
+              "label": "Special Values",
+              "body": {
+                "type": "math",
+                "latex": "\\log_b(1)=0 \\quad\\quad \\log_b(b)=1"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-03",
+          "label": "Exponential Functions",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-03-001",
+              "label": "Basic Form",
+              "body": {
+                "type": "math",
+                "latex": "y=ab^x"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-03-002",
+              "label": "Compound Interest",
+              "body": {
+                "type": "math",
+                "latex": "A=P\\!\\left(1+\\frac{r}{n}\\right)^{nt}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-03-003",
+              "label": "Continuous Growth",
+              "body": {
+                "type": "math",
+                "latex": "A=Pe^{rt}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-03-004",
+              "label": "Growth/Decay",
+              "body": {
+                "type": "math",
+                "latex": "y=ae^{kx} \\quad (k>0 \\text{ growth}, \\; k<0 \\text{ decay})"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-04",
+          "label": "Polynomial Theorems and Binomial Expansion",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-04-001",
+              "label": "Remainder Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Remainder Thm: } f(a)=\\text{remainder of } f(x)\\div(x-a)"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-002",
+              "label": "Factor Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Factor Thm: } f(a)=0 \\implies (x-a) \\text{ is a factor}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-003",
+              "label": "Rational Root Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Rational Root Thm: } \\frac{p}{q}, \\; p\\mid a_0, \\; q\\mid a_n"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-004",
+              "label": "Descartes' Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Descartes' Rule: sign changes} \\to \\text{positive roots}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-005",
+              "label": "Fundamental Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Degree } n \\text{ polynomial has at most } n \\text{ roots}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-006",
+              "label": "Expansion",
+              "body": {
+                "type": "math",
+                "latex": "(a+b)^n=\\sum_{k=0}^{n}\\binom{n}{k}a^{n-k}b^k"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-007",
+              "label": "Binomial Coefficient",
+              "body": {
+                "type": "math",
+                "latex": "\\binom{n}{k}=\\frac{n!}{k!(n-k)!}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-04-008",
+              "label": "Factorial",
+              "body": {
+                "type": "math",
+                "latex": "n!=n(n-1)(n-2)\\cdots(2)(1) \\quad\\quad 0!=1"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-05",
+          "label": "Conic Sections",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-05-001",
+              "label": "Circle",
+              "body": {
+                "type": "math",
+                "latex": "(x-h)^2+(y-k)^2=r^2"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-05-002",
+              "label": "Ellipse",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{(x-h)^2}{a^2}+\\frac{(y-k)^2}{b^2}=1"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-05-003",
+              "label": "Hyperbola",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{(x-h)^2}{a^2}-\\frac{(y-k)^2}{b^2}=1"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-05-004",
+              "label": "Parabola",
+              "body": {
+                "type": "math",
+                "latex": "y=a(x-h)^2+k"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-05-005",
+              "label": "Focal Distance",
+              "body": {
+                "type": "math",
+                "latex": "c^2=a^2-b^2 \\;\\text{(Ellipse)} \\quad c^2=a^2+b^2 \\;\\text{(Hyperbola)}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-06",
+          "label": "Sequences and Series",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-06-001",
+              "label": "Arithmetic Sequence",
+              "body": {
+                "type": "math",
+                "latex": "a_n=a_1+(n-1)d"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-06-002",
+              "label": "Arithmetic Sum",
+              "body": {
+                "type": "math",
+                "latex": "S_n=\\frac{n}{2}(a_1+a_n)"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-06-003",
+              "label": "Geometric Sequence",
+              "body": {
+                "type": "math",
+                "latex": "a_n=a_1 r^{n-1}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-06-004",
+              "label": "Geometric Sum",
+              "body": {
+                "type": "math",
+                "latex": "S_n=a_1\\frac{1-r^n}{1-r}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-06-005",
+              "label": "Infinite Geometric Sum",
+              "body": {
+                "type": "math",
+                "latex": "S_\\infty=\\frac{a_1}{1-r} \\quad |r|<1"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-algebra-ii-07",
+          "label": "Matrices",
+          "formulas": [
+            {
+              "id": "formula-algebra-ii-07-001",
+              "label": "2x2 Inverse",
+              "body": {
+                "type": "math",
+                "latex": "\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}^{-1}=\\frac{1}{ad-bc}\\begin{bmatrix}d&-b\\\\-c&a\\end{bmatrix}"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-07-002",
+              "label": "Determinant",
+              "body": {
+                "type": "math",
+                "latex": "\\det\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}=ad-bc"
+              }
+            },
+            {
+              "id": "formula-algebra-ii-07-003",
+              "label": "Identity Property",
+              "body": {
+                "type": "math",
+                "latex": "A\\cdot A^{-1}=I"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-geometry",
+      "label": "GEOMETRY",
+      "categories": [
+        {
+          "id": "category-geometry-01",
+          "label": "Basic Angle Relationships",
+          "formulas": [
+            {
+              "id": "formula-geometry-01-001",
+              "label": "Supplementary",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Supplementary: } a+b=180^\\circ"
+              }
+            },
+            {
+              "id": "formula-geometry-01-002",
+              "label": "Complementary",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Complementary: } a+b=90^\\circ"
+              }
+            },
+            {
+              "id": "formula-geometry-01-003",
+              "label": "Vertical Angles",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Vertical angles are congruent}"
+              }
+            },
+            {
+              "id": "formula-geometry-01-004",
+              "label": "Linear Pair",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Linear pair: supplementary and adjacent}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-02",
+          "label": "Parallel Lines and Transversals",
+          "formulas": [
+            {
+              "id": "formula-geometry-02-001",
+              "label": "Corresponding Angles",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Corresponding angles are congruent}"
+              }
+            },
+            {
+              "id": "formula-geometry-02-002",
+              "label": "Alternate Interior",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Alternate interior angles are congruent}"
+              }
+            },
+            {
+              "id": "formula-geometry-02-003",
+              "label": "Alternate Exterior",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Alternate exterior angles are congruent}"
+              }
+            },
+            {
+              "id": "formula-geometry-02-004",
+              "label": "Co-interior",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Co-interior (same-side interior) angles are supplementary}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-03",
+          "label": "Triangles",
+          "formulas": [
+            {
+              "id": "formula-geometry-03-001",
+              "label": "Angle Sum",
+              "body": {
+                "type": "math",
+                "latex": "A+B+C=180^\\circ"
+              }
+            },
+            {
+              "id": "formula-geometry-03-002",
+              "label": "Exterior Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Exterior angle} = \\text{sum of two remote interior angles}"
+              }
+            },
+            {
+              "id": "formula-geometry-03-003",
+              "label": "Area",
+              "body": {
+                "type": "math",
+                "latex": "A=\\frac{1}{2}bh"
+              }
+            },
+            {
+              "id": "formula-geometry-03-004",
+              "label": "Heron's Formula",
+              "body": {
+                "type": "math",
+                "latex": "A=\\sqrt{s(s-a)(s-b)(s-c)} \\quad s=\\frac{a+b+c}{2}"
+              }
+            },
+            {
+              "id": "formula-geometry-03-005",
+              "label": "Triangle Inequality",
+              "body": {
+                "type": "math",
+                "latex": "a+b>c"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-04",
+          "label": "Pythagorean Theorem",
+          "formulas": [
+            {
+              "id": "formula-geometry-04-001",
+              "label": "Theorem",
+              "body": {
+                "type": "math",
+                "latex": "a^2+b^2=c^2"
+              }
+            },
+            {
+              "id": "formula-geometry-04-002",
+              "label": "Solve for c",
+              "body": {
+                "type": "math",
+                "latex": "c=\\sqrt{a^2+b^2}"
+              }
+            },
+            {
+              "id": "formula-geometry-04-003",
+              "label": "Common Triples",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Common triples: } (3,4,5),\\;(5,12,13),\\;(8,15,17),\\;(7,24,25)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-05",
+          "label": "Similar and Congruent Triangles",
+          "formulas": [
+            {
+              "id": "formula-geometry-05-001",
+              "label": "Congruence Rules",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Congruence: SSS, SAS, ASA, AAS, HL}"
+              }
+            },
+            {
+              "id": "formula-geometry-05-002",
+              "label": "Similarity Rules",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Similarity: AA, SAS, SSS}"
+              }
+            },
+            {
+              "id": "formula-geometry-05-003",
+              "label": "Proportional Sides",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a_1}{a_2}=\\frac{b_1}{b_2}=\\frac{c_1}{c_2}"
+              }
+            },
+            {
+              "id": "formula-geometry-05-004",
+              "label": "Area Ratio",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{A_1}{A_2}=\\left(\\frac{s_1}{s_2}\\right)^2"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-06",
+          "label": "Quadrilaterals",
+          "formulas": [
+            {
+              "id": "formula-geometry-06-001",
+              "label": "Interior Angles",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Sum of interior angles} = 360^\\circ"
+              }
+            },
+            {
+              "id": "formula-geometry-06-002",
+              "label": "Rectangle/Square",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{rect}}=lw \\quad\\quad A_{\\text{square}}=s^2"
+              }
+            },
+            {
+              "id": "formula-geometry-06-003",
+              "label": "Parallelogram",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{parallelogram}}=bh"
+              }
+            },
+            {
+              "id": "formula-geometry-06-004",
+              "label": "Trapezoid",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{trapezoid}}=\\frac{1}{2}(b_1+b_2)h"
+              }
+            },
+            {
+              "id": "formula-geometry-06-005",
+              "label": "Rhombus",
+              "body": {
+                "type": "math",
+                "latex": "A_{\\text{rhombus}}=\\frac{1}{2}d_1 d_2"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-07",
+          "label": "Polygons",
+          "formulas": [
+            {
+              "id": "formula-geometry-07-001",
+              "label": "Interior Sum",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Sum of interior angles}=(n-2)\\cdot 180^\\circ"
+              }
+            },
+            {
+              "id": "formula-geometry-07-002",
+              "label": "Interior Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Each interior angle (regular)}=\\frac{(n-2)\\cdot 180^\\circ}{n}"
+              }
+            },
+            {
+              "id": "formula-geometry-07-003",
+              "label": "Exterior Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Each exterior angle (regular)}=\\frac{360^\\circ}{n}"
+              }
+            },
+            {
+              "id": "formula-geometry-07-004",
+              "label": "Diagonals",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Number of diagonals}=\\frac{n(n-3)}{2}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-08",
+          "label": "Circles",
+          "formulas": [
+            {
+              "id": "formula-geometry-08-001",
+              "label": "Circumference",
+              "body": {
+                "type": "math",
+                "latex": "C=2\\pi r=\\pi d"
+              }
+            },
+            {
+              "id": "formula-geometry-08-002",
+              "label": "Area",
+              "body": {
+                "type": "math",
+                "latex": "A=\\pi r^2"
+              }
+            },
+            {
+              "id": "formula-geometry-08-003",
+              "label": "Arc Length",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Arc length}=\\frac{\\theta}{360}\\cdot 2\\pi r"
+              }
+            },
+            {
+              "id": "formula-geometry-08-004",
+              "label": "Sector Area",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Sector area}=\\frac{\\theta}{360}\\cdot\\pi r^2"
+              }
+            },
+            {
+              "id": "formula-geometry-08-005",
+              "label": "Inscribed Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Inscribed angle}=\\frac{1}{2}\\text{(intercepted arc)}"
+              }
+            },
+            {
+              "id": "formula-geometry-08-006",
+              "label": "Central Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Central angle}=\\text{intercepted arc}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-09",
+          "label": "Circle Theorems",
+          "formulas": [
+            {
+              "id": "formula-geometry-09-001",
+              "label": "Tangent-Radius",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Tangent} \\perp \\text{radius at point of tangency}"
+              }
+            },
+            {
+              "id": "formula-geometry-09-002",
+              "label": "Equal Tangents",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Two tangents from external point are equal}"
+              }
+            },
+            {
+              "id": "formula-geometry-09-003",
+              "label": "Intersecting Chords",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Intersecting chords: } (a)(b)=(c)(d)"
+              }
+            },
+            {
+              "id": "formula-geometry-09-004",
+              "label": "Secant-Secant",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Secant-secant: } a(a+b)=c(c+d)"
+              }
+            },
+            {
+              "id": "formula-geometry-09-005",
+              "label": "Secant-Tangent",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Secant-tangent: } t^2=a(a+b)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-10",
+          "label": "Coordinate Geometry",
+          "formulas": [
+            {
+              "id": "formula-geometry-10-001",
+              "label": "Distance Formula",
+              "body": {
+                "type": "math",
+                "latex": "d=\\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}"
+              }
+            },
+            {
+              "id": "formula-geometry-10-002",
+              "label": "Midpoint Formula",
+              "body": {
+                "type": "math",
+                "latex": "M=\\left(\\frac{x_1+x_2}{2},\\;\\frac{y_1+y_2}{2}\\right)"
+              }
+            },
+            {
+              "id": "formula-geometry-10-003",
+              "label": "Circle Equation",
+              "body": {
+                "type": "math",
+                "latex": "(x-h)^2+(y-k)^2=r^2"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-11",
+          "label": "Surface Area and Volume",
+          "formulas": [
+            {
+              "id": "formula-geometry-11-001",
+              "label": "Prism",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{prism}}=Bh \\quad\\quad SA_{\\text{prism}}=2B+Ph"
+              }
+            },
+            {
+              "id": "formula-geometry-11-002",
+              "label": "Cylinder",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{cylinder}}=\\pi r^2 h \\quad\\quad SA_{\\text{cylinder}}=2\\pi r^2+2\\pi rh"
+              }
+            },
+            {
+              "id": "formula-geometry-11-003",
+              "label": "Pyramid",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{pyramid}}=\\frac{1}{3}Bh"
+              }
+            },
+            {
+              "id": "formula-geometry-11-004",
+              "label": "Cone",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{cone}}=\\frac{1}{3}\\pi r^2 h \\quad\\quad SA_{\\text{cone}}=\\pi r^2+\\pi r l"
+              }
+            },
+            {
+              "id": "formula-geometry-11-005",
+              "label": "Sphere",
+              "body": {
+                "type": "math",
+                "latex": "V_{\\text{sphere}}=\\frac{4}{3}\\pi r^3 \\quad\\quad SA_{\\text{sphere}}=4\\pi r^2"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-geometry-12",
+          "label": "Transformations",
+          "formulas": [
+            {
+              "id": "formula-geometry-12-001",
+              "label": "Translation",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Translation: } (x,y)\\to(x+a,\\;y+b)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-002",
+              "label": "Reflection x-axis",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Reflection over } x\\text{-axis: } (x,y)\\to(x,-y)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-003",
+              "label": "Reflection y-axis",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Reflection over } y\\text{-axis: } (x,y)\\to(-x,y)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-004",
+              "label": "Reflection y=x",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Reflection over } y=x\\text{: } (x,y)\\to(y,x)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-005",
+              "label": "Rotation 90 CCW",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Rotation } 90^\\circ \\text{ CCW: } (x,y)\\to(-y,x)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-006",
+              "label": "Rotation 180",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Rotation } 180^\\circ\\text{: } (x,y)\\to(-x,-y)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-007",
+              "label": "Rotation 270 CCW",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Rotation } 270^\\circ \\text{ CCW: } (x,y)\\to(y,-x)"
+              }
+            },
+            {
+              "id": "formula-geometry-12-008",
+              "label": "Dilation",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Dilation: } (x,y)\\to(kx,ky)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-trig",
+      "label": "TRIGONOMETRY",
+      "categories": [
+        {
+          "id": "category-trig-01",
+          "label": "Special Triangles and Basic Trig Relationships",
+          "formulas": [
+            {
+              "id": "formula-trig-01-001",
+              "label": "30-60-90 Triangle",
+              "body": {
+                "type": "math",
+                "latex": "30-60-90: 1:\\sqrt{3}:2 \\quad \\text{short leg}=x,\\ \\text{long leg}=x\\sqrt{3},\\ \\text{hyp}=2x"
+              }
+            },
+            {
+              "id": "formula-trig-01-002",
+              "label": "45-45-90 Triangle",
+              "body": {
+                "type": "math",
+                "latex": "45-45-90: 1:1:\\sqrt{2} \\quad \\text{leg}=x,\\ \\text{hyp}=x\\sqrt{2}"
+              }
+            },
+            {
+              "id": "formula-trig-01-003",
+              "label": "60-60-60 Triangle",
+              "body": {
+                "type": "math",
+                "latex": "60-60-60: 1:1:1 \\quad \\text{side}=x,\\ \\text{height}=\\tfrac{x\\sqrt{3}}{2},\\ \\text{area}=\\tfrac{x^2\\sqrt{3}}{4}"
+              }
+            },
+            {
+              "id": "formula-trig-01-004",
+              "label": "Basic Trig Functions",
+              "body": {
+                "type": "math",
+                "latex": "\\sin\\theta=\\frac{\\text{opp}}{\\text{hyp}},\\ \\cos\\theta=\\frac{\\text{adj}}{\\text{hyp}},\\ \\tan\\theta=\\frac{\\text{opp}}{\\text{adj}}"
+              }
+            },
+            {
+              "id": "formula-trig-01-005",
+              "label": "Reciprocal Functions",
+              "body": {
+                "type": "math",
+                "latex": "\\csc\\theta=\\frac{1}{\\sin\\theta},\\ \\sec\\theta=\\frac{1}{\\cos\\theta},\\ \\cot\\theta=\\frac{1}{\\tan\\theta}"
+              }
+            },
+            {
+              "id": "formula-trig-01-006",
+              "label": "Quotient Identities",
+              "body": {
+                "type": "math",
+                "latex": "\\tan\\theta=\\frac{\\sin\\theta}{\\cos\\theta},\\ \\cot\\theta=\\frac{\\cos\\theta}{\\sin\\theta}"
+              }
+            },
+            {
+              "id": "formula-trig-01-007",
+              "label": "Primary Identity",
+              "body": {
+                "type": "math",
+                "latex": "\\sin^2\\theta+\\cos^2\\theta=1"
+              }
+            },
+            {
+              "id": "formula-trig-01-008",
+              "label": "Tangent Identity",
+              "body": {
+                "type": "math",
+                "latex": "1+\\tan^2\\theta=\\sec^2\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-01-009",
+              "label": "Cotangent Identity",
+              "body": {
+                "type": "math",
+                "latex": "1+\\cot^2\\theta=\\csc^2\\theta"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-trig-02",
+          "label": "Fundamental Identities",
+          "formulas": [
+            {
+              "id": "formula-trig-02-001",
+              "label": "Sine (Odd)",
+              "body": {
+                "type": "math",
+                "latex": "\\sin(-\\theta)=-\\sin\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-02-002",
+              "label": "Cosine (Even)",
+              "body": {
+                "type": "math",
+                "latex": "\\cos(-\\theta)=\\cos\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-02-003",
+              "label": "Tangent (Odd)",
+              "body": {
+                "type": "math",
+                "latex": "\\tan(-\\theta)=-\\tan\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-02-004",
+              "label": "Reciprocal Odd",
+              "body": {
+                "type": "math",
+                "latex": "\\csc(-\\theta)=-\\csc\\theta,\\ \\sec(-\\theta)=\\sec\\theta,\\ \\cot(-\\theta)=-\\cot\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-02-005",
+              "label": "Sine-Cosine",
+              "body": {
+                "type": "math",
+                "latex": "\\sin\\theta=\\cos\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right),\\ \\cos\\theta=\\sin\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-02-006",
+              "label": "Tangent-Cotangent",
+              "body": {
+                "type": "math",
+                "latex": "\\tan\\theta=\\cot\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right),\\ \\cot\\theta=\\tan\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-02-007",
+              "label": "Secant-Cosecant",
+              "body": {
+                "type": "math",
+                "latex": "\\sec\\theta=\\csc\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right),\\ \\csc\\theta=\\sec\\!\\left(\\tfrac{\\pi}{2}-\\theta\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-02-008",
+              "label": "Full Period",
+              "body": {
+                "type": "math",
+                "latex": "\\sin(\\theta+2\\pi)=\\sin\\theta,\\ \\cos(\\theta+2\\pi)=\\cos\\theta,\\ \\tan(\\theta+\\pi)=\\tan\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-02-009",
+              "label": "Half Period Shift",
+              "body": {
+                "type": "math",
+                "latex": "\\sin(\\theta+\\pi)=-\\sin\\theta,\\ \\cos(\\theta+\\pi)=-\\cos\\theta"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-trig-03",
+          "label": "Angle Sum and Multiple-Angle Identities",
+          "formulas": [
+            {
+              "id": "formula-trig-03-001",
+              "label": "Sine Sum/Difference",
+              "body": {
+                "type": "math",
+                "latex": "\\sin(A\\pm B)=\\sin A\\cos B\\pm\\cos A\\sin B"
+              }
+            },
+            {
+              "id": "formula-trig-03-002",
+              "label": "Cosine Sum/Difference",
+              "body": {
+                "type": "math",
+                "latex": "\\cos(A\\pm B)=\\cos A\\cos B\\mp\\sin A\\sin B"
+              }
+            },
+            {
+              "id": "formula-trig-03-003",
+              "label": "Tangent Sum/Difference",
+              "body": {
+                "type": "math",
+                "latex": "\\tan(A\\pm B)=\\frac{\\tan A\\pm\\tan B}{1\\mp\\tan A\\tan B}"
+              }
+            },
+            {
+              "id": "formula-trig-03-004",
+              "label": "Sine Double Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\sin 2\\theta=2\\sin\\theta\\cos\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-03-005",
+              "label": "Cosine Double Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\cos 2\\theta=\\cos^2\\theta-\\sin^2\\theta=1-2\\sin^2\\theta=2\\cos^2\\theta-1"
+              }
+            },
+            {
+              "id": "formula-trig-03-006",
+              "label": "Tangent Double Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\tan 2\\theta=\\frac{2\\tan\\theta}{1-\\tan^2\\theta}"
+              }
+            },
+            {
+              "id": "formula-trig-03-007",
+              "label": "Sine Half Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\sin\\frac{\\theta}{2}=\\pm\\sqrt{\\frac{1-\\cos\\theta}{2}}"
+              }
+            },
+            {
+              "id": "formula-trig-03-008",
+              "label": "Cosine Half Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\cos\\frac{\\theta}{2}=\\pm\\sqrt{\\frac{1+\\cos\\theta}{2}}"
+              }
+            },
+            {
+              "id": "formula-trig-03-009",
+              "label": "Tangent Half Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\tan\\frac{\\theta}{2}=\\pm\\sqrt{\\frac{1-\\cos\\theta}{1+\\cos\\theta}}=\\frac{\\sin\\theta}{1+\\cos\\theta}=\\frac{1-\\cos\\theta}{\\sin\\theta}"
+              }
+            },
+            {
+              "id": "formula-trig-03-010",
+              "label": "Sine Triple Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\sin 3\\theta=3\\sin\\theta-4\\sin^3\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-03-011",
+              "label": "Cosine Triple Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\cos 3\\theta=4\\cos^3\\theta-3\\cos\\theta"
+              }
+            },
+            {
+              "id": "formula-trig-03-012",
+              "label": "Tangent Triple Angle",
+              "body": {
+                "type": "math",
+                "latex": "\\tan 3\\theta=\\frac{3\\tan\\theta-\\tan^3\\theta}{1-3\\tan^2\\theta}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-trig-04",
+          "label": "Product and Power Identities",
+          "formulas": [
+            {
+              "id": "formula-trig-04-001",
+              "label": "Sine Power-Reducing",
+              "body": {
+                "type": "math",
+                "latex": "\\sin^2\\theta=\\frac{1-\\cos 2\\theta}{2}"
+              }
+            },
+            {
+              "id": "formula-trig-04-002",
+              "label": "Cosine Power-Reducing",
+              "body": {
+                "type": "math",
+                "latex": "\\cos^2\\theta=\\frac{1+\\cos 2\\theta}{2}"
+              }
+            },
+            {
+              "id": "formula-trig-04-003",
+              "label": "Tangent Power-Reducing",
+              "body": {
+                "type": "math",
+                "latex": "\\tan^2\\theta=\\frac{1-\\cos 2\\theta}{1+\\cos 2\\theta}"
+              }
+            },
+            {
+              "id": "formula-trig-04-004",
+              "label": "Sine-Sine Product",
+              "body": {
+                "type": "math",
+                "latex": "\\sin A\\sin B=\\tfrac{1}{2}[\\cos(A-B)-\\cos(A+B)]"
+              }
+            },
+            {
+              "id": "formula-trig-04-005",
+              "label": "Cosine-Cosine Product",
+              "body": {
+                "type": "math",
+                "latex": "\\cos A\\cos B=\\tfrac{1}{2}[\\cos(A-B)+\\cos(A+B)]"
+              }
+            },
+            {
+              "id": "formula-trig-04-006",
+              "label": "Sine-Cosine Product",
+              "body": {
+                "type": "math",
+                "latex": "\\sin A\\cos B=\\tfrac{1}{2}[\\sin(A+B)+\\sin(A-B)]"
+              }
+            },
+            {
+              "id": "formula-trig-04-007",
+              "label": "Cosine-Sine Product",
+              "body": {
+                "type": "math",
+                "latex": "\\cos A\\sin B=\\tfrac{1}{2}[\\sin(A+B)-\\sin(A-B)]"
+              }
+            },
+            {
+              "id": "formula-trig-04-008",
+              "label": "Sine Sum",
+              "body": {
+                "type": "math",
+                "latex": "\\sin A+\\sin B=2\\sin\\!\\left(\\frac{A+B}{2}\\right)\\cos\\!\\left(\\frac{A-B}{2}\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-04-009",
+              "label": "Sine Difference",
+              "body": {
+                "type": "math",
+                "latex": "\\sin A-\\sin B=2\\cos\\!\\left(\\frac{A+B}{2}\\right)\\sin\\!\\left(\\frac{A-B}{2}\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-04-010",
+              "label": "Cosine Sum",
+              "body": {
+                "type": "math",
+                "latex": "\\cos A+\\cos B=2\\cos\\!\\left(\\frac{A+B}{2}\\right)\\cos\\!\\left(\\frac{A-B}{2}\\right)"
+              }
+            },
+            {
+              "id": "formula-trig-04-011",
+              "label": "Cosine Difference",
+              "body": {
+                "type": "math",
+                "latex": "\\cos A-\\cos B=-2\\sin\\!\\left(\\frac{A+B}{2}\\right)\\sin\\!\\left(\\frac{A-B}{2}\\right)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-trig-05",
+          "label": "Inverse Trig Identities",
+          "formulas": [
+            {
+              "id": "formula-trig-05-001",
+              "label": "Arcsin/Arccos",
+              "body": {
+                "type": "math",
+                "latex": "\\arcsin(-x)=-\\arcsin x,\\ \\arccos(-x)=\\pi-\\arccos x"
+              }
+            },
+            {
+              "id": "formula-trig-05-002",
+              "label": "Arctan/Arccot",
+              "body": {
+                "type": "math",
+                "latex": "\\arctan(-x)=-\\arctan x,\\ \\arctan x+\\text{arccot}\\,x=\\tfrac{\\pi}{2}"
+              }
+            },
+            {
+              "id": "formula-trig-05-003",
+              "label": "Inverse Sum",
+              "body": {
+                "type": "math",
+                "latex": "\\arcsin x+\\arccos x=\\tfrac{\\pi}{2}"
+              }
+            },
+            {
+              "id": "formula-trig-05-004",
+              "label": "Inverse Relationships",
+              "body": {
+                "type": "math",
+                "latex": "\\sin(\\arccos x)=\\sqrt{1-x^2},\\ \\cos(\\arcsin x)=\\sqrt{1-x^2}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-trig-06",
+          "label": "Applications",
+          "formulas": [
+            {
+              "id": "formula-trig-06-001",
+              "label": "Law of Sines",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}"
+              }
+            },
+            {
+              "id": "formula-trig-06-002",
+              "label": "Law of Cosines",
+              "body": {
+                "type": "math",
+                "latex": "c^2=a^2+b^2-2ab\\cos C"
+              }
+            },
+            {
+              "id": "formula-trig-06-003",
+              "label": "Area of Triangle",
+              "body": {
+                "type": "math",
+                "latex": "A=\\tfrac{1}{2}ab\\sin C"
+              }
+            },
+            {
+              "id": "formula-trig-06-004",
+              "label": "Arc Length",
+              "body": {
+                "type": "math",
+                "latex": "s=r\\theta\\ (\\theta\\text{ in radians})"
+              }
+            },
+            {
+              "id": "formula-trig-06-005",
+              "label": "Sector Area",
+              "body": {
+                "type": "math",
+                "latex": "A=\\tfrac{1}{2}r^2\\theta\\ (\\theta\\text{ in radians})"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-precalculus",
+      "label": "PRECALCULUS",
+      "categories": [
+        {
+          "id": "category-precalculus-01",
+          "label": "Functions",
+          "formulas": [
+            {
+              "id": "formula-precalculus-01-001",
+              "label": "Composition",
+              "body": {
+                "type": "math",
+                "latex": "(f\\circ g)(x)=f(g(x))"
+              }
+            },
+            {
+              "id": "formula-precalculus-01-002",
+              "label": "Inverse Property",
+              "body": {
+                "type": "math",
+                "latex": "f^{-1}(f(x))=x,\\ f(f^{-1}(x))=x"
+              }
+            },
+            {
+              "id": "formula-precalculus-01-003",
+              "label": "Finding Inverse",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Inverse: swap }x,y\\text{ then solve for }y"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-precalculus-02",
+          "label": "Conic Sections",
+          "formulas": [
+            {
+              "id": "formula-precalculus-02-001",
+              "label": "Circle",
+              "body": {
+                "type": "math",
+                "latex": "(x-h)^2+(y-k)^2=r^2"
+              }
+            },
+            {
+              "id": "formula-precalculus-02-002",
+              "label": "Ellipse",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{(x-h)^2}{a^2}+\\frac{(y-k)^2}{b^2}=1"
+              }
+            },
+            {
+              "id": "formula-precalculus-02-003",
+              "label": "Parabola",
+              "body": {
+                "type": "math",
+                "latex": "(x-h)^2=4p(y-k)\\text{ or }(y-k)^2=4p(x-h)"
+              }
+            },
+            {
+              "id": "formula-precalculus-02-004",
+              "label": "Hyperbola",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{(x-h)^2}{a^2}-\\frac{(y-k)^2}{b^2}=1"
+              }
+            },
+            {
+              "id": "formula-precalculus-02-005",
+              "label": "Eccentricity",
+              "body": {
+                "type": "math",
+                "latex": "c^2=a^2+b^2\\ (\\text{hyperbola/ellipse}),\\ e=\\frac{c}{a}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-precalculus-03",
+          "label": "Sequences, Series, and Binomial Theorem",
+          "formulas": [
+            {
+              "id": "formula-precalculus-03-001",
+              "label": "Arithmetic Sequence",
+              "body": {
+                "type": "math",
+                "latex": "a_n=a_1+(n-1)d"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-002",
+              "label": "Arithmetic Series",
+              "body": {
+                "type": "math",
+                "latex": "S_n=\\tfrac{n}{2}(a_1+a_n)"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-003",
+              "label": "Geometric Sequence",
+              "body": {
+                "type": "math",
+                "latex": "a_n=a_1r^{n-1}"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-004",
+              "label": "Geometric Series",
+              "body": {
+                "type": "math",
+                "latex": "S_n=\\frac{a_1(1-r^n)}{1-r}"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-005",
+              "label": "Infinite Geometric Series",
+              "body": {
+                "type": "math",
+                "latex": "S_\\infty=\\frac{a_1}{1-r},\\ |r|<1"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-006",
+              "label": "Binomial Expansion",
+              "body": {
+                "type": "math",
+                "latex": "(a+b)^n=\\sum_{k=0}^{n}\\binom{n}{k}a^{n-k}b^k"
+              }
+            },
+            {
+              "id": "formula-precalculus-03-007",
+              "label": "Binomial Coefficient",
+              "body": {
+                "type": "math",
+                "latex": "\\binom{n}{k}=\\frac{n!}{k!(n-k)!}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-precalculus-04",
+          "label": "Polar & Complex Polar",
+          "formulas": [
+            {
+              "id": "formula-precalculus-04-001",
+              "label": "Rectangular to Polar",
+              "body": {
+                "type": "math",
+                "latex": "x=r\\cos\\theta,\\ y=r\\sin\\theta,\\ r=\\sqrt{x^2+y^2},\\ \\theta=\\arctan\\!\\left(\\tfrac{y}{x}\\right)"
+              }
+            },
+            {
+              "id": "formula-precalculus-04-002",
+              "label": "Euler's Form",
+              "body": {
+                "type": "math",
+                "latex": "r(\\cos\\theta+i\\sin\\theta)=re^{i\\theta}"
+              }
+            },
+            {
+              "id": "formula-precalculus-04-003",
+              "label": "De Moivre's Theorem",
+              "body": {
+                "type": "math",
+                "latex": "[r(\\cos\\theta+i\\sin\\theta)]^n=r^n(\\cos n\\theta+i\\sin n\\theta)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-calculus-i",
+      "label": "CALCULUS I",
+      "categories": [
+        {
+          "id": "category-calculus-i-01",
+          "label": "Limits",
+          "formulas": [
+            {
+              "id": "formula-calculus-i-01-001",
+              "label": "Sum/Diff Limit",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to a}[f(x)\\pm g(x)]=L\\pm M"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-002",
+              "label": "Product Limit",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to a}f(x)g(x)=LM"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-003",
+              "label": "Quotient Limit",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to a}\\frac{f(x)}{g(x)}=\\frac{L}{M},\\ M\\neq0"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-004",
+              "label": "Power Limit",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to a}[f(x)]^n=L^n"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-005",
+              "label": "Important Limit 1",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to0}\\frac{\\sin x}{x}=1"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-006",
+              "label": "Important Limit 2",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to0}\\frac{1-\\cos x}{x}=0"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-007",
+              "label": "Infinity Limit",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to\\pm\\infty}\\frac{1}{x^n}=0,\\ n>0"
+              }
+            },
+            {
+              "id": "formula-calculus-i-01-008",
+              "label": "e Definition",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{x\\to\\infty}\\!\\left(1+\\frac{1}{x}\\right)^x=e"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-i-02",
+          "label": "Derivative Definitions and Rules",
+          "formulas": [
+            {
+              "id": "formula-calculus-i-02-001",
+              "label": "Limit Definition",
+              "body": {
+                "type": "math",
+                "latex": "f'(x)=\\lim_{h\\to0}\\frac{f(x+h)-f(x)}{h}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-002",
+              "label": "Alternate Definition",
+              "body": {
+                "type": "math",
+                "latex": "f'(a)=\\lim_{x\\to a}\\frac{f(x)-f(a)}{x-a}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-003",
+              "label": "Constant Multiple",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[cf]=cf'"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-004",
+              "label": "Sum/Diff Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[f\\pm g]=f'\\pm g'"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-005",
+              "label": "Product Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[fg]=f'g+fg'"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-006",
+              "label": "Quotient Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}\\!\\left[\\frac{f}{g}\\right]=\\frac{f'g-fg'}{g^2}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-02-007",
+              "label": "Chain Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[f(g(x))]=f'(g(x))\\cdot g'(x)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-i-03",
+          "label": "Common Derivatives",
+          "formulas": [
+            {
+              "id": "formula-calculus-i-03-001",
+              "label": "Power Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[x^n]=nx^{n-1}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-002",
+              "label": "Exponential",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[e^x]=e^x,\\ \\frac{d}{dx}[a^x]=a^x\\ln a"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-003",
+              "label": "Logarithmic",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\ln x]=\\frac{1}{x},\\ \\frac{d}{dx}[\\log_a x]=\\frac{1}{x\\ln a}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-004",
+              "label": "Sine/Cosine",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\sin x]=\\cos x,\\ \\frac{d}{dx}[\\cos x]=-\\sin x"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-005",
+              "label": "Tangent/Cotangent",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\tan x]=\\sec^2 x,\\ \\frac{d}{dx}[\\cot x]=-\\csc^2 x"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-006",
+              "label": "Secant/Cosecant",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\sec x]=\\sec x\\tan x,\\ \\frac{d}{dx}[\\csc x]=-\\csc x\\cot x"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-007",
+              "label": "Arcsin/Arccos",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\arcsin x]=\\frac{1}{\\sqrt{1-x^2}},\\ \\frac{d}{dx}[\\arccos x]=\\frac{-1}{\\sqrt{1-x^2}}"
+              }
+            },
+            {
+              "id": "formula-calculus-i-03-008",
+              "label": "Arctan",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}[\\arctan x]=\\frac{1}{1+x^2}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-i-04",
+          "label": "Core Theorems of Calculus",
+          "formulas": [
+            {
+              "id": "formula-calculus-i-04-001",
+              "label": "Mean Value Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{MVT: }f'(c)=\\frac{f(b)-f(a)}{b-a}\\text{ for some }c\\in(a,b)"
+              }
+            },
+            {
+              "id": "formula-calculus-i-04-002",
+              "label": "Rolle's Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{Rolle's: if }f(a)=f(b),\\ \\exists\\,c\\in(a,b)\\text{ s.t. }f'(c)=0"
+              }
+            },
+            {
+              "id": "formula-calculus-i-04-003",
+              "label": "Intermediate Value Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\text{IVT: if }f\\text{ is cts on }[a,b],\\ f\\text{ takes all values between }f(a)\\text{ and }f(b)"
+              }
+            },
+            {
+              "id": "formula-calculus-i-04-004",
+              "label": "Part 1 (Leibniz)",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d}{dx}\\int_a^x f(t)\\,dt=f(x)"
+              }
+            },
+            {
+              "id": "formula-calculus-i-04-005",
+              "label": "Part 2 (Evaluation)",
+              "body": {
+                "type": "math",
+                "latex": "\\int_a^b f(x)\\,dx=F(b)-F(a),\\quad F'=f"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-i-05",
+          "label": "Basic Antiderivatives",
+          "formulas": [
+            {
+              "id": "formula-calculus-i-05-001",
+              "label": "Power Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\int x^n\\,dx=\\frac{x^{n+1}}{n+1}+C,\\ n\\neq-1"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-002",
+              "label": "Reciprocal",
+              "body": {
+                "type": "math",
+                "latex": "\\int\\frac{1}{x}\\,dx=\\ln|x|+C"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-003",
+              "label": "Exponential",
+              "body": {
+                "type": "math",
+                "latex": "\\int e^x\\,dx=e^x+C,\\ \\int a^x\\,dx=\\frac{a^x}{\\ln a}+C"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-004",
+              "label": "Trig Basic",
+              "body": {
+                "type": "math",
+                "latex": "\\int\\sin x\\,dx=-\\cos x+C,\\ \\int\\cos x\\,dx=\\sin x+C"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-005",
+              "label": "Trig Square",
+              "body": {
+                "type": "math",
+                "latex": "\\int\\sec^2 x\\,dx=\\tan x+C,\\ \\int\\csc^2 x\\,dx=-\\cot x+C"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-006",
+              "label": "Trig Product",
+              "body": {
+                "type": "math",
+                "latex": "\\int\\sec x\\tan x\\,dx=\\sec x+C,\\ \\int\\csc x\\cot x\\,dx=-\\csc x+C"
+              }
+            },
+            {
+              "id": "formula-calculus-i-05-007",
+              "label": "Inverse Trig",
+              "body": {
+                "type": "math",
+                "latex": "\\int\\frac{1}{\\sqrt{1-x^2}}\\,dx=\\arcsin x+C,\\ \\int\\frac{1}{1+x^2}\\,dx=\\arctan x+C"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-calculus-ii",
+      "label": "CALCULUS II",
+      "categories": [
+        {
+          "id": "category-calculus-ii-01",
+          "label": "Integration Techniques and Improper Integrals",
+          "formulas": [
+            {
+              "id": "formula-calculus-ii-01-001",
+              "label": "U-Substitution",
+              "body": {
+                "type": "math",
+                "latex": "\\int f(g(x))g'(x)\\,dx=\\int f(u)\\,du\\ (u=g(x))"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-002",
+              "label": "Integration by Parts",
+              "body": {
+                "type": "math",
+                "latex": "\\int u\\,dv=uv-\\int v\\,du"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-003",
+              "label": "Trig Substitution 1",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt{a^2-x^2}\\to x=a\\sin\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-004",
+              "label": "Trig Substitution 2",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt{a^2+x^2}\\to x=a\\tan\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-005",
+              "label": "Trig Substitution 3",
+              "body": {
+                "type": "math",
+                "latex": "\\sqrt{x^2-a^2}\\to x=a\\sec\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-006",
+              "label": "Partial Fractions",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{p(x)}{(x-a)(x-b)}=\\frac{A}{x-a}+\\frac{B}{x-b}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-007",
+              "label": "Infinite Upper Bound",
+              "body": {
+                "type": "math",
+                "latex": "\\int_a^{\\infty}f\\,dx=\\lim_{t\\to\\infty}\\int_a^t f\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-008",
+              "label": "Infinite Both Bounds",
+              "body": {
+                "type": "math",
+                "latex": "\\int_{-\\infty}^{\\infty}f\\,dx=\\int_{-\\infty}^c f\\,dx+\\int_c^{\\infty}f\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-01-009",
+              "label": "Unbounded Integrand",
+              "body": {
+                "type": "math",
+                "latex": "\\int_a^b f\\,dx=\\lim_{t\\to c}\\int_a^t f\\,dx\\text{ if }f\\text{ unbounded at }c"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-ii-02",
+          "label": "Applications of Integration",
+          "formulas": [
+            {
+              "id": "formula-calculus-ii-02-001",
+              "label": "Area Between Curves",
+              "body": {
+                "type": "math",
+                "latex": "A=\\int_a^b[f(x)-g(x)]\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-02-002",
+              "label": "Disk Method",
+              "body": {
+                "type": "math",
+                "latex": "V=\\pi\\int_a^b[f(x)]^2\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-02-003",
+              "label": "Washer Method",
+              "body": {
+                "type": "math",
+                "latex": "V=\\pi\\int_a^b([f(x)]^2-[g(x)]^2)dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-02-004",
+              "label": "Shell Method",
+              "body": {
+                "type": "math",
+                "latex": "V=2\\pi\\int_a^b x\\,f(x)\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-02-005",
+              "label": "Arc Length",
+              "body": {
+                "type": "math",
+                "latex": "L=\\int_a^b\\sqrt{1+[f'(x)]^2}\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-02-006",
+              "label": "Surface of Revolution",
+              "body": {
+                "type": "math",
+                "latex": "S=2\\pi\\int_a^b f(x)\\sqrt{1+[f'(x)]^2}\\,dx"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-ii-03",
+          "label": "Sequences & Series",
+          "formulas": [
+            {
+              "id": "formula-calculus-ii-03-001",
+              "label": "Geometric Series",
+              "body": {
+                "type": "math",
+                "latex": "\\sum_{n=0}^{\\infty}ar^n=\\frac{a}{1-r},\\ |r|<1"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-03-002",
+              "label": "P-Series",
+              "body": {
+                "type": "math",
+                "latex": "\\sum_{n=1}^{\\infty}\\frac{1}{n^p}\\text{ converges iff }p>1"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-03-003",
+              "label": "Ratio Test",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{n\\to\\infty}\\left|\\frac{a_{n+1}}{a_n}\\right|=L;\\ L<1\\text{ conv.},\\ L>1\\text{ div.}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-03-004",
+              "label": "Root Test",
+              "body": {
+                "type": "math",
+                "latex": "\\lim_{n\\to\\infty}\\sqrt[n]{|a_n|}=L;\\ L<1\\text{ conv.},\\ L>1\\text{ div.}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-ii-04",
+          "label": "Power & Taylor Series",
+          "formulas": [
+            {
+              "id": "formula-calculus-ii-04-001",
+              "label": "Taylor Series",
+              "body": {
+                "type": "math",
+                "latex": "f(x)=\\sum_{n=0}^{\\infty}\\frac{f^{(n)}(a)}{n!}(x-a)^n"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-002",
+              "label": "e^x Series",
+              "body": {
+                "type": "math",
+                "latex": "e^x=\\sum_{n=0}^{\\infty}\\frac{x^n}{n!}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-003",
+              "label": "Sine Series",
+              "body": {
+                "type": "math",
+                "latex": "\\sin x=\\sum_{n=0}^{\\infty}\\frac{(-1)^nx^{2n+1}}{(2n+1)!}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-004",
+              "label": "Cosine Series",
+              "body": {
+                "type": "math",
+                "latex": "\\cos x=\\sum_{n=0}^{\\infty}\\frac{(-1)^nx^{2n}}{(2n)!}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-005",
+              "label": "Geometric Series (1/(1-x))",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{1}{1-x}=\\sum_{n=0}^{\\infty}x^n,\\ |x|<1"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-006",
+              "label": "ln(1+x) Series",
+              "body": {
+                "type": "math",
+                "latex": "\\ln(1+x)=\\sum_{n=1}^{\\infty}\\frac{(-1)^{n+1}x^n}{n},\\ |x|\\leq1"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-04-007",
+              "label": "Radius of Convergence",
+              "body": {
+                "type": "math",
+                "latex": "R=\\frac{1}{\\limsup_{n\\to\\infty}\\sqrt[n]{|a_n|}}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-ii-05",
+          "label": "Parametric & Polar",
+          "formulas": [
+            {
+              "id": "formula-calculus-ii-05-001",
+              "label": "Derivative (Parametric)",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{dy}{dx}=\\frac{dy/dt}{dx/dt}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-05-002",
+              "label": "Second Derivative (Parametric)",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{d^2y}{dx^2}=\\frac{d(dy/dx)/dt}{dx/dt}"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-05-003",
+              "label": "Arc Length (Parametric)",
+              "body": {
+                "type": "math",
+                "latex": "L=\\int_a^b\\sqrt{\\left(\\frac{dx}{dt}\\right)^2+\\left(\\frac{dy}{dt}\\right)^2}\\,dt"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-05-004",
+              "label": "Polar Area",
+              "body": {
+                "type": "math",
+                "latex": "A=\\frac{1}{2}\\int_\\alpha^\\beta r^2\\,d\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-ii-05-005",
+              "label": "Polar Arc Length",
+              "body": {
+                "type": "math",
+                "latex": "L=\\int_\\alpha^\\beta\\sqrt{r^2+\\left(\\frac{dr}{d\\theta}\\right)^2}\\,d\\theta"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-calculus-iii",
+      "label": "CALCULUS III",
+      "categories": [
+        {
+          "id": "category-calculus-iii-01",
+          "label": "Vector Formulas",
+          "formulas": [
+            {
+              "id": "formula-calculus-iii-01-001",
+              "label": "Dot Product",
+              "body": {
+                "type": "math",
+                "latex": "\\mathbf{u}\\cdot\\mathbf{v}=|\\mathbf{u}||\\mathbf{v}|\\cos\\theta=u_1v_1+u_2v_2+u_3v_3"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-002",
+              "label": "Cross Product",
+              "body": {
+                "type": "math",
+                "latex": "\\mathbf{u}\\times\\mathbf{v}=\\begin{vmatrix}\\mathbf{i}&\\mathbf{j}&\\mathbf{k}\\\\u_1&u_2&u_3\\\\v_1&v_2&v_3\\end{vmatrix},\\ |\\mathbf{u}\\times\\mathbf{v}|=|\\mathbf{u}||\\mathbf{v}|\\sin\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-003",
+              "label": "Projection",
+              "body": {
+                "type": "math",
+                "latex": "\\text{proj}_{\\mathbf{v}}\\mathbf{u}=\\frac{\\mathbf{u}\\cdot\\mathbf{v}}{|\\mathbf{v}|^2}\\mathbf{v}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-004",
+              "label": "Component",
+              "body": {
+                "type": "math",
+                "latex": "\\text{comp}_{\\mathbf{v}}\\mathbf{u}=\\frac{\\mathbf{u}\\cdot\\mathbf{v}}{|\\mathbf{v}|}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-005",
+              "label": "Line Equation",
+              "body": {
+                "type": "math",
+                "latex": "\\mathbf{r}(t)=\\mathbf{r}_0+t\\mathbf{d}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-006",
+              "label": "Plane Equation",
+              "body": {
+                "type": "math",
+                "latex": "a(x-x_0)+b(y-y_0)+c(z-z_0)=0"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-007",
+              "label": "Divergence",
+              "body": {
+                "type": "math",
+                "latex": "\\nabla\\cdot\\mathbf{F}=\\frac{\\partial P}{\\partial x}+\\frac{\\partial Q}{\\partial y}+\\frac{\\partial R}{\\partial z}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-008",
+              "label": "Curl",
+              "body": {
+                "type": "math",
+                "latex": "\\nabla\\times\\mathbf{F}=\\begin{vmatrix}\\mathbf{i}&\\mathbf{j}&\\mathbf{k}\\\\\\partial_x&\\partial_y&\\partial_z\\\\P&Q&R\\end{vmatrix}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-009",
+              "label": "Line Integral",
+              "body": {
+                "type": "math",
+                "latex": "\\int_C\\mathbf{F}\\cdot d\\mathbf{r}=\\int_a^b\\mathbf{F}(\\mathbf{r}(t))\\cdot\\mathbf{r}'(t)\\,dt"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-010",
+              "label": "Fundamental Theorem for Line Integrals",
+              "body": {
+                "type": "math",
+                "latex": "\\int_C\\mathbf{F}\\cdot d\\mathbf{r}=f(B)-f(A)\\text{ if }\\mathbf{F}=\\nabla f"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-011",
+              "label": "Green's Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\oint_C\\mathbf{F}\\cdot d\\mathbf{r}=\\iint_D\\!\\left(\\frac{\\partial Q}{\\partial x}-\\frac{\\partial P}{\\partial y}\\right)dA"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-012",
+              "label": "Divergence Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\iint_S\\mathbf{F}\\cdot d\\mathbf{S}=\\iiint_E(\\nabla\\cdot\\mathbf{F})\\,dV"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-01-013",
+              "label": "Stokes' Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\oint_C\\mathbf{F}\\cdot d\\mathbf{r}=\\iint_S(\\nabla\\times\\mathbf{F})\\cdot d\\mathbf{S}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-iii-02",
+          "label": "Partial Derivatives and Optimization",
+          "formulas": [
+            {
+              "id": "formula-calculus-iii-02-001",
+              "label": "Definition",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{\\partial f}{\\partial x}=f_x=\\lim_{h\\to0}\\frac{f(x+h,y)-f(x,y)}{h}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-002",
+              "label": "Total Differential",
+              "body": {
+                "type": "math",
+                "latex": "dz=f_x\\,dx+f_y\\,dy"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-003",
+              "label": "Chain Rule",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{dz}{dt}=\\frac{\\partial z}{\\partial x}\\frac{dx}{dt}+\\frac{\\partial z}{\\partial y}\\frac{dy}{dt}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-004",
+              "label": "Directional Derivative",
+              "body": {
+                "type": "math",
+                "latex": "D_{\\mathbf{u}}f=\\nabla f\\cdot\\hat{\\mathbf{u}}=f_xu_1+f_yu_2+f_zu_3"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-005",
+              "label": "Gradient",
+              "body": {
+                "type": "math",
+                "latex": "\\nabla f=\\langle f_x,f_y,f_z\\rangle,\\ |\\nabla f|\\text{ gives max rate of change}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-006",
+              "label": "Second Derivative Test",
+              "body": {
+                "type": "math",
+                "latex": "D=f_{xx}f_{yy}-(f_{xy})^2"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-007",
+              "label": "Local Extremes",
+              "body": {
+                "type": "math",
+                "latex": "D>0,f_{xx}>0\\Rightarrow\\text{local min};\\ D>0,f_{xx}<0\\Rightarrow\\text{local max};\\ D<0\\Rightarrow\\text{saddle}"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-02-008",
+              "label": "Lagrange Multipliers",
+              "body": {
+                "type": "math",
+                "latex": "\\nabla f=\\lambda\\nabla g"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-calculus-iii-03",
+          "label": "Multiple Integrals",
+          "formulas": [
+            {
+              "id": "formula-calculus-iii-03-001",
+              "label": "Fubini's Theorem",
+              "body": {
+                "type": "math",
+                "latex": "\\iint_R f\\,dA=\\int_a^b\\int_c^d f(x,y)\\,dy\\,dx"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-03-002",
+              "label": "Polar Coordinates",
+              "body": {
+                "type": "math",
+                "latex": "\\iint_R f\\,dA=\\int_\\alpha^\\beta\\int_{g_1}^{g_2}f(r\\cos\\theta,r\\sin\\theta)\\,r\\,dr\\,d\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-03-003",
+              "label": "Cylindrical Coordinates",
+              "body": {
+                "type": "math",
+                "latex": "dV=r\\,dz\\,dr\\,d\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-03-004",
+              "label": "Spherical Coordinates",
+              "body": {
+                "type": "math",
+                "latex": "x=\\rho\\sin\\phi\\cos\\theta,\\ y=\\rho\\sin\\phi\\sin\\theta,\\ z=\\rho\\cos\\phi"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-03-005",
+              "label": "Spherical Volume Element",
+              "body": {
+                "type": "math",
+                "latex": "dV=\\rho^2\\sin\\phi\\,d\\rho\\,d\\phi\\,d\\theta"
+              }
+            },
+            {
+              "id": "formula-calculus-iii-03-006",
+              "label": "Jacobian",
+              "body": {
+                "type": "math",
+                "latex": "\\iint_R f\\,dA=\\iint_S f(x(u,v),y(u,v))\\left|\\frac{\\partial(x,y)}{\\partial(u,v)}\\right|du\\,dv"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-unit-circle",
+      "label": "UNIT CIRCLE",
+      "categories": [
+        {
+          "id": "category-unit-circle-01",
+          "label": "UNIT CIRCLE",
+          "formulas": [
+            {
+              "id": "formula-unit-circle-01-001",
+              "label": "Unit Circle (Key Angles)",
+              "body": {
+                "type": "fragment",
+                "latex": "\\subsection*{Unit Circle (Key Angles)}\\setlength{\\tabcolsep}{2pt}\\begin{tabular}{rlll llll}\\textbf{deg}&\\textbf{rad}&$\\cos$&$\\sin$&\\textbf{deg}&\\textbf{rad}&$\\cos$&$\\sin$\\\\$0^\\circ$&$0$&$1$&$0$&$180^\\circ$&$\\pi$&$-1$&$0$\\\\$30^\\circ$&$\\pi/6$&$\\frac{\\sqrt{3}}{2}$&$\\frac{1}{2}$&$210^\\circ$&$7\\pi/6$&$-\\frac{\\sqrt{3}}{2}$&$-\\frac{1}{2}$\\\\$45^\\circ$&$\\pi/4$&$\\frac{\\sqrt{2}}{2}$&$\\frac{\\sqrt{2}}{2}$&$225^\\circ$&$5\\pi/4$&$-\\frac{\\sqrt{2}}{2}$&$-\\frac{\\sqrt{2}}{2}$\\\\$60^\\circ$&$\\pi/3$&$\\frac{1}{2}$&$\\frac{\\sqrt{3}}{2}$&$240^\\circ$&$4\\pi/3$&$-\\frac{1}{2}$&$-\\frac{\\sqrt{3}}{2}$\\\\$90^\\circ$&$\\pi/2$&$0$&$1$&$270^\\circ$&$3\\pi/2$&$0$&$-1$\\\\$120^\\circ$&$2\\pi/3$&$-\\frac{1}{2}$&$\\frac{\\sqrt{3}}{2}$&$300^\\circ$&$5\\pi/3$&$\\frac{1}{2}$&$-\\frac{\\sqrt{3}}{2}$\\\\$135^\\circ$&$3\\pi/4$&$-\\frac{\\sqrt{2}}{2}$&$\\frac{\\sqrt{2}}{2}$&$315^\\circ$&$7\\pi/4$&$\\frac{\\sqrt{2}}{2}$&$-\\frac{\\sqrt{2}}{2}$\\\\$150^\\circ$&$5\\pi/6$&$-\\frac{\\sqrt{3}}{2}$&$\\frac{1}{2}$&$330^\\circ$&$11\\pi/6$&$\\frac{\\sqrt{3}}{2}$&$-\\frac{1}{2}$\\\\\\end{tabular}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-physics-i",
+      "label": "PHYSICS I",
+      "categories": [
+        {
+          "id": "category-physics-i-01",
+          "label": "Kinematics (Motion)",
+          "formulas": [
+            {
+              "id": "formula-physics-i-01-001",
+              "label": "Average Velocity",
+              "body": {
+                "type": "math",
+                "latex": "v = \\frac{\\Delta x}{\\Delta t}"
+              }
+            },
+            {
+              "id": "formula-physics-i-01-002",
+              "label": "Average Acceleration",
+              "body": {
+                "type": "math",
+                "latex": "a = \\frac{\\Delta v}{\\Delta t}"
+              }
+            },
+            {
+              "id": "formula-physics-i-01-003",
+              "label": "Kinematics 1 (Velocity)",
+              "body": {
+                "type": "math",
+                "latex": "v = v_0 + at"
+              }
+            },
+            {
+              "id": "formula-physics-i-01-004",
+              "label": "Kinematics 2 (Position)",
+              "body": {
+                "type": "math",
+                "latex": "\\Delta x = v_0 t + \\frac{1}{2}at^2"
+              }
+            },
+            {
+              "id": "formula-physics-i-01-005",
+              "label": "Kinematics 3 (Velocity Squared)",
+              "body": {
+                "type": "math",
+                "latex": "v^2 = v_0^2 + 2a\\Delta x"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-i-02",
+          "label": "Dynamics (Forces)",
+          "formulas": [
+            {
+              "id": "formula-physics-i-02-001",
+              "label": "Newton's Second Law",
+              "body": {
+                "type": "math",
+                "latex": "F_{net} = ma"
+              }
+            },
+            {
+              "id": "formula-physics-i-02-002",
+              "label": "Force of Gravity (Weight)",
+              "body": {
+                "type": "math",
+                "latex": "F_g = mg"
+              }
+            },
+            {
+              "id": "formula-physics-i-02-003",
+              "label": "Kinetic Friction",
+              "body": {
+                "type": "math",
+                "latex": "f_k = \\mu_k F_N"
+              }
+            },
+            {
+              "id": "formula-physics-i-02-004",
+              "label": "Static Friction",
+              "body": {
+                "type": "math",
+                "latex": "f_s \\le \\mu_s F_N"
+              }
+            },
+            {
+              "id": "formula-physics-i-02-005",
+              "label": "Hooke's Law (Springs)",
+              "body": {
+                "type": "math",
+                "latex": "F_s = -kx"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-i-03",
+          "label": "Work, Energy & Power",
+          "formulas": [
+            {
+              "id": "formula-physics-i-03-001",
+              "label": "Work",
+              "body": {
+                "type": "math",
+                "latex": "W = Fd \\cos(\\theta)"
+              }
+            },
+            {
+              "id": "formula-physics-i-03-002",
+              "label": "Kinetic Energy",
+              "body": {
+                "type": "math",
+                "latex": "KE = \\frac{1}{2}mv^2"
+              }
+            },
+            {
+              "id": "formula-physics-i-03-003",
+              "label": "Gravitational Potential Energy",
+              "body": {
+                "type": "math",
+                "latex": "PE = mgh"
+              }
+            },
+            {
+              "id": "formula-physics-i-03-004",
+              "label": "Elastic Potential Energy",
+              "body": {
+                "type": "math",
+                "latex": "PE_s = \\frac{1}{2}kx^2"
+              }
+            },
+            {
+              "id": "formula-physics-i-03-005",
+              "label": "Power",
+              "body": {
+                "type": "math",
+                "latex": "P = \\frac{W}{\\Delta t}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-i-04",
+          "label": "Momentum & Collisions",
+          "formulas": [
+            {
+              "id": "formula-physics-i-04-001",
+              "label": "Momentum",
+              "body": {
+                "type": "math",
+                "latex": "p = mv"
+              }
+            },
+            {
+              "id": "formula-physics-i-04-002",
+              "label": "Impulse-Momentum Theorem",
+              "body": {
+                "type": "math",
+                "latex": "J = F \\Delta t = \\Delta p"
+              }
+            },
+            {
+              "id": "formula-physics-i-04-003",
+              "label": "Conservation of Momentum",
+              "body": {
+                "type": "math",
+                "latex": "m_1 v_{1i} + m_2 v_{2i} = m_1 v_{1f} + m_2 v_{2f}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-i-05",
+          "label": "Electricity & Waves",
+          "formulas": [
+            {
+              "id": "formula-physics-i-05-001",
+              "label": "Ohm's Law",
+              "body": {
+                "type": "math",
+                "latex": "V = IR"
+              }
+            },
+            {
+              "id": "formula-physics-i-05-002",
+              "label": "Electrical Power",
+              "body": {
+                "type": "math",
+                "latex": "P = IV = I^2R = \\frac{V^2}{R}"
+              }
+            },
+            {
+              "id": "formula-physics-i-05-003",
+              "label": "Wave Speed",
+              "body": {
+                "type": "math",
+                "latex": "v = f \\lambda"
+              }
+            },
+            {
+              "id": "formula-physics-i-05-004",
+              "label": "Period and Frequency",
+              "body": {
+                "type": "math",
+                "latex": "T = \\frac{1}{f}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-physics-ii",
+      "label": "PHYSICS II",
+      "categories": [
+        {
+          "id": "category-physics-ii-01",
+          "label": "Electrostatics",
+          "formulas": [
+            {
+              "id": "formula-physics-ii-01-001",
+              "label": "Coulomb's Law",
+              "body": {
+                "type": "math",
+                "latex": "F_e = k \\frac{|q_1 q_2|}{r^2}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-01-002",
+              "label": "Electric Field",
+              "body": {
+                "type": "math",
+                "latex": "E = \\frac{F_e}{q}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-01-003",
+              "label": "Electric Potential (Voltage)",
+              "body": {
+                "type": "math",
+                "latex": "V = \\frac{k q}{r}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-01-004",
+              "label": "Capacitance",
+              "body": {
+                "type": "math",
+                "latex": "C = \\frac{Q}{V}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-ii-02",
+          "label": "Circuits",
+          "formulas": [
+            {
+              "id": "formula-physics-ii-02-001",
+              "label": "Ohm's Law",
+              "body": {
+                "type": "math",
+                "latex": "V = IR"
+              }
+            },
+            {
+              "id": "formula-physics-ii-02-002",
+              "label": "Equivalent Resistance (Series)",
+              "body": {
+                "type": "math",
+                "latex": "R_{eq} = R_1 + R_2 + ..."
+              }
+            },
+            {
+              "id": "formula-physics-ii-02-003",
+              "label": "Equivalent Resistance (Parallel)",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{1}{R_{eq}} = \\frac{1}{R_1} + \\frac{1}{R_2} + ..."
+              }
+            },
+            {
+              "id": "formula-physics-ii-02-004",
+              "label": "Electrical Power",
+              "body": {
+                "type": "math",
+                "latex": "P = IV = I^2R = \\frac{V^2}{R}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-ii-03",
+          "label": "Magnetism",
+          "formulas": [
+            {
+              "id": "formula-physics-ii-03-001",
+              "label": "Magnetic Force on a Charge",
+              "body": {
+                "type": "math",
+                "latex": "F_B = qvB \\sin(\\theta)"
+              }
+            },
+            {
+              "id": "formula-physics-ii-03-002",
+              "label": "Magnetic Force on a Wire",
+              "body": {
+                "type": "math",
+                "latex": "F_B = ILB \\sin(\\theta)"
+              }
+            },
+            {
+              "id": "formula-physics-ii-03-003",
+              "label": "Magnetic Field of a Wire",
+              "body": {
+                "type": "math",
+                "latex": "B = \\frac{\\mu_0 I}{2\\pi r}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-03-004",
+              "label": "Magnetic Flux",
+              "body": {
+                "type": "math",
+                "latex": "\\Phi_B = BA \\cos(\\theta)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-physics-ii-04",
+          "label": "Waves & Optics",
+          "formulas": [
+            {
+              "id": "formula-physics-ii-04-001",
+              "label": "Index of Refraction",
+              "body": {
+                "type": "math",
+                "latex": "n = \\frac{c}{v}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-04-002",
+              "label": "Snell's Law",
+              "body": {
+                "type": "math",
+                "latex": "n_1 \\sin(\\theta_1) = n_2 \\sin(\\theta_2)"
+              }
+            },
+            {
+              "id": "formula-physics-ii-04-003",
+              "label": "Thin Lens Equation",
+              "body": {
+                "type": "math",
+                "latex": "\\frac{1}{f} = \\frac{1}{d_o} + \\frac{1}{d_i}"
+              }
+            },
+            {
+              "id": "formula-physics-ii-04-004",
+              "label": "Magnification",
+              "body": {
+                "type": "math",
+                "latex": "m = \\frac{h_i}{h_o} = -\\frac{d_i}{d_o}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-statistics-i",
+      "label": "STATISTICS I",
+      "categories": [
+        {
+          "id": "category-statistics-i-01",
+          "label": "Descriptive Statistics",
+          "formulas": [
+            {
+              "id": "formula-statistics-i-01-001",
+              "label": "Sample Mean",
+              "body": {
+                "type": "math",
+                "latex": "\\bar{x} = \\frac{\\sum x_i}{n}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-01-002",
+              "label": "Population Mean",
+              "body": {
+                "type": "math",
+                "latex": "\\mu = \\frac{\\sum x_i}{N}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-01-003",
+              "label": "Sample Standard Deviation",
+              "body": {
+                "type": "math",
+                "latex": "s = \\sqrt{\\frac{\\sum (x_i - \\bar{x})^2}{n-1}}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-01-004",
+              "label": "Z-Score",
+              "body": {
+                "type": "math",
+                "latex": "z = \\frac{x - \\mu}{\\sigma}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-i-02",
+          "label": "Probability",
+          "formulas": [
+            {
+              "id": "formula-statistics-i-02-001",
+              "label": "Addition Rule",
+              "body": {
+                "type": "math",
+                "latex": "P(A \\cup B) = P(A) + P(B) - P(A \\cap B)"
+              }
+            },
+            {
+              "id": "formula-statistics-i-02-002",
+              "label": "Multiplication Rule",
+              "body": {
+                "type": "math",
+                "latex": "P(A \\cap B) = P(A) \\cdot P(B|A)"
+              }
+            },
+            {
+              "id": "formula-statistics-i-02-003",
+              "label": "Conditional Probability",
+              "body": {
+                "type": "math",
+                "latex": "P(A|B) = \\frac{P(A \\cap B)}{P(B)}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-02-004",
+              "label": "Expected Value",
+              "body": {
+                "type": "math",
+                "latex": "E(X) = \\mu_X = \\sum [x_i \\cdot P(x_i)]"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-i-03",
+          "label": "Distributions",
+          "formulas": [
+            {
+              "id": "formula-statistics-i-03-001",
+              "label": "Binomial Probability",
+              "body": {
+                "type": "math",
+                "latex": "P(X=k) = \\binom{n}{k} p^k (1-p)^{n-k}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-03-002",
+              "label": "Mean of Binomial Dist.",
+              "body": {
+                "type": "math",
+                "latex": "\\mu_X = np"
+              }
+            },
+            {
+              "id": "formula-statistics-i-03-003",
+              "label": "Standard Dev. of Binomial",
+              "body": {
+                "type": "math",
+                "latex": "\\sigma_X = \\sqrt{np(1-p)}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-i-04",
+          "label": "Inferential Statistics",
+          "formulas": [
+            {
+              "id": "formula-statistics-i-04-001",
+              "label": "Confidence Interval (Mean)",
+              "body": {
+                "type": "math",
+                "latex": "\\bar{x} \\pm z^* \\frac{\\sigma}{\\sqrt{n}}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-04-002",
+              "label": "Confidence Interval (Proportion)",
+              "body": {
+                "type": "math",
+                "latex": "\\hat{p} \\pm z^* \\sqrt{\\frac{\\hat{p}(1-\\hat{p})}{n}}"
+              }
+            },
+            {
+              "id": "formula-statistics-i-04-003",
+              "label": "Margin of Error",
+              "body": {
+                "type": "math",
+                "latex": "ME = z^* \\frac{\\sigma}{\\sqrt{n}}"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "subject-statistics-ii",
+      "label": "STATISTICS II",
+      "categories": [
+        {
+          "id": "category-statistics-ii-01",
+          "label": "Two-Sample Inference",
+          "formulas": [
+            {
+              "id": "formula-statistics-ii-01-001",
+              "label": "Two-Sample t-Test (Means)",
+              "body": {
+                "type": "math",
+                "latex": "t = \\frac{(\\bar{x}_1 - \\bar{x}_2)}{\\sqrt{\\frac{s_1^2}{n_1} + \\frac{s_2^2}{n_2}}}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-01-002",
+              "label": "Two-Sample z-Test (Proportions)",
+              "body": {
+                "type": "math",
+                "latex": "z = \\frac{(\\hat{p}_1 - \\hat{p}_2)}{\\sqrt{\\hat{p}_c(1-\\hat{p}_c)(\\frac{1}{n_1} + \\frac{1}{n_2})}}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-01-003",
+              "label": "Pooled Proportion",
+              "body": {
+                "type": "math",
+                "latex": "\\hat{p}_c = \\frac{x_1 + x_2}{n_1 + n_2}"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-ii-02",
+          "label": "Chi-Square Tests",
+          "formulas": [
+            {
+              "id": "formula-statistics-ii-02-001",
+              "label": "Chi-Square Statistic",
+              "body": {
+                "type": "math",
+                "latex": "\\chi^2 = \\sum \\frac{(O - E)^2}{E}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-02-002",
+              "label": "Expected Count",
+              "body": {
+                "type": "math",
+                "latex": "E = \\frac{\\text{row total} \\times \\text{column total}}{\\text{table total}}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-02-003",
+              "label": "Degrees of Freedom (Matrix)",
+              "body": {
+                "type": "math",
+                "latex": "df = (r-1)(c-1)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-ii-03",
+          "label": "Linear Regression",
+          "formulas": [
+            {
+              "id": "formula-statistics-ii-03-001",
+              "label": "Regression Line",
+              "body": {
+                "type": "math",
+                "latex": "\\hat{y} = b_0 + b_1x"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-03-002",
+              "label": "Slope of Regression",
+              "body": {
+                "type": "math",
+                "latex": "b_1 = r \\frac{s_y}{s_x}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-03-003",
+              "label": "Y-Intercept",
+              "body": {
+                "type": "math",
+                "latex": "b_0 = \\bar{y} - b_1\\bar{x}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-03-004",
+              "label": "Correlation Coefficient (r)",
+              "body": {
+                "type": "math",
+                "latex": "r = \\frac{1}{n-1} \\sum \\left(\\frac{x_i - \\bar{x}}{s_x}\\right)\\left(\\frac{y_i - \\bar{y}}{s_y}\\right)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "category-statistics-ii-04",
+          "label": "ANOVA (Analysis of Variance)",
+          "formulas": [
+            {
+              "id": "formula-statistics-ii-04-001",
+              "label": "F-Statistic",
+              "body": {
+                "type": "math",
+                "latex": "F = \\frac{MSG}{MSE}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-04-002",
+              "label": "Mean Square (Groups)",
+              "body": {
+                "type": "math",
+                "latex": "MSG = \\frac{SSG}{k-1}"
+              }
+            },
+            {
+              "id": "formula-statistics-ii-04-003",
+              "label": "Mean Square (Error)",
+              "body": {
+                "type": "math",
+                "latex": "MSE = \\frac{SSE}{N-k}"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

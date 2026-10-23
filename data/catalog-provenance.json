@@ -1,0 +1,72 @@
+{
+  "source_ref": "archive/pre-rust-2026-10-17/00-main/working-complete",
+  "source_commit": "05c3a6105be16d43091b66aad5b8a650c516f5fe",
+  "conversion": "ast.literal_eval of CLASS_NAME and formula dictionaries only; no Python module execution",
+  "counts": {
+    "subjects": 14,
+    "categories": 76,
+    "formulas": 385,
+    "unique_ids": 475
+  },
+  "labels_and_latex_match_saved_source": true,
+  "catalog_sha256": "d917bd82a97121e74515e0881696195ca55dc8bb7751da72840711255a930ca5",
+  "sources": [
+    {
+      "path": "backend/api/formula_data/pre_algebra.py",
+      "sha256": "6e6215494faa74366540baada7a3a592b1e2011b38a9e4ba1a3bcc4dfc2ebd82"
+    },
+    {
+      "path": "backend/api/formula_data/algebra_i.py",
+      "sha256": "6ad111e86b201d3eda1eec05b22340db01dcd3059775328867c8cc6a7c1b5e30"
+    },
+    {
+      "path": "backend/api/formula_data/algebra_ii.py",
+      "sha256": "c2d9d9d9b58c9bbc3a4b4857be9c33f181ee4eca9b94bce47fddfb59005641fc"
+    },
+    {
+      "path": "backend/api/formula_data/geometry.py",
+      "sha256": "84562483a4419dbc072bf15d94da9f870b1b09c380584b8501ccdd1a2aa911a5"
+    },
+    {
+      "path": "backend/api/formula_data/trig.py",
+      "sha256": "b537ef37107440388f98359548f3c7765f602219d0a81ac83230cab0958e96d5"
+    },
+    {
+      "path": "backend/api/formula_data/precalculus.py",
+      "sha256": "ffccd821e25dac4d726415b3edb475d744eac6aa2f26507609c1966a89cf8fe6"
+    },
+    {
+      "path": "backend/api/formula_data/calculus_i.py",
+      "sha256": "ad80a47b1711b9e07cf9957dd1e21890b6ca165d72c4ecdf4fdcd367ce69eaaf"
+    },
+    {
+      "path": "backend/api/formula_data/calculus_ii.py",
+      "sha256": "4248c44890a7b23178b5f41e5b1102c5eb688cb6cb97257a8643e497148b4897"
+    },
+    {
+      "path": "backend/api/formula_data/calculus_iii.py",
+      "sha256": "c351fa74fa1c98091e318a28a597ae69cf6e5e226c43e78920232b26d7a78cd7"
+    },
+    {
+      "path": "backend/api/formula_data/unit_circle.py",
+      "sha256": "806794b26e07f249769342948c38df3cbf41eb5469105627f499bb206eb79e19"
+    },
+    {
+      "path": "backend/api/formula_data/physics_i.py",
+      "sha256": "ca77e7a8ba291ab941ca29e4b8796dc481bd1f480c84c22c333907872843abb1"
+    },
+    {
+      "path": "backend/api/formula_data/physics_ii.py",
+      "sha256": "2124853314737ad9eb7a05acf29c0ef9a5c5f1aabf1002e1803fc04d3f093b87"
+    },
+    {
+      "path": "backend/api/formula_data/statistics_i.py",
+      "sha256": "45495544ec17c8779163ea764b748bdab2bc053efc67209ec7b1a27e15226484"
+    },
+    {
+      "path": "backend/api/formula_data/statistics_ii.py",
+      "sha256": "6b3c53f02a7419dcc1226e1cfeb26a01f4a113368cf3589938f465c1a2aae9ce"
+    }
+  ],
+  "id_policy": "These IDs are now permanent. Preserve them when labels, order, or formula text change. Assign new IDs to new entries."
+}
