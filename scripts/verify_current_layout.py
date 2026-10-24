@@ -7,16 +7,16 @@ are replayed in the browser; this does not verify authenticated API behavior.
 """
 import argparse
 import base64
-from contextlib import suppress
 import hashlib
 import http.client
 import json
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import threading
 import time
+from contextlib import suppress
+from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +24,7 @@ CHROME = Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 ORIGIN = 'http://127.0.0.1:3737'
 LEDGER = ROOT / 'target/stage6-probes/attempts.jsonl'
 PDF = ROOT / 'target/stage6-probes/attempt-16/candidate.pdf'
-MAX_PROFILE_BYTES = 16 * 1024 * 1024
+MAX_PROFILE_BYTES = 8 * 1024 * 1024
 # A closed proxy blocks background transfers without disabling Chrome's own sandbox.
 NETWORK_ARGS = [
     '--proxy-server=http://127.0.0.1:9',
@@ -80,7 +80,7 @@ def watch_profile(chrome: subprocess.Popen, private: Path, stop: threading.Event
         try:
             if profile_bytes(private) <= MAX_PROFILE_BYTES:
                 continue
-            failures.append('The owned browser profile exceeded 16 MiB.')
+            failures.append('The owned browser profile exceeded 8 MiB.')
         except OSError as error:
             failures.append('Browser profile measurement failed: ' + str(error))
         with suppress(ProcessLookupError):
@@ -177,6 +177,52 @@ def main(expected_pid: int) -> None:
                 time.sleep(0.05)
             return path
 
+        def accessibility(current_title: str, replaced_title: str, pdf_title: str) -> dict[str, Any]:
+            checks = evaluate('''(() => {
+              const expected = ''' + json.dumps({'current': current_title, 'replaced': replaced_title, 'pdf': pdf_title}) + ''';
+              const rgba = color => { const values = color.match(/[\\d.]+/g)?.map(Number);
+                if (!color.startsWith('rgb') || !values || values.length < 3) throw new Error('Unsupported computed color');
+                return [...values.slice(0, 3), values[3] ?? 1]; };
+              const blend = (fg, bg) => fg.slice(0, 3).map((value, index) => value * fg[3] + bg[index] * (1 - fg[3]));
+              const luminance = rgb => rgb.map(value => { const v = value / 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; })
+                .reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+              const ratio = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05);
+              if (Math.abs(ratio([0, 0, 0], [255, 255, 255]) - 21) > 0.001) throw new Error('Contrast control failed');
+              const alpha = ratio([255, 255, 255], blend([0, 0, 0, 0.5], [255, 255, 255]));
+              if (alpha < 3.9 || alpha > 4.1) throw new Error('Alpha contrast control failed');
+              const targets = [...document.querySelectorAll('[role=alert], .workspace-note p, .library-column p, .layout-section > h2, .preview-panel > p, .document-toolbar > p')]
+                .filter(element => element.getClientRects().length && element.textContent.trim());
+              const ratios = targets.map(element => {
+                const parents = []; for (let parent = element; parent; parent = parent.parentElement) parents.unshift(parent);
+                const bg = parents.reduce((background, parent) => blend(rgba(getComputedStyle(parent).backgroundColor), background), [255, 255, 255]);
+                return ratio(blend(rgba(getComputedStyle(element).color), bg), bg);
+              });
+              const text = id => document.getElementById(id)?.textContent.replace(/\\s+/g, ' ').trim();
+              const describes = (name, id, expectedText) => {
+                const button = [...document.querySelectorAll('button')].find(button => button.textContent.trim() === name);
+                return button?.getAttribute('aria-describedby') === id && text(id) === expectedText;
+              };
+              const titles = [...document.querySelectorAll('.document-title')];
+              const named = (field, name) => [...(document.querySelector('.settings input[name=' + field + ']')?.labels ?? [])]
+                .some(label => label.textContent.trim() === name);
+              return {minimumContrast: Math.min(...ratios), contrastSamples: ratios.length,
+                lightNativeControls: getComputedStyle(document.documentElement).colorScheme === 'light',
+                namedLayoutInputs: named('fontPt', 'Body font (pt)') && named('spacingPt', 'Spacing (pt)'),
+                completeTitles: text('active-document-title') === 'Current document: ' + expected.current
+                  && text('replaced-document-title') === 'Replacement recovery: ' + expected.replaced
+                  && text('retained-pdf-title') === 'PDF document: ' + expected.pdf,
+                wrappedTitles: titles.length === 3 && titles.every(element => { const style = getComputedStyle(element);
+                  return style.overflowWrap === 'anywhere' && style.whiteSpace === 'normal'
+                    && element.scrollWidth <= element.clientWidth + 1 && element.clientHeight > parseFloat(style.lineHeight) * 1.5; }),
+                describedActions: ['Export document JSON', 'Export TeX', 'Retry draft save'].every(name => describes(name, 'active-document-title', 'Current document: ' + expected.current))
+                  && describes('Restore last replaced document', 'replaced-document-title', 'Replacement recovery: ' + expected.replaced)
+                  && describes('Export PDF', 'retained-pdf-title', 'PDF document: ' + expected.pdf)};
+            })()''')
+            require(checks['contrastSamples'] >= 10 and checks['minimumContrast'] >= 4.5, 'Selected UI text does not meet 4.5:1 contrast: ' + str(checks))
+            require(all(checks[key] for key in ['lightNativeControls', 'namedLayoutInputs', 'completeTitles', 'wrappedTitles', 'describedActions']),
+                    'A UI accessibility check failed: ' + str(checks))
+            return checks
+
         try:
             watcher.start()
             require(os.getpgid(chrome.pid) == os.getpgrp(), 'Chrome escaped the monitored command group.')
@@ -227,7 +273,15 @@ def main(expected_pid: int) -> None:
             require(evaluate('document.querySelector("input[name=newAllowance]").value === "1" && localStorage.getItem("texgen.draft.v1") === null'), 'Failed creation lost the allowance or changed the draft.')
             evaluate('window.__failDraft = false; true')
             click('Create document')
-            browser('find', 'label', 'Document title', 'fill', 'Layout review - synthetic document')
+            compiled_title = 'Compiled ' + 'P' * 440
+            browser('find', 'label', 'Document title', 'fill', compiled_title)
+            require(evaluate('''(() => { const details = document.querySelector('.catalog-section > details');
+              details.open = false; details.querySelector('summary').focus(); return document.activeElement === details.querySelector('summary'); })()'''), 'The catalog summary cannot receive focus.')
+            browser('press', 'Enter')
+            browser('wait', '--fn', 'document.querySelector(".catalog-section > details").open')
+            browser('press', 'Enter')
+            browser('wait', '--fn', '!document.querySelector(".catalog-section > details").open')
+            report['catalogKeyboardDisclosure'] = True
             evaluate('''(() => { const inputs = [...document.querySelectorAll('.formula-choice input')].slice(0, 2);
               inputs.forEach((input, index) => { input.dataset.layoutFormula = String(index);
                 for (const detail of document.querySelectorAll('details')) if (detail.contains(input)) detail.open = true;
@@ -274,8 +328,20 @@ def main(expected_pid: int) -> None:
             click('Export document JSON')
             exported = json.loads(downloaded('texgen-document.json').read_text())
             require(exported == evaluate('JSON.parse(localStorage.getItem("texgen.draft.v1")).active'), 'JSON export differs from the saved synthetic draft.')
-            browser('find', 'label', 'Document title', 'fill', 'Edited synthetic document')
+            replaced_title = 'Previous ' + 'Q' * 440
+            browser('find', 'label', 'Document title', 'fill', replaced_title)
             browser('wait', '--text', 'This PDF is outdated.')
+            browser('fill', 'input[name=newAllowance]', '1')
+            click('Clear and create document')
+            browser('dialog', 'accept')
+            current_title = 'Current ' + 'R' * 440
+            browser('find', 'label', 'Document title', 'fill', current_title)
+            evaluate('window.__failDraft = true; true')
+            current_title += '!'
+            browser('find', 'label', 'Document title', 'fill', current_title)
+            browser('wait', '--text', 'Draft save failed.')
+            report['desktopAccessibility'] = accessibility(current_title, replaced_title, compiled_title)
+            screenshot('desktop-accessibility.png')
             browser('set', 'viewport', '320', '900')
             evaluate('window.scrollTo(0, 0); true')
             mobile = evaluate('''(() => { const top = selector => document.querySelector(selector).getBoundingClientRect().top + scrollY;
@@ -283,7 +349,11 @@ def main(expected_pid: int) -> None:
             require(not mobile['overflow'] and mobile['creationInSidebar'], 'The 320px layout overflows or moves creation out of the sidebar.')
             require(mobile['library'] < mobile['tools'] < mobile['editor'] < mobile['preview'], 'Mobile workspace order is incorrect.')
             report['mobileGeometry'] = mobile
+            report['mobileAccessibility'] = accessibility(current_title, replaced_title, compiled_title)
             screenshot('mobile-full.png')
+            evaluate('window.__failDraft = false; true')
+            click('Retry draft save')
+            require(evaluate('!document.body.textContent.includes("Draft save failed.")'), 'The draft save retry did not clear its error.')
             report['fixtureCompiles'] = evaluate('window.__fixtureCompiles')
             require(report['fixtureCompiles'] == 1, 'Unexpected replay compilation count.')
             report.update(passed=True, creationFailureRetry=True, twoPaintedPages=True,
