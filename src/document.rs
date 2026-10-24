@@ -32,9 +32,13 @@ pub struct Document {
 pub struct Layout {
     pub paper: Paper,
     pub columns: u8,
+    #[serde(serialize_with = "serialize_dimension")]
     pub margins_mm: f64,
+    #[serde(serialize_with = "serialize_dimension")]
     pub font_pt: f64,
+    #[serde(serialize_with = "serialize_dimension")]
     pub spacing_pt: f64,
+    #[serde(serialize_with = "serialize_dimension")]
     pub column_gap_mm: f64,
 }
 
@@ -81,6 +85,18 @@ pub struct FormulaBlock {
 pub enum FormulaBody {
     Math { latex: Latex },
     Fragment { latex: Latex },
+}
+
+fn serialize_dimension<S: serde::Serializer>(
+    value: &f64,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    // Match JSON.stringify for bounded layout integers, including negative zero.
+    if value.fract() == 0.0 && (0.0..=210.0).contains(value) {
+        serializer.serialize_u64(*value as u64)
+    } else {
+        serializer.serialize_f64(*value)
+    }
 }
 
 impl Document {
@@ -249,6 +265,39 @@ mod tests {
         let restored: Document = serde_json::from_str(&encoded).unwrap();
         assert_eq!(document, restored);
         assert!(restored.mode_recovery.is_some());
+    }
+
+    #[test]
+    fn browser_and_rust_share_the_compact_json_byte_boundary() {
+        for bytes in [999_990, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_BYTES + 1] {
+            let mut input: Value =
+                serde_json::from_str(include_str!("../tests/fixtures/byte-limit-document.json"))
+                    .unwrap();
+            let padding = bytes - serde_json::to_vec(&input).unwrap().len();
+            input["content"]["source"] = json!("x".repeat(padding / 2));
+            input["modeRecovery"]["content"]["source"] = json!("x".repeat(padding.div_ceil(2)));
+            assert_eq!(serde_json::to_vec(&input).unwrap().len(), bytes);
+            let document: Document = serde_json::from_value(input).unwrap();
+            assert_eq!(
+                document.validate().is_ok(),
+                bytes <= MAX_DOCUMENT_BYTES,
+                "{bytes}"
+            );
+        }
+    }
+
+    #[test]
+    fn layout_serialization_matches_browser_integer_fraction_and_negative_zero_values() {
+        let mut layout = fixture().layout;
+        layout.margins_mm = -0.0;
+        layout.font_pt = 0.001;
+        layout.spacing_pt = 0.0;
+        layout.column_gap_mm = 3.125;
+        layout.validate().unwrap();
+        assert_eq!(
+            serde_json::to_string(&layout).unwrap(),
+            r#"{"paper":"A4","columns":2,"marginsMm":0,"fontPt":0.001,"spacingPt":0,"columnGapMm":3.125}"#
+        );
     }
 
     #[test]

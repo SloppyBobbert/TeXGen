@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "id": "byte-limit-document",
+  "title": "Shared size boundary",
+  "pageAllowance": 1,
+  "layout": {
+    "paper": "A4",
+    "columns": 2,
+    "marginsMm": 5,
+    "fontPt": 9,
+    "spacingPt": 1,
+    "columnGapMm": 3
+  },
+  "content": { "mode": "raw", "source": "" },
+  "modeRecovery": {
+    "layout": {
+      "paper": "A4",
+      "columns": 2,
+      "marginsMm": 5,
+      "fontPt": 9,
+      "spacingPt": 1,
+      "columnGapMm": 3
+    },
+    "content": { "mode": "raw", "source": "" }
+  }
+}

@@ -141,7 +141,8 @@ Both recovery directions remain portable through canonical document JSON.
 - Raw document source permits at most 500,000 UTF-8 bytes.
 - LaTeX fields cannot contain a null character.
 - Each structured content copy permits at most 1,024 blocks.
-- The canonical document, including mode recovery, permits at most 1,000,000 JSON bytes.
+- The canonical document, including mode recovery, permits at most 1,000,000 compact JSON bytes.
+- For this count, integral layout values have no decimal suffix. Negative zero is `0`. Rust and browser serialization use the same rule.
 
 These checks do not certify LaTeX syntax, overflow, overlap, page count, printer compatibility, or readability.
 They do not establish approved density limits.
@@ -150,6 +151,8 @@ They do not establish approved density limits.
 
 All API operations require the local protected session and app request header.
 POST requests also require the exact origin and JSON content type.
+Request body collection has a five-second deadline and a 1 MiB limit.
+This deadline does not interrupt compiler execution or owned cleanup.
 
 - `GET /api/catalog` returns the validated static catalog.
 - `POST /api/documents/validate` validates a document without changing server state.

@@ -1,8 +1,9 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use axum::{
-    Json, Router,
-    extract::{DefaultBodyLimit, Request, State},
+    Json, RequestExt, Router,
+    body::{Body, Bytes},
+    extract::{DefaultBodyLimit, FromRequest, Request, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -66,6 +67,7 @@ fn build_app(session: Arc<Session>, assets: PathBuf, compiler_routes: Option<Rou
         .fallback_service(ServeDir::new(assets))
         .with_state(session.clone())
         .merge(compiler_routes.unwrap_or_default())
+        .layer(middleware::from_fn(bound_api_body))
         .layer(DefaultBodyLimit::max(1_048_576))
         .layer(middleware::from_fn_with_state(session, protect))
 }
@@ -74,6 +76,33 @@ fn single_header<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
     let mut values = headers.get_all(name).iter();
     let value = values.next()?.to_str().ok()?;
     values.next().is_none().then_some(value)
+}
+
+async fn bound_api_body(mut request: Request, next: Next) -> Response {
+    if request.uri().path().starts_with("/api/")
+        && matches!(
+            *request.method(),
+            Method::POST | Method::PUT | Method::PATCH | Method::DELETE
+        )
+    {
+        let (parts, body) = request.with_limited_body().into_parts();
+        // Bound body collection only; compiler execution retains its own cleanup deadline.
+        let bytes = match tokio::time::timeout(
+            Duration::from_secs(5),
+            Bytes::from_request(Request::new(body), &()),
+        )
+        .await
+        {
+            Ok(Ok(bytes)) => bytes,
+            Ok(Err(error)) => return error.into_response(),
+            Err(_) => {
+                return (StatusCode::REQUEST_TIMEOUT, "The request body timed out.")
+                    .into_response();
+            }
+        };
+        request = Request::from_parts(parts, Body::from(bytes));
+    }
+    next.run(request).await
 }
 
 async fn protect(State(session): State<Arc<Session>>, request: Request, next: Next) -> Response {
@@ -233,6 +262,79 @@ mod tests {
             .oneshot(request.body(Body::from(body.to_owned())).unwrap())
             .await
             .unwrap()
+    }
+
+    #[tokio::test]
+    async fn incomplete_session_bodies_finish_before_shutdown_can_wait_forever() {
+        use http_body_util::{BodyExt, Full};
+        let body =
+            Full::new(axum::body::Bytes::from_static(b"{")).with_trailers(std::future::pending::<
+                Option<Result<HeaderMap, std::convert::Infallible>>,
+            >());
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/api/session")
+            .header("host", ADDRESS)
+            .header("origin", ORIGIN)
+            .header("x-texgen-client", "1")
+            .header("content-type", "application/json")
+            .header("content-length", "2")
+            .body(Body::new(body))
+            .unwrap();
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(6),
+            app(Arc::new(Session::new().unwrap()), PathBuf::from("ui/dist")).oneshot(request),
+        )
+        .await
+        .expect("An incomplete request must not block HTTP draining indefinitely.")
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::REQUEST_TIMEOUT);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+        assert!(response.headers().contains_key("content-security-policy"));
+    }
+
+    #[tokio::test]
+    async fn body_deadlines_preserve_the_existing_byte_limit() {
+        let response = request(
+            "/api/session",
+            Method::POST,
+            &[("origin", ORIGIN), ("content-type", "application/json")],
+            &"x".repeat(1_048_577),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+        assert_eq!(response.headers()["cache-control"], "no-store");
+    }
+
+    #[tokio::test]
+    async fn body_deadlines_do_not_abort_a_slow_compiler_handler() {
+        let session = Arc::new(Session::new().unwrap());
+        let cookie = session.cookie_header();
+        let compiler_routes = Router::new().route(
+            "/api/compile",
+            post(|| async {
+                tokio::time::sleep(Duration::from_millis(5_100)).await;
+                StatusCode::OK
+            }),
+        );
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("/api/compile")
+            .header("host", ADDRESS)
+            .header("origin", ORIGIN)
+            .header("x-texgen-client", "1")
+            .header("content-type", "application/json")
+            .header("cookie", cookie.split(';').next().unwrap())
+            .body(Body::from("{}"))
+            .unwrap();
+        let response = tokio::time::timeout(
+            Duration::from_secs(6),
+            build_app(session, PathBuf::from("ui/dist"), Some(compiler_routes)).oneshot(request),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[tokio::test]
