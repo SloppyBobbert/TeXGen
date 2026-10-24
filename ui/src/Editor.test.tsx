@@ -140,6 +140,76 @@ test("the document title sits above class controls without inheriting their disa
   expect(screen.getByRole("heading", { name: "Select classes" })).toBeDefined();
 });
 
+test.each(["", "   ", "Saved " + "X".repeat(450)])(
+  "full document titles describe active and replacement actions",
+  async (title) => {
+    const displayTitle = title.trim() || "Untitled document";
+    const previousTitle = "Previous " + "Y".repeat(450);
+    window.localStorage.setItem(
+      DRAFT_KEY,
+      encodeDraft({
+        version: 1,
+        active: { ...createDocument("active", 2, COMPACT_CANDIDATE), title },
+        replaced: {
+          ...createDocument("previous", 3, COMPACT_CANDIDATE),
+          title: previousTitle,
+        },
+      }),
+    );
+    await open();
+    const description = `Current document: ${displayTitle}`;
+    for (const name of [
+      "Export document JSON",
+      "Export TeX",
+      "Retry draft save",
+    ])
+      expect(screen.getByRole("button", { name, description })).toBeDefined();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore last replaced document",
+        description: `Replacement recovery: ${previousTitle}`,
+      }),
+    ).toBeDefined();
+    expect(
+      screen.getByText(displayTitle, {
+        selector: ".document-title strong",
+      }).textContent,
+    ).toBe(displayTitle);
+    expect(
+      screen.getByText(previousTitle, { selector: ".document-title strong" })
+        .textContent,
+    ).toBe(previousTitle);
+    fireEvent.change(screen.getByLabelText("Document title"), {
+      target: { value: "Renamed current document" },
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Export document JSON",
+        description: "Current document: Renamed current document",
+      }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole("button", {
+        name: "Restore last replaced document",
+        description: `Replacement recovery: ${previousTitle}`,
+      }),
+    ).toBeDefined();
+  },
+);
+
+test("layout values have names and catalog panels use native disclosure state", async () => {
+  await create();
+  for (const name of ["Body font (pt)", "Spacing (pt)"])
+    expect(screen.getByRole("spinbutton", { name })).toBeDefined();
+  const summary = screen.getByText("Algebra", { selector: "summary" });
+  const disclosure = summary.closest("details")!;
+  expect(disclosure.open).toBe(false);
+  fireEvent.click(summary);
+  expect(disclosure.open).toBe(true);
+  fireEvent.click(summary);
+  expect(disclosure.open).toBe(false);
+});
+
 test("the preview remains mounted when the source workspace is created or replaced", async () => {
   await open();
   const preview = screen.getByRole("region", {
