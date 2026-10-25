@@ -683,7 +683,7 @@ case "$1" in
   create)
     if [ "$mode" = create-delayed ]; then
       : > "$base/create-submitted"
-      exec /bin/sleep 1
+      exec /bin/sleep 10
     fi
     : > "$base/created"
     [ "$mode" != partial ] || exit 42
@@ -734,7 +734,8 @@ esac
         let owner = space.lease().cancel_on_drop();
         let client = fake_client(&root, &space, "create-delayed");
         let cancel = async {
-            tokio::time::timeout(tokio::time::Duration::from_secs(1), async {
+            // Parallel process fixtures can delay the fake CLI's first write.
+            tokio::time::timeout(tokio::time::Duration::from_secs(5), async {
                 while !root.0.join("create-submitted").exists() {
                     tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
                 }

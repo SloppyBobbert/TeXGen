@@ -125,6 +125,46 @@ test("exporting a retained PDF after document replacement still requires confirm
   );
 });
 
+test.each(["", "   ", "Compiled " + "Z".repeat(450)])(
+  "PDF export describes the retained title until a replacement succeeds",
+  async (title) => {
+    const displayTitle = title.trim() || "Untitled document";
+    const pdf = parsed();
+    mocks.open.mockResolvedValueOnce(pdf);
+    const view = render(
+      <PdfPreview {...props} document={{ ...document, title }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Compile PDF" }));
+    await screen.findByText(/Actual page count: 3/);
+    const description = `PDF document: ${displayTitle}`;
+    expect(
+      screen.getByRole("button", { name: "Export PDF", description }),
+    ).toBeDefined();
+    expect(
+      screen.getByText(displayTitle, {
+        selector: ".document-title strong",
+      }).textContent,
+    ).toBe(displayTitle);
+    const replacement = { ...document, id: "replacement", title: "New title" };
+    view.rerender(
+      <PdfPreview {...props} document={replacement} revision={2} />,
+    );
+    mocks.compile.mockRejectedValueOnce(new Error("Compilation failed"));
+    fireEvent.click(screen.getByRole("button", { name: "Compile PDF" }));
+    await screen.findByText(/Compilation failed/);
+    expect(
+      screen.getByRole("button", { name: "Export PDF", description }),
+    ).toBeDefined();
+    expect(pdf.close).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Compile PDF" }));
+    await screen.findByRole("button", {
+      name: "Export PDF",
+      description: "PDF document: New title",
+    });
+    expect(pdf.close).toHaveBeenCalledOnce();
+  },
+);
+
 test("editing marks the retained PDF outdated and failures do not replace it", async () => {
   const first = parsed();
   mocks.open

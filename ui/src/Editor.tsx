@@ -404,6 +404,20 @@ export function Editor({
         <h2 id="draft-heading" className="sr-only">
           Document and draft recovery
         </h2>
+        {document ? (
+          <p id="active-document-title" className="document-title">
+            Current document:{" "}
+            <strong>{document.title.trim() || "Untitled document"}</strong>
+          </p>
+        ) : null}
+        {snapshot.replaced ? (
+          <p id="replaced-document-title" className="document-title">
+            Replacement recovery:{" "}
+            <strong>
+              {snapshot.replaced.title.trim() || "Untitled document"}
+            </strong>
+          </p>
+        ) : null}
         <p role="status">{snapshot.ownershipMessage}</p>
         {snapshot.ownership === "readonly" ? (
           <button type="button" onClick={actions.start}>
@@ -432,6 +446,7 @@ export function Editor({
             type="button"
             disabled={!document}
             className="primary-button"
+            aria-describedby={document ? "active-document-title" : undefined}
             onClick={actions.exportJson}
           >
             Export document JSON
@@ -439,6 +454,7 @@ export function Editor({
           <button
             type="button"
             disabled={!document}
+            aria-describedby={document ? "active-document-title" : undefined}
             onClick={() => void actions.exportTex()}
           >
             Export TeX
@@ -446,6 +462,7 @@ export function Editor({
           <button
             type="button"
             disabled={!writer || !snapshot.dirty}
+            aria-describedby={document ? "active-document-title" : undefined}
             onClick={actions.save}
           >
             Retry draft save
@@ -453,6 +470,9 @@ export function Editor({
           <button
             type="button"
             disabled={!writer || !snapshot.replaced}
+            aria-describedby={
+              snapshot.replaced ? "replaced-document-title" : undefined
+            }
             onClick={() => {
               if (
                 window.confirm(

@@ -7,6 +7,7 @@ import { PdfPage } from "./PdfPage";
 
 interface Retained {
   id: string;
+  title: string;
   revision: number;
   allowance: number;
   bytes: Uint8Array<ArrayBuffer>;
@@ -105,6 +106,7 @@ export function PdfPreview({
       }
       const next = {
         id: document.id,
+        title: document.title,
         revision,
         allowance: document.pageAllowance,
         bytes,
@@ -157,6 +159,7 @@ export function PdfPreview({
           </button>
           <button
             disabled={!retained}
+            aria-describedby={retained ? "retained-pdf-title" : undefined}
             onClick={() => {
               if (
                 retained &&
@@ -203,6 +206,10 @@ export function PdfPreview({
       ) : null}
       {retained ? (
         <>
+          <p id="retained-pdf-title" className="document-title">
+            PDF document:{" "}
+            <strong>{retained.title.trim() || "Untitled document"}</strong>
+          </p>
           <p role="status">
             Retained PDF: document {retained.id}, revision {retained.revision}.
             Actual page count: {pages}.

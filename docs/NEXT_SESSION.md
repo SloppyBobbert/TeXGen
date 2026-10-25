@@ -9,7 +9,35 @@
 5. Read `docs/STAGE4_VERIFICATION.md` for the retained structured-editor checks.
 6. Inspect Git status with `GIT_OPTIONAL_LOCKS=0 git status --short`.
 
-## Current PR corrections — overrides all earlier notes
+## PR #21 main integration — overrides earlier publication status
+
+- The user approved integration of current main into the PR #21 branch, resolution of the two reviewed conflicts, a normal push, and a change of PR target to `main`. Do not merge #21, close #18, deploy, force-push, restart the site, or remove stored artifacts.
+- #20 was squash-merged as main `29a8650438ac75120280612637de85be9f3057de`. Its source tree matches the reviewed correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. The old PR target was `fix/pr19-lifecycle-recovery`; its earlier green checks did not establish integration into main.
+- The branch update uses a normal merge, not a rebase or history rewrite. Resolve `src/compiler/cli.rs` by retaining the reviewed test-only ten-second mock sleep and five-second startup wait. Preserve all production deadlines and validation. Resolve this document by retaining the UI and correction evidence below and updating the current status here.
+- Verify that every file except this status document is byte-identical to reviewed UI head `7e7f8670219bcda76d18138af01cf3370bd5dc37`. The diff against main must contain only the same 12 approved paths. Publish with #21 targeting `main`, then verify fresh CI checks before a merge decision.
+- The earlier 111-test UI gate, full offline Rust gate, and desktop/mobile browser replay remain evidence for the unchanged source. Do not call them new integration runs. New GitHub checks must apply to the updated head and main target.
+- Preserve all 19 original indices, protected refs and files, old assets, valid PDFs, and the running site. All 16 native attempts remain exhausted. Keep the 512 MiB cap, 32 MiB reserve, and Rust LSP denial. No new package, browser, font, or compiler-image download or installation is approved.
+
+## Current PR #18 UI work — earlier publication evidence
+
+- The user asked to apply relevant PR #18 requirements to the new UI. PR #18 remains open and conflicting. Do not restore the deleted frontend, themes, Dashboard, or video features. Do not merge or close that PR automatically.
+- Earlier correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce` is preserved on `fix/pr19-lifecycle-recovery` and was squash-merged through #20. Its GitHub CI checks passed. Its separate publication worktree remains clean. The implementation worktree retains the checked changes without index updates.
+- The UI follow-up was published as #21 at `7e7f8670219bcda76d18138af01cf3370bd5dc37` on `fix/pr18-ui-accessibility`. Use `target/pr18-ui-publication` for the approved integration update. The current integration rules above replace its earlier stacked-branch publication instructions.
+- A fresh independent read-only review found no actionable correctness, accessibility, or safety regressions in the new changes relative to #20. It checked title ownership, ARIA references, CSS, test configuration, and browser-test scope. The two publication screenshots contain synthetic documents only.
+- Draft errors now retain alert styling instead of muted paragraph styling. Active, replacement-recovery, and retained-PDF titles have full wrapping text. Export, save, and restore actions describe their corresponding document title.
+- PDF title descriptions use the title captured at successful compilation. Edits, document replacement, and failed compilation do not rename the retained PDF. Empty or whitespace-only titles display `Untitled document`. Stored titles remain unchanged.
+- The new UI already has labelled font/spacing inputs, a light native-control scheme, and native disclosure sections. Regression checks retain these behaviors. No new theme or panel framework was added.
+- Title-description and stylesheet regressions failed before correction. All 34 focused UI checks, lint, and types then passed. Log: `approved-command-1792807014051807000.log`. Stylesheet tests now load real CSS through a narrow Vitest include rule. No Node type package was installed.
+- The first complete gate passed the UI checks but failed the delayed-create fixture's one-second startup wait under parallel load. No browser started. Preservation passed. Log: `approved-command-1792807429285270000.log`. Failed report: `target/pr18-ui-verification-1792807446664230000.json`.
+- Only the fake CLI fixture changed for this failure. Its bounded startup wait is now five seconds. Its mock process stays pending for ten seconds, so cancellation precedes normal completion. Production compiler code and deadlines remain unchanged.
+- The repeated complete gate passed: 111 UI tests, formatting, lint, types, UI build, strict release Clippy, all offline Rust tests, and the release build. The browser replay then stopped at an unhandled native Clear confirmation. Preservation passed. Log: `approved-command-1792807723170066000.log`. Report: `target/pr18-ui-verification-1792807926079950000.json`.
+- The browser test now accepts the native Clear confirmation before its next action. The repeated replay passed at 1440 px and 320 px. All 21 selected text samples met 4.5:1 contrast. The minimum was 5.48:1. Native controls, labelled inputs, keyboard disclosure, full wrapping titles, and matching action descriptions passed. Both screenshots were inspected.
+- Browser evidence: `approved-command-1792808082784327000.log` and `target/current-layout-1792808084855749000/report.json`. Aggregate proof: `target/pr18-ui-browser-verification-1792808131424906000.json`. All 19 indices, existing refs, retained probe PDFs, old assets, the live listener, and the exhausted ledger remained unchanged.
+- The browser profile used 1,593,344 bytes. The monitored command ended at 489,336,832 bytes, below the unchanged cap and reserve threshold. The replay used synthetic documents and saved PDF bytes. It did not authenticate API requests or run a native compilation. This is not a full accessibility certification or physical-device check.
+- The replay profile now has an 8 MiB polling stop threshold, below its earlier 16 MiB threshold. The 512 MiB output cap and 32 MiB reserve remain unchanged. Chrome retains its own sandbox and the closed-proxy restriction. Real compilation remains blocked. All 16 native attempts remain exhausted.
+- The TypeScript probe found no errors or warnings. It reported only existing `FormEvent` deprecation hints in `Editor.tsx`. Keep Rust LSP denial and automatic Rust scans disabled. Do not restart the site, stop replacement analyzers, or remove stored artifacts.
+
+## PR #19 correction evidence — earlier work
 
 - GitHub reports PR #19 as merged at `2026-10-23T05:22:41Z`. Its merge commit is `c63542cf03b0bf004ebaf833fa00c439a67a4867`.
 - The review used actual base `51716cd51837dfdcabda09479bd752c7297bf9aa` and head `ce4b6129d8de5ac5c4a2e512b3bafde0cb238c86`. Local HEAD remains `92fb47b00682f50d1e20d9dbd4549b9e163e579a` on `rewrite/rust-web`.

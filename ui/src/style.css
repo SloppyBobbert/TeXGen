@@ -341,13 +341,17 @@ legend {
   border-radius: 12px;
   background: white;
 }
-.document-toolbar > p {
+.document-toolbar > p:not([role="alert"]) {
   color: var(--muted);
   font-size: 0.7rem;
   margin-bottom: 0.5rem;
 }
 .document-toolbar > p[role="status"] {
   color: #38383f;
+}
+.document-title {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .document-toolbar .actions {
   gap: 0.4rem;
