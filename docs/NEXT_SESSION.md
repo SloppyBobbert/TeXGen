@@ -9,11 +9,20 @@
 5. Read `docs/STAGE4_VERIFICATION.md` for the retained structured-editor checks.
 6. Inspect Git status with `GIT_OPTIONAL_LOCKS=0 git status --short`.
 
-## Current PR #18 UI work — overrides all earlier notes
+## PR #21 main integration — overrides earlier publication status
+
+- The user approved integration of current main into the PR #21 branch, resolution of the two reviewed conflicts, a normal push, and a change of PR target to `main`. Do not merge #21, close #18, deploy, force-push, restart the site, or remove stored artifacts.
+- #20 was squash-merged as main `29a8650438ac75120280612637de85be9f3057de`. Its source tree matches the reviewed correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. The old PR target was `fix/pr19-lifecycle-recovery`; its earlier green checks did not establish integration into main.
+- The branch update uses a normal merge, not a rebase or history rewrite. Resolve `src/compiler/cli.rs` by retaining the reviewed test-only ten-second mock sleep and five-second startup wait. Preserve all production deadlines and validation. Resolve this document by retaining the UI and correction evidence below and updating the current status here.
+- Verify that every file except this status document is byte-identical to reviewed UI head `7e7f8670219bcda76d18138af01cf3370bd5dc37`. The diff against main must contain only the same 12 approved paths. Publish with #21 targeting `main`, then verify fresh CI checks before a merge decision.
+- The earlier 111-test UI gate, full offline Rust gate, and desktop/mobile browser replay remain evidence for the unchanged source. Do not call them new integration runs. New GitHub checks must apply to the updated head and main target.
+- Preserve all 19 original indices, protected refs and files, old assets, valid PDFs, and the running site. All 16 native attempts remain exhausted. Keep the 512 MiB cap, 32 MiB reserve, and Rust LSP denial. No new package, browser, font, or compiler-image download or installation is approved.
+
+## Current PR #18 UI work — earlier publication evidence
 
 - The user asked to apply relevant PR #18 requirements to the new UI. PR #18 remains open and conflicting. Do not restore the deleted frontend, themes, Dashboard, or video features. Do not merge or close that PR automatically.
-- Earlier correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce` is published on `fix/pr19-lifecycle-recovery` in open PR #20. Its GitHub CI checks passed. Its separate publication worktree remains clean. The implementation worktree retains the checked changes without index updates.
-- The user now approved a final review, a clean commit and push, and a follow-up PR for the UI changes. Use `fix/pr18-ui-accessibility` in `target/pr18-ui-publication`, based on PR #20 head `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. Target `fix/pr19-lifecycle-recovery` while #20 remains open. This keeps the new PR diff limited to UI work. Merge #20 first. No merge, automatic closure of #18, deployment, force push, or stored-artifact cleanup is approved.
+- Earlier correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce` is preserved on `fix/pr19-lifecycle-recovery` and was squash-merged through #20. Its GitHub CI checks passed. Its separate publication worktree remains clean. The implementation worktree retains the checked changes without index updates.
+- The UI follow-up was published as #21 at `7e7f8670219bcda76d18138af01cf3370bd5dc37` on `fix/pr18-ui-accessibility`. Use `target/pr18-ui-publication` for the approved integration update. The current integration rules above replace its earlier stacked-branch publication instructions.
 - A fresh independent read-only review found no actionable correctness, accessibility, or safety regressions in the new changes relative to #20. It checked title ownership, ARIA references, CSS, test configuration, and browser-test scope. The two publication screenshots contain synthetic documents only.
 - Draft errors now retain alert styling instead of muted paragraph styling. Active, replacement-recovery, and retained-PDF titles have full wrapping text. Export, save, and restore actions describe their corresponding document title.
 - PDF title descriptions use the title captured at successful compilation. Edits, document replacement, and failed compilation do not rename the retained PDF. Empty or whitespace-only titles display `Untitled document`. Stored titles remain unchanged.
