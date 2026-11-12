@@ -1,7 +1,9 @@
 /target/
 /ui/node_modules/
 /ui/dist/
-/.pi/tasks/
+/.pi/
+/.local-archive/
+/.envsitter/
 __pycache__/
 *.py[cod]
 .DS_Store

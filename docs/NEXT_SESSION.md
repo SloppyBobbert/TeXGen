@@ -1,4 +1,32 @@
-# Stage 6 — verified compiler boundary and browser PDF integration
+# Paused project handoff — 2026-11-11
+
+This section supersedes the checkout paths and live-process records in the historical notes.
+
+- The canonical checkout is `/Users/brandontran/TeXGen`, on branch `local/resume-rust-web`.
+- The branch starts at `b105ac2f1ab3df8af69adc3e666598569eae48f8`. It contains the latest checked local Rust application.
+- On another machine, clone or select branch `local/resume-rust-web` from `origin`. `main` does not include this handoff.
+- The project is paused. Do not assume that any historical server or process is still active.
+- Before work resumes, read `README.md` and `docs/DOCUMENT_FORMAT.md`.
+- Run `./scripts/setup.sh` to check installed tools. If dependencies are missing, follow the installation gate in `README.md`.
+- Run `./scripts/verify.sh` before further changes. Run `./scripts/run.sh` to start the site at `http://127.0.0.1:3737`.
+- Private recovery archives and saved Git states are in `.local-archive/local-update-20261111/`. Keep these files out of Git.
+- The earlier backup is now in `.local-archive/pre-rust-2026-10-17/`. Its 1,815 files passed hash checks after relocation.
+- Cleanup removed 19 obsolete worktree entries and preserved all 114 original Git references. Only the canonical checkout remains.
+- The sibling Rust and backup folders, the old external CI checkout, and `.slim` are gone. Their source records remain archived.
+- The old Rust `target` folder disappeared before migration. The source archives remain intact.
+- The offline checks passed in both checkout locations: 111 UI tests and 104 Rust tests. Nine external or native fixtures remained ignored.
+- The local index and its scripts and styles matched the canonical build after startup. API access controls rejected unauthenticated requests.
+- Browser automation was unavailable because the Chrome connector extension did not connect. No interactive browser check ran.
+- The compiler format was recovered from an old cache. Its size and SHA-256 match the pinned values.
+- The pinned runtime `bundle.zip` remains missing. PDF compilation stays disabled. Do not weaken the asset checks.
+- Source editing, JSON export, and TeX export do not require the compiler bundle or Docker.
+- Original target-only probe PDFs, reports, helper scripts, and attempt ledgers were not recovered.
+- All 16 native attempts remain exhausted. Do not recreate an empty ledger or run another image job without new approval.
+- Historical probe scripts refer to old paths and missing evidence. Review those paths and safety records before any future use.
+- Private recovery archives remain local. They contain unfinished historical work and local settings that must not enter the public repository.
+- No package download, image build, deployment, or native compiler job ran during this cleanup.
+
+## Historical Stage 6 — verified compiler boundary and browser PDF integration
 
 ## Start here
 
@@ -9,20 +37,37 @@
 5. Read `docs/STAGE4_VERIFICATION.md` for the retained structured-editor checks.
 6. Inspect Git status with `GIT_OPTIONAL_LOCKS=0 git status --short`.
 
-## PR #21 main integration — overrides earlier publication status
+## Current PR #21 integration fix — overrides earlier status
 
-- The user approved integration of current main into the PR #21 branch, resolution of the two reviewed conflicts, a normal push, and a change of PR target to `main`. Do not merge #21, close #18, deploy, force-push, restart the site, or remove stored artifacts.
-- #20 was squash-merged as main `29a8650438ac75120280612637de85be9f3057de`. Its source tree matches the reviewed correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. The old PR target was `fix/pr19-lifecycle-recovery`; its earlier green checks did not establish integration into main.
-- The branch update uses a normal merge, not a rebase or history rewrite. Resolve `src/compiler/cli.rs` by retaining the reviewed test-only ten-second mock sleep and five-second startup wait. Preserve all production deadlines and validation. Resolve this document by retaining the UI and correction evidence below and updating the current status here.
-- Verify that every file except this status document is byte-identical to reviewed UI head `7e7f8670219bcda76d18138af01cf3370bd5dc37`. The diff against main must contain only the same 12 approved paths. Publish with #21 targeting `main`, then verify fresh CI checks before a merge decision.
-- The earlier 111-test UI gate, full offline Rust gate, and desktop/mobile browser replay remain evidence for the unchanged source. Do not call them new integration runs. New GitHub checks must apply to the updated head and main target.
-- Preserve all 19 original indices, protected refs and files, old assets, valid PDFs, and the running site. All 16 native attempts remain exhausted. Keep the 512 MiB cap, 32 MiB reserve, and Rust LSP denial. No new package, browser, font, or compiler-image download or installation is approved.
+- The user approved fixing the old PR target and the two merge conflicts. The branch now has normal merge commit `b105ac2f1ab3df8af69adc3e666598569eae48f8`, with parents `7e7f8670219bcda76d18138af01cf3370bd5dc37` and main `29a8650438ac75120280612637de85be9f3057de`. It was pushed normally to `fix/pr18-ui-accessibility`. No history was rewritten.
+- PR #21 now targets `main` at `29a8650438ac75120280612637de85be9f3057de`. Its body no longer asks to merge #20 first. The GitHub diff contains only the 12 approved paths. Its three commits preserve the original history; they do not reapply 19 files to main.
+- Both conflicts were read and resolved explicitly. The fake CLI retains the reviewed ten-second mock sleep and five-second startup wait. All 102 tracked files except the public status document are byte-identical to reviewed UI head `7e7f867`. No production code, test assertion, dependency, or runtime deadline changed in this integration update.
+- Fresh push CI run `40241131097` and PR CI run `40241133308` both passed for updated head `b105ac2` against main. CodeRabbit completed and reported no actionable comments. Watcher `b1380a215` exited successfully. Watch log: `approved-command-1792968007311327000.log`. No merge, automatic closure of #18, deployment, restart, or cleanup was performed or approved.
+- GitHub reports #21 as `MERGEABLE` and `CLEAN` against current main `29a8650`. Its synthetic merge has parents main `29a8650` and updated head `b105ac2`, and its tree exactly matches the committed integration tree. No automatic merge is enabled. A human can now make the merge decision; this is not native-compiler, clean-host, or deployment approval.
+- Integration proof: `target/pr21-integration-before-1792967554355463000.json`, `target/pr21-integration-commit.json`, `target/pr21-integration-published.json`, `target/pr21-integration-review.json`, and final `target/pr21-integration-final.json`. The main commit was fetched without tags, a FETCH_HEAD write, or existing-ref updates. Only the approved UI branch refs changed. All 19 original indices, 28 protected files, other refs, and the exhausted native ledger were preserved. Both publication worktrees remain clean. The site still uses PID `74798` and returns HTTP 200.
+- CodeRabbit appended its release-note summary to the PR body. The authored body remains intact. An initial exact-body comparison rejected this expected append; the corrected check verifies the intact authored prefix and the explicit generated-summary markers. No bot text was removed. The failed command log remains preserved.
+- No new local build, browser replay, native job, package/browser/font download, or installation ran. The source-equivalence checks passed. Keep the 512 MiB cap, 32 MiB reserve, all 16 exhausted native attempts, Rust LSP denial, and all earlier preservation rules.
+
+## PR #21 safety after #20 merge — historical pre-integration check
+
+- The user merged #20 and asked whether #21 is safe. This request authorized a check only. No PR setting, branch, or index was changed.
+- GitHub main is now `29a8650438ac75120280612637de85be9f3057de`. #20 was squash-merged from `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. The two commits have identical source trees, `fd9ed78d8f883e249e5b468660e690e8a9b091f7`.
+- **Do not merge #21 yet.** Its head remains the reviewed `7e7f8670219bcda76d18138af01cf3370bd5dc37`, but it still targets `fix/pr19-lifecycle-recovery`, not `main`. Its green CI and `CLEAN` status apply to that old target.
+- The direct source difference from current main is exactly the 12 approved files. No loss of #20 fixes was found. However, squash history leaves `c63542cf03b0bf004ebaf833fa00c439a67a4867` as the common ancestor. GitHub's three-dot comparison contains 19 files, including earlier fixes.
+- A read-only three-way merge simulation found three conflict groups in two files: `docs/NEXT_SESSION.md` and `src/compiler/cli.rs`. The Rust differences are the test-only fake sleep and bounded startup wait. Production deadlines must stay unchanged. Retargeting alone does not resolve these conflicts.
+- Next, obtain approval to target `main`, integrate its squash history without a force push, review and resolve the two conflicts, and verify the final diff and checks. Do not resolve conflicts automatically, rewrite history, merge, deploy, restart the site, or run another native job.
+- Evidence: `target/pr21-after-pr20-1792815833856524000.json`, `target/pr21-main-safety-1792815976012910000.json`, `target/pr21-main-merge-simulation-1792816144500464000.json`, and final `target/pr21-merge-safety-verdict-1792816249671293000.json`. The initial tree-only report is not a main-merge approval. The merge simulation retains its raw byte output. Its first text-decoding failure remains in the approved command logs.
+- Preservation passed for all 19 original indices, 28 protected files, existing local refs, and the published source. No fetch updated local refs. All 16 native attempts remain exhausted. Keep the 512 MiB cap, 32 MiB reserve, Rust LSP denial, and all earlier artifact-preservation limits.
 
 ## Current PR #18 UI work — earlier publication evidence
 
 - The user asked to apply relevant PR #18 requirements to the new UI. PR #18 remains open and conflicting. Do not restore the deleted frontend, themes, Dashboard, or video features. Do not merge or close that PR automatically.
-- Earlier correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce` is preserved on `fix/pr19-lifecycle-recovery` and was squash-merged through #20. Its GitHub CI checks passed. Its separate publication worktree remains clean. The implementation worktree retains the checked changes without index updates.
-- The UI follow-up was published as #21 at `7e7f8670219bcda76d18138af01cf3370bd5dc37` on `fix/pr18-ui-accessibility`. Use `target/pr18-ui-publication` for the approved integration update. The current integration rules above replace its earlier stacked-branch publication instructions.
+- Earlier correction commit `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce` is published on `fix/pr19-lifecycle-recovery` in open PR #20. Its GitHub CI checks passed. Its separate publication worktree remains clean. The implementation worktree retains the checked changes without index updates.
+- The user approved final review, commit, push, and a follow-up PR. Publication is complete: PR #21, `https://github.com/SloppyBobbert/TeXGen/pull/21`, head `fix/pr18-ui-accessibility` at `7e7f8670219bcda76d18138af01cf3370bd5dc37`. Its clean publication worktree is `target/pr18-ui-publication`. Its sole parent is PR #20 head `4e67ed8546e7d9d2ee0c55f6d42e47f280ef17ce`. The PR targets `fix/pr19-lifecycle-recovery`, so it contains one new commit and only the 12 approved files. Merge #20 first. No merge, automatic closure of #18, deployment, force push, or stored-artifact cleanup is approved.
+- GitHub push CI run `40058173309` and PR CI run `40058346811` both passed. Watcher `beff420b8` exited successfully. PR job `120766212459` passed in 1m33s. Watch log: `approved-command-1792812510310962000.log`. No automatic merge is enabled.
+- CodeRabbit did not review #21. Its success status is a skip notice because automatic reviews are disabled for non-default target branches. Do not report that status as a completed review. The independent read-only review below did run. No bot settings were changed and no manual bot review was requested.
+- The site still uses PID `74798` and returns HTTP 200. An initial publication check compared the complete `lsof -Fp` output with a PID string and rejected its extra `f9` descriptor field. The corrected check selects only `p` fields. This was a verification-only failure; the site was not restarted. Failed command logs remain in the approved backup directory.
+- Publication proof: `target/pr18-publish-before-1792812137413287000.json`, `target/pr18-publish-commit.json`, `target/pr18-ui-pr21.json`, and final `target/pr18-publish-completed.json`. The normal push changed only the new branch. Remote `main`, PR #20, all 19 original indices, existing refs, protected files, and the exhausted ledger were unchanged. The two committed screenshots are copies of the inspected synthetic replay images. The original worktree and its index remain intact; this later status note is local only.
 - A fresh independent read-only review found no actionable correctness, accessibility, or safety regressions in the new changes relative to #20. It checked title ownership, ARIA references, CSS, test configuration, and browser-test scope. The two publication screenshots contain synthetic documents only.
 - Draft errors now retain alert styling instead of muted paragraph styling. Active, replacement-recovery, and retained-PDF titles have full wrapping text. Export, save, and restore actions describe their corresponding document title.
 - PDF title descriptions use the title captured at successful compilation. Edits, document replacement, and failed compilation do not rename the retained PDF. Empty or whitespace-only titles display `Untitled document`. Stored titles remain unchanged.
